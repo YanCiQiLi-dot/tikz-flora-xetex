@@ -119,6 +119,17 @@ local function offset_by(pts, wfn, f)
   return out
 end
 
+-- The stem body's colour, as B.stem lays it, for shapes that blend into a
+-- stem. Where tune.color.palette.stems names an ink group, its first ink.
+function B.stem_tone(cfg)
+  local h = Tune.color.hue
+  local choice = Tune.color.palette and Tune.color.palette.stems
+  local first = { int = function(_, a) return a end }
+  local ink = Color.ink_for(first, choice)
+  if ink then return Color.ink_rgb(ink, cfg.stem_l) end
+  return Color.oklch(cfg.stem_l, 0.85 * Color.max_chroma(cfg.stem_l, h), h)
+end
+
 -- Paint a stem of full width wfn(t) along `pts` as a brushed wash rather
 -- than an inked ribbon: a body glaze, a broken darker band down its shadow
 -- side, a broken pale streak down its lit side, and an ink line along the

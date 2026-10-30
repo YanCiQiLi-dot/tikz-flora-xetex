@@ -8,7 +8,7 @@
 --   3. features: the hero bloom crowns the main strand, then the other
 --      blooms and umbels take the roomiest slots along the strands, then
 --      leaves take what remains;
---   4. ornaments: compass star, pendants, the star panel;
+--   4. ornaments: compass star, edge chain, corner medallion, the star panel;
 --   5. fill: sprays grow into the remaining gaps, largest first, each on a
 --      hairline stem from the nearest existing stem; sparkles go last.
 -- Painting happens afterward in depth order.
@@ -87,10 +87,11 @@ function M.open_short_lines(g, spec, gutter)
 end
 
 -- The star cartouche's width and height for margin width mw, scaled by k:
--- the reference's panel, about 46 x 55 pt in a margin of 175 pt.
+-- the reference's panel, about 40 x 54 pt over its frame, in a margin
+-- about 148 pt wide.
 function M.cartouche_size(mw, k)
   k = k or 1
-  return G.clamp(mw * 0.26 * k, 16, 48), G.clamp(mw * 0.315 * k, 22, 58)
+  return G.clamp(mw * 0.27 * k, 16, 48), G.clamp(mw * 0.365 * k, 22, 66)
 end
 
 -- The border's line of action. Strands hug the outer margin at `edge` and
@@ -209,36 +210,6 @@ function M.excursion(rng, spec, root)
     pts[#pts + 1] = { x, math.min(y, ceiling) }
   end
   return { pts = G.spline_points(pts, 6), width = function(t) return 1.3 - 0.9 * t end }
-end
-
--- Slots along strands: a node, its tangent, and the best free anchor to
--- either side.
-function M.slots(rng, g, strands, step)
-  local slots = {}
-  for si, s in ipairs(strands) do
-    local L = G.length(s.pts)
-    local n = math.floor(L / step)
-    for i = 2, n - 1 do
-      local t = i / n + rng:jit(0.25 / n)
-      local p, a = G.at(s.pts, t)
-      for _, side in ipairs({ -1, 1 }) do
-        local dir = a + side * rng:range(0.55, 1.15)
-        local best
-        for _, d in ipairs({ 10, 18, 28, 40 }) do
-          local q = G.polar(p, dir, d)
-          local c = g:clearance(q[1], q[2], 60)
-          if c > 0 and (not best or c > best.c) then
-            best = { q = q, c = c, d = d }
-          end
-        end
-        if best then
-          slots[#slots + 1] = { strand = si, t = t, p = p, along = a, ang = dir, side = side,
-            anchor = best.q, room = best.c, dist = best.d }
-        end
-      end
-    end
-  end
-  return slots
 end
 
 return M

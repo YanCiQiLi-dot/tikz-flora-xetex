@@ -6,19 +6,19 @@
 local T = {
   gesture = {
     edge = 0.24,            -- outer line of the stems, fraction of margin width
-    bows = 2,               -- inward bows up the margin; fewer is gentler
+    bows = 3,               -- inward bows up the margin; fewer is gentler
     bow_amp = { 0.20, 0.33 },  -- inward reach of each bow, fraction of margin
     bow_width = { 0.34, 0.42 }, -- half-width of each bow, fraction of its band;
                             -- above 0.5 neighbouring bows merge into a flat offset
-    density_floor = 0.3,  -- spray and leaf density in the quiet stretches
-    bow_density = 0.55,      -- density at each bow, relative to the hero and the foot (1)
+    density_floor = 0.24,  -- spray and leaf density in the quiet stretches
+    bow_density = 0.6,      -- density at each bow, relative to the hero and the foot (1)
     end_reach = 3,        -- reach of the dense hero and foot clusters (hero radii)
   },
   plant = {
     root = 0.64,            -- where the plant is rooted along the foot, fraction of page width
     lookahead = 82,         -- pt ahead on its guide the main stem steers toward; longer is lazier
-    bend_radius = 26,       -- tightest bend of the main stem, pt
-    bend_ease = 21,         -- pt over which a bend may build from straight to tightest
+    bend_radius = 91,       -- tightest bend of the main stem, pt
+    bend_ease = 23,         -- pt over which a bend may build from straight to tightest
     long_shoots = 2,        -- shoots that climb with the main stem, crossing it
     shoot_start = { -0.15, 0.3 }, -- where long shoots leave, share of the rise (below 0: along the foot)
     shoot_end = { 0.6, 1.0 },     -- where they end, share of the rise; spread evenly between
@@ -39,6 +39,7 @@ local T = {
     petal_width = 0.35,     -- petal half-width, fraction of the bloom's radius
     rotation = -1,          -- turn of the first petal, degrees; negative picks one per seed
     lost_edges = 0.56,      -- share of each petal's outline lost
+    tilt = 35,              -- how far the bloom leans back, top away, degrees
   },
   -- Bloom styles. Each bloom picks a style by weight and draws its own
   -- count, width and so on from the style's ranges.
@@ -61,8 +62,9 @@ local T = {
     leaves = 100,           -- most large leaves on a page
     leaf_size = 1.25,          -- length of large leaves
     leaf_width = { 0.17, 0.23 }, -- half-width of a large leaf, share of its length, picked per leaf
-    leaf_overlap = 0.15,     -- how far leaves may grow across each other, 0-1
-    slot_spacing = 10,       -- pt between sprouting points along the stems
+    leaf_overlap = 0.45,     -- how far leaves may grow across each other, 0-1
+    leaf_spacing = { 26, 44 }, -- pt between leaf nodes along a stem, picked per node; wider where quiet
+    hole_min = 7,           -- smallest hole, pt radius, that gets a bloom or spray; raised where quiet
     sprays = 150,           -- most fine sprays on a page
     small_blooms = 6,       -- small blooms the sprays may add
     curls = 0.45,            -- how often tendrils and loop flourishes appear
@@ -155,6 +157,7 @@ T._doc = {
   ["hero.petal_width"] = { "Petal width", "Width of each petal as a share of the bloom's radius. Wider petals overlap." },
   ["hero.rotation"] = { "Rotation", "Turn of the first petal, in degrees. Negative picks a turn per seed." },
   ["hero.lost_edges"] = { "Hero lost edges", "Share of each hero petal's outline left undrawn, melting into the paper." },
+  ["hero.tilt"] = { "Tilt", "How far the hero leans back, top away from the viewer and bottom toward, in degrees. 0 faces the page." },
   blooms = { "Bloom styles", "Each bloom picks a style by weight; each style has its own petal shape, colour look and ranges." },
   ["blooms.fan"] = { "Fan", "The reference's flower: broad round-ended petals that overlap, solid blue nearly to the eye, white rays." },
   ["blooms.round"] = { "Round", "Rounded vivid petals that pale toward the eye." },
@@ -183,7 +186,8 @@ T._doc = {
   ["compose.leaf_size"] = { "Leaf length", "Length of large leaves (1 = default)." },
   ["compose.leaf_width"] = { "Leaf width", "How broad each large leaf is: its half-width as a share of its length, picked per leaf." },
   ["compose.leaf_overlap"] = { "Leaf overlap", "How far leaves may grow across one another. 0 keeps each blade clear; near 1 they layer densely." },
-  ["compose.slot_spacing"] = { "Sprout spacing", "Distance in pt between points along the stems where leaves, blooms and curls may sprout. Smaller is denser." },
+  ["compose.leaf_spacing"] = { "Leaf spacing", "Distance in pt between the nodes where leaves grow along a stem, picked per node. Quiet stretches space them up to 1.7 times wider." },
+  ["compose.hole_min"] = { "Smallest hole", "Radius in pt of the smallest open space that still gets a bloom or spray. Quiet stretches need up to 2.4 times this, so they stay airier." },
   ["compose.sprays"] = { "Sprays", "Most fine sprays (baby's breath, forget-me-nots, buds) on a page." },
   ["compose.small_blooms"] = { "Small blooms", "How many small flowers the sprays may add." },
   ["compose.curls"] = { "Curls", "How often tendrils and loop flourishes sprout from the stems (1 = default)." },

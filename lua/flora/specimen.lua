@@ -54,7 +54,7 @@ function M.draw(seed)
 
   O.compass(pt, 590, 400, 24)
   O.panel(pt, rng:fork("panel"), 395, 30, 34, 50)
-  O.pendant(pt, rng:fork("pend"), 600, 300, 90)
+  O.chain(pt, rng:fork("chain"), 600, 300, 210)
   O.sparkles(pt, { { 520, 400, 4 }, { 540, 300, 3 }, { 330, 410, 3.5 }, { 20, 410, 2.5 } })
 
   return pt

@@ -92,9 +92,119 @@ function S:clearance(x, y, maxr, over_stems)
   return math.min(maxr, math.max(0, best - c))
 end
 
+-- The clearance field: for each cell, the distance in pt to the nearest
+-- obstacle (text, outside, or a placed element; stem corridors do not
+-- count). Built once the fixed obstacles are in; placed elements then lower
+-- it through S:disc. Distances are chamfer estimates (within about 8% of
+-- Euclidean), measured from cell centres.
+function S:field()
+  local nx, ny, v, c = self.nx, self.ny, self.v, self.c
+  local f = {}
+  local big = 1e9
+  for k = 0, nx * ny - 1 do
+    local cv = v[k]
+    f[k] = (cv == 0 or cv == 4) and big or 0
+  end
+  -- Two chamfer passes with weights 1 and sqrt(2); cells beyond the grid
+  -- count as obstacles.
+  local d1, d2 = 1, math.sqrt(2)
+  local function at(i, j)
+    if i < 0 or j < 0 or i >= nx or j >= ny then return 0 end
+    return f[j * nx + i]
+  end
+  for j = 0, ny - 1 do
+    for i = 0, nx - 1 do
+      local k = j * nx + i
+      if f[k] > 0 then
+        f[k] = math.min(f[k], at(i - 1, j) + d1, at(i, j - 1) + d1, at(i - 1, j - 1) + d2, at(i + 1, j - 1) + d2)
+      end
+    end
+  end
+  for j = ny - 1, 0, -1 do
+    for i = nx - 1, 0, -1 do
+      local k = j * nx + i
+      if f[k] > 0 then
+        f[k] = math.min(f[k], at(i + 1, j) + d1, at(i, j + 1) + d1, at(i + 1, j + 1) + d2, at(i - 1, j + 1) + d2)
+      end
+    end
+  end
+  local maxf = 0
+  for k = 0, nx * ny - 1 do
+    -- From cell steps to pt, measured to the obstacle cell's near edge.
+    f[k] = math.max(0, (f[k] - 0.5) * c)
+    if f[k] > maxf then maxf = f[k] end
+  end
+  self.f, self.maxf = f, maxf
+end
+
+-- Clearance at (x, y) in pt: how large a disc centred there fits. -1 off the
+-- grid; 0 on an obstacle. Needs S:field.
+function S:room(x, y)
+  local i, j = floor(x / self.c), floor(y / self.c)
+  if i < 0 or j < 0 or i >= self.nx or j >= self.ny then return -1 end
+  return self.f[self:_idx(i, j)]
+end
+
+-- Record a placed element as a proxy disc of radius r. The field counts it
+-- at k of its radius (k < 1 lets later elements tuck a little under it) and
+-- the cells inside that are marked placed.
+function S:disc(x, y, r, k)
+  k = k or 1
+  local kr = k * r
+  if self.f then
+    local c, f = self.c, self.f
+    local reach = kr + self.maxf
+    local i0, i1 = math.max(0, floor((x - reach) / c)), math.min(self.nx - 1, floor((x + reach) / c))
+    local j0, j1 = math.max(0, floor((y - reach) / c)), math.min(self.ny - 1, floor((y + reach) / c))
+    for j = j0, j1 do
+      local cy = (j + 0.5) * c - y
+      for i = i0, i1 do
+        local cx = (i + 0.5) * c - x
+        local k2 = j * self.nx + i
+        local d = sqrt(cx * cx + cy * cy) - kr
+        if d < f[k2] then f[k2] = math.max(0, d) end
+      end
+    end
+  end
+  self:_mark(x, y, kr, 3)
+end
+
+-- Record a placed rectangle (x0, y0)-(x1, y1): the field falls to the
+-- distance from the box and the cells inside are marked placed.
+function S:box(x0, y0, x1, y1)
+  local c = self.c
+  if self.f then
+    local f, reach = self.f, self.maxf
+    local i0, i1 = math.max(0, floor((x0 - reach) / c)), math.min(self.nx - 1, floor((x1 + reach) / c))
+    local j0, j1 = math.max(0, floor((y0 - reach) / c)), math.min(self.ny - 1, floor((y1 + reach) / c))
+    for j = j0, j1 do
+      local dy = math.max(y0 - (j + 0.5) * c, (j + 0.5) * c - y1, 0)
+      for i = i0, i1 do
+        local dx = math.max(x0 - (i + 0.5) * c, (i + 0.5) * c - x1, 0)
+        local k = j * self.nx + i
+        local d = sqrt(dx * dx + dy * dy)
+        if d < f[k] then f[k] = d end
+      end
+    end
+  end
+  local i0, i1 = math.max(0, floor(x0 / c)), math.min(self.nx - 1, floor(x1 / c))
+  local j0, j1 = math.max(0, floor(y0 / c)), math.min(self.ny - 1, floor(y1 / c))
+  for j = j0, j1 do
+    for i = i0, i1 do
+      local k = self:_idx(i, j)
+      if self.v[k] == 0 or self.v[k] == 4 then self.v[k] = 3 end
+    end
+  end
+end
+
 -- Mark a disk as taken by a placed element (`val` 3, the default) or a
--- stem's corridor (4).
+-- stem's corridor (4). A placed element also lowers the clearance field.
 function S:reserve(x, y, r, val)
+  if self.f and (val or 3) == 3 then return self:disc(x, y, r, 1) end
+  self:_mark(x, y, r, val)
+end
+
+function S:_mark(x, y, r, val)
   local c = self.c
   local i0, i1 = math.max(0, floor((x - r) / c)), math.min(self.nx - 1, floor((x + r) / c))
   local j0, j1 = math.max(0, floor((y - r) / c)), math.min(self.ny - 1, floor((y + r) / c))

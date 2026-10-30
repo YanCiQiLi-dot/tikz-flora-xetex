@@ -34,12 +34,8 @@ M.list = {
     desc = "The large flower that crowns the main stem.",
     paths = { "hero", "compose.hero", "color.looks.hero", "color.palette.hero", "blooms.wedge" }, w = 200, h = 190,
     draw = function(pt, rng)
-      local hc = Tune.hero
       local R = G.clamp(165 * Tune.compose.hero, 28, 80)
-      F.bloom(pt, rng:fork("hero"), 100, 95, R, {
-        style = hc.style, look = "hero", petals = hc.petals, width = hc.petal_width,
-        rot = hc.rotation >= 0 and math.rad(hc.rotation) or nil, lost = hc.lost_edges,
-      })
+      F.hero(pt, rng:fork("hero"), { 100, 95, R })
     end,
   },
   {
@@ -80,7 +76,7 @@ M.list = {
   {
     id = "leaf", label = "Leaves",
     desc = "Large leaves: acanthus, serrated and lance blades, with veins. Their lengths follow the Leaves size curve.",
-    paths = { "compose.leaves", "compose.leaf_size", "compose.leaf_width", "compose.leaf_overlap", "sizes.leaf",
+    paths = { "compose.leaves", "compose.leaf_size", "compose.leaf_width", "compose.leaf_overlap", "compose.leaf_spacing", "sizes.leaf",
       "color.looks.leaf", "color.palette.leaves", "color.grey_chance", "color.grey_share" }, w = 360, h = 150,
     draw = function(pt, rng)
       for k = 1, 4 do
@@ -107,7 +103,7 @@ M.list = {
   {
     id = "sprays", label = "Sprays",
     desc = "Fine pen work: baby's breath in the sizes its curve gives, a forget-me-not cyme and an umbel.",
-    paths = { "compose.sprays", "compose.small_blooms", "sizes.gyps" }, w = 360, h = 130,
+    paths = { "compose.sprays", "compose.small_blooms", "compose.hole_min", "sizes.gyps" }, w = 360, h = 130,
     draw = function(pt, rng)
       local b = S.batch()
       for k = 1, 4 do
@@ -164,13 +160,15 @@ M.list = {
   },
   {
     id = "gilt", label = "Cartouche and gilt",
-    desc = "The star cartouche, compass star, pendant and sparkles. Placed by the layout; not tuned yet.",
+    desc = "The star cartouche, compass star, edge chain, corner pendant, medallion and sparkles. Placed by the layout; not tuned yet.",
     paths = {}, w = 240, h = 110,
     draw = function(pt, rng)
-      O.panel(pt, rng:fork("panel"), 10, 14, 44, 54)
+      O.panel(pt, rng:fork("panel"), 10, 14, 40, 54)
       O.compass(pt, 110, 55, 24)
-      O.pendant(pt, rng:fork("pend"), 190, 100, 90)
-      O.sparkles(pt, { { 150, 20, 4 }, { 220, 30, 3 }, { 70, 95, 3.5 } })
+      O.chain(pt, rng:fork("chain"), 190, 104, 6)
+      O.medallion(pt, 225, 20, 9)
+      O.pendant(pt, rng:fork("pendant"), 70, 24, 22, 32, 14)
+      O.sparkles(pt, { { 150, 20, 4, "plain" }, { 222, 62, 3.5, "dotted" }, { 70, 95, 3.5, "lozenge" } })
     end,
   },
   {

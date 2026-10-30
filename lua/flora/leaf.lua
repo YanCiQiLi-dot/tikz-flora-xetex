@@ -238,6 +238,41 @@ function L.options(r, len, ang)
   return o
 end
 
+-- The stretches of outline `poly` a leaf's halo follows, as point lists:
+-- all of it but the part within 0.18 `size` of `base`.
+function L.halo_runs(poly, base, size)
+  local n = #poly
+  local i0, best = 1, math.huge
+  for i, p in ipairs(poly) do
+    local d = G.dist(p, base)
+    if d < best then i0, best = i, d end
+  end
+  local runs, run = {}, nil
+  for j = 1, n do
+    local p = poly[(i0 + j - 1) % n + 1]
+    if G.dist(p, base) > size * 0.18 then
+      run = run or {}
+      run[#run + 1] = p
+    else
+      if run and #run >= 3 then runs[#runs + 1] = run end
+      run = nil
+    end
+  end
+  if run and #run >= 3 then runs[#runs + 1] = run end
+  return runs
+end
+
+-- A soft paper-white halo just outside a blade's edge. On bare paper it
+-- does not show; where the blade lies over a stem, a spray or another
+-- leaf, it lifts what is beneath along the edge, so the blade reads as in
+-- front. It is left off near the base, which joins its stem (L.attach).
+local function halo(pt, poly, base, size)
+  local runs = {}
+  for i, run in ipairs(L.halo_runs(poly, base, size)) do runs[i] = G.smooth(run, false) end
+  if #runs == 0 then return end
+  for _, w in ipairs({ 3.4, 2.2, 1.2 }) do pt:stroke(runs, pal.paper, w, 0.2, { many = true }) end
+end
+
 -- Paint a leaf whose base sits at (x, y), pointing along `ang`.
 -- Returns the midrib in page coordinates.
 function L.leaf(pt, rng, x, y, ang, o)
@@ -255,6 +290,7 @@ function L.leaf(pt, rng, x, y, ang, o)
   for i = 1, #spine do lit[#lit + 1] = spine[i] end
   for i = #right, 1, -1 do lit[#lit + 1] = right[i] end
 
+  halo(pt, poly, spine[1], size)
   W.wash(pt, poly, {
     rng = rng, size = size,
     ramp = o.look == "soft" and "soft" or "leaf", axis = { spine[1], spine[#spine] },
@@ -282,7 +318,63 @@ function L.leaf(pt, rng, x, y, ang, o)
       veins(p, rng, spine, { left = left, right = right }, size, o)
     end,
   })
+  if o.attach then L.attach(pt, poly, spine, size, o.attach) end
   return spine
+end
+
+-- Blend a leaf's base into the stem it grows from, as the joint would look
+-- in perspective. `at`: f, where the leaf joins around the stem (1 on the
+-- side facing the viewer, -1 behind it, 0 at its silhouette); p, the
+-- stem's centre at the node; seg, the stem's centreline near the node; w,
+-- the stem's width there. Every joint glazes the stem's colour into the
+-- pale base. In front, a stalk carries the stem on into the midrib; behind,
+-- the stem passes over the base and casts a faint shadow on it; at the
+-- silhouette, the leaf stands off the stem's edge on a short stalk. Where
+-- the blade crosses the stem, the stem shows through by how far in front
+-- the blade is.
+L.FRONT = 0.35
+function L.attach(pt, poly, spine, size, at)
+  local tone = Brush.stem_tone(Tune.plant)
+  local MULT = { blend = "multiply" }
+  local base = spine[1]
+  local body = G.smooth(poly, true)
+  if math.abs(at.f) < L.FRONT then
+    -- The stalk leaves the stem's edge in its colour and pales as it runs
+    -- into the blade's own stalk: overlapping strokes, each reaching less
+    -- far from the stem.
+    local from = G.mix(at.p, base, at.w / 2 / math.max(1e-9, G.dist(at.p, base)))
+    local to = G.polar(base, G.angle(spine[1], spine[2]), 3)
+    for k = 1, 4 do
+      local line = G.resample({ from, G.mix(from, to, k / 4) }, 6)
+      pt:fill(G.smooth(G.ribbon(line, function(t) return at.w * (0.3 - 0.1 * t * k / 4) end), true), tone, 0.22, MULT)
+    end
+  end
+  pt:clip_begin(body)
+  local reach = size * (at.f > L.FRONT and 0.24 or 0.16)
+  for k = 1, 6 do
+    pt:fill({ { "o", base[1], base[2], reach * (1 - (k - 1) / 6) } }, tone, 0.08, MULT)
+  end
+  if at.f > L.FRONT then
+    local rib = {}
+    for i = 1, #spine do
+      if G.length({ table.unpack(spine, 1, i) }) > size * 0.22 then break end
+      rib[#rib + 1] = spine[i]
+    end
+    if #rib >= 2 then pt:fill(G.smooth(W.taper(rib, at.w * 0.85, 0.001), true), tone, 0.55, MULT) end
+  end
+  -- Where the blade crosses the stem, the stem shows through it: faintly
+  -- through a blade in front, more at the silhouette, and over a blade
+  -- behind it, which it shades.
+  if #at.seg >= 2 then
+    local function band(k) return G.smooth(G.ribbon(at.seg, function() return at.w * k / 2 end), true) end
+    if at.f < -L.FRONT then
+      pt:fill(band(2.6), pal.deep, 0.14, MULT)
+      pt:fill(band(1), tone, 0.6)
+    else
+      pt:fill(band(1), tone, G.clamp(0.45 - 0.35 * at.f, 0.15, 0.45), MULT)
+    end
+  end
+  pt:clip_end()
 end
 
 -- Small leaflets along stems. Items: {x, y, ang, len}. Each has the large

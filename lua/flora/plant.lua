@@ -157,31 +157,32 @@ function P.main(rng, m, hero, W, gest, avoid)
   return st, corner, cap
 end
 
--- The hero's crown: two short shoots that leave the main stem below the
--- hero and climb either side of it, ending under the rim of its petals,
--- so leaves and sprays spill out around the hero as the reference's do
--- (blooms paint over foliage). Each shoot's tip (st.tip) is left for
--- compose.lua to finish.
+-- The hero's crown: two shoots that leave the main stem well below the
+-- hero, cross over it, and climb the opposite side, ending under the rim
+-- of its petals. Crossing each other and the main stem, they weave the
+-- intertwined stems the reference shows under its hero; leaves and sprays
+-- spill out around the hero from them (blooms paint over foliage). Each
+-- shoot's tip (st.tip) is left for compose.lua to finish.
 function P.crown(rng, main, m, hero)
   local cfg = Tune.plant
   local R = hero[3]
   local s0 = main.len
   for s = main.len, 0, -2 do
-    if P.at(main, s)[2] < hero[2] - R * 1.35 then s0 = s break end
+    if P.at(main, s)[2] < hero[2] - R * 1.5 then s0 = s break end
   end
   local out = {}
   for k, side in ipairs({ -1, 1 }) do
     local r = rng:fork("crown" .. k)
-    local s = math.max(0, s0 - r:range(0, R * 0.4))
+    local s = math.max(0, s0 - r:range(0, R * 0.9))
     local p0, a0 = P.at(main, s)
     -- The tip sits under the petals' rim, low on the hero's flank.
     local ta = (side < 0 and pi or 0) - side * r:range(0.15, 0.55)
     local to = G.polar(hero, ta, R * r:range(0.85, 0.95))
     to[1] = G.clamp(to[1], m.x0 + 4, m.x1 - 4)
-    -- Leave outward and arrive heading up and out, so both control points
-    -- sit below and outside the rim and the curve keeps off the bloom's
-    -- heart.
-    local pts = G.link(p0, a0 + side * 1.0, to, pi / 2 - side * 0.5, 0.5)
+    -- Leave toward the far side, so the shoot crosses the main stem, and
+    -- arrive heading up and out, so the last control point sits below and
+    -- outside the rim and the curve keeps off the bloom's heart.
+    local pts = G.link(p0, a0 - side * 0.55, to, pi / 2 - side * 0.5, 0.6)
     local clear = true
     for _, q in ipairs(pts) do
       if G.dist(q, hero) < R * 0.7 then clear = false break end

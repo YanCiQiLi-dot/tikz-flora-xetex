@@ -146,4 +146,24 @@ do
   H.check(with_panel >= 5, string.format("cartouche placed on only %d of 6 pages", with_panel))
 end
 
+-- Most pages hold a large ghost bloom low in the outer margin: centred in
+-- the margin's width, above the foot and below the lowest fifth of the
+-- text block, and clear of the text.
+do
+  local n = 0
+  for seed = 1, 8 do
+    local spec = H.page(seed)
+    local gh = Compose.page(spec).ghost
+    if gh then
+      n = n + 1
+      local x, y, r = gh[1], gh[2], gh[3]
+      local t = spec.text
+      H.check(x + r * 0.9 <= t.x0, string.format("seed %d: ghost bloom reaches the text (%.0f + %.0f)", seed, x, r))
+      H.check(y > t.y0 and y < t.y0 + (t.y1 - t.y0) * 0.2, string.format("seed %d: ghost bloom at y %.0f, not low in the margin", seed, y))
+      H.check(r >= 25, string.format("seed %d: ghost bloom only %.0f pt", seed, r))
+    end
+  end
+  H.check(n >= 5, string.format("ghost bloom on only %d of 8 pages", n))
+end
+
 H.done("compose")

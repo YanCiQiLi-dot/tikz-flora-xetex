@@ -1,10 +1,8 @@
--- Gap filling: sprays grown into the remaining free space, then sparkles.
+-- Spray helpers for grow.lua (a spray grown on a stalk from a stem point,
+-- and a check that it clears the text), and sparkles in leftover space.
 
 local G = require("flora.geom")
 local S = require("flora.sprig")
-local F = require("flora.flower")
-local Dist = require("flora.dist")
-local Tune = require("flora.tune")
 
 local Fill = {}
 local pi = math.pi
@@ -30,7 +28,7 @@ Fill.nearest = nearest
 -- tangentially and sweeps into the gap; the spray continues its heading.
 -- `scale` shrinks the spray; `lean` turns it. Returns the stalk, and for a
 -- bloom its centre and radius.
-local function grow(b, rng, kind, s, tangent, d, x, y, r, scale, lean)
+function Fill.grow(b, rng, kind, s, tangent, d, x, y, r, scale, lean)
   local target = { x, y }
   local chord = G.angle(s, target)
   local dir0 = G.depart(s, tangent, target, 0.35)
@@ -62,7 +60,7 @@ local function grow(b, rng, kind, s, tangent, d, x, y, r, scale, lean)
 end
 
 -- Does every point of batch `b` lie in open space (with its radius)?
-local function fits(g, b)
+function Fill.fits(g, b)
   local ok = true
   b:each_point(function(x, y, r)
     if ok and not (g:open_at(x, y) and g:open_at(x - r, y) and g:open_at(x + r, y)
@@ -71,76 +69,6 @@ local function fits(g, b)
     end
   end)
   return ok
-end
-
--- Grow sprays into free space, roomiest gaps first. Each spray hangs from
--- the nearest stem on a hairline stalk; the stalk joins the stem list so
--- later sprays may branch from it. A spray is grown into a scratch batch and
--- kept only if every point lands in open space; otherwise it is retried
--- smaller and on axis, then dropped.
---   opts.cap      maximum sprays
---   opts.keep(x, y, rng) optional predicate thinning sprays by position
---   opts.blooms   list that receives painters for small blooms (optional);
---                 sprays stop adding blooms once it holds opts.max_blooms
-function Fill.sprays(rng, g, stems, batch, opts)
-  opts = opts or {}
-  local cands = {}
-  for _, c in ipairs(g:free_cells(2)) do
-    local r = g:clearance(c[1], c[2], 30)
-    if r >= 5 then cands[#cands + 1] = { c[1], c[2], r, rng:next() } end
-  end
-  table.sort(cands, function(a, b)
-    if a[3] ~= b[3] then return a[3] > b[3] end
-    return a[4] < b[4]
-  end)
-  local count = 0
-  for _, c in ipairs(cands) do
-    if count >= (opts.cap or 80) then break end
-    local x, y = c[1], c[2]
-    local r = g:clearance(x, y, 30)
-    if r >= 5 and (not opts.keep or opts.keep(x, y, rng)) then
-      local s, d, tangent = nearest(stems, { x, y }, 75)
-      if s then
-        local kind
-        if opts.blooms and #opts.blooms < (opts.max_blooms or 5) and r >= 11 and rng:chance(0.14) then
-          kind = "bloom"
-        elseif r >= 22 then
-          kind = rng:weighted({ gyps = 5, cyme = 3, umbel = 1 })
-        elseif r >= 16 then
-          kind = rng:weighted({ gyps = 5, cyme = 3 })
-        elseif r >= 8 then
-          kind = rng:weighted({ gyps = 4, cyme = 2, bud = 1 })
-        else
-          kind = rng:weighted({ gyps = 2, floret = 2 })
-        end
-        local fr = rng:fork("spray" .. count)
-        -- Baby's breath comes in a mix of sizes (tune.sizes.gyps): a spray
-        -- fills only part of its gap, and reserves only what it fills.
-        local fill = kind == "gyps" and Dist.sample(fr, Tune.sizes.gyps) or 1
-        local tries = { { fill, fr:jit(0.3) }, { 0.7 * fill, 0 } }
-        for _, t in ipairs(tries) do
-          local tmp = S.batch()
-          local stalk, bloom = grow(tmp, fr, kind, s, tangent, d, x, y, r, t[1], t[2])
-          if fits(g, tmp) then
-            batch:merge(tmp)
-            stems[#stems + 1] = { pts = stalk }
-            if bloom then
-              local style = F.pick_style(fr, { "fan", "round", "soft" })
-              local br = fr:fork("bloom")
-              opts.blooms[#opts.blooms + 1] = function(pt)
-                F.bloom(pt, br, bloom[1], bloom[2], bloom[3], { style = style })
-              end
-            end
-            g:reserve(x, y, r * 0.85 * math.max(fill, 0.5))
-            g:reserve(s[1], s[2], 2)
-            count = count + 1
-            break
-          end
-        end
-      end
-    end
-  end
-  return count
 end
 
 -- Sparkles in whatever free space is left.
@@ -154,7 +82,7 @@ function Fill.sparkles(rng, g, n)
     local r = g:clearance(c[1], c[2], 8)
     if r >= 3 then
       local size = rng:range(1.4, math.min(3.4, r * 0.8))
-      items[#items + 1] = { c[1], c[2], size }
+      items[#items + 1] = { c[1], c[2], size, rng:weighted({ plain = 5, dotted = 3, lozenge = 2 }) }
       g:reserve(c[1], c[2], size * 3)
     end
   end

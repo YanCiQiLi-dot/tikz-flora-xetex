@@ -22,7 +22,7 @@ end
 -- An A4 page laid out like tex/demo.tex. `last_y` is where the text stops;
 -- lines at `indent_rows` start 25pt in, as list items do.
 function H.page(seed, last_y, indent_rows)
-  local text = { x0 = 190, y0 = 96, x1 = 544, y1 = 727 }
+  local text = { x0 = 173, y0 = 90, x1 = 544, y1 = 737 }
   local lines = {}
   local row = 0
   local y = text.y1 - 9
@@ -35,7 +35,7 @@ function H.page(seed, last_y, indent_rows)
   lines[#lines + 1] = { x0 = 538, x1 = 544, y0 = 70, y1 = 78 }  -- page number
   return {
     width = 595.28, height = 841.89, text = text, lines = lines,
-    header_y = 759, seed = seed,
+    header_y = 786, seed = seed,
   }
 end
 

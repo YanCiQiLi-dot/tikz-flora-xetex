@@ -254,9 +254,18 @@ function F.bloom(pt, rng, cx, cy, R, o)
   local a0 = o.rot or rng:range(0, 2 * pi)
   -- A style with a gap keeps each petal inside its own sector of the eye.
   local slot = st and st.gap and F.slot(n, st.gap, spacing)
+  local petals = {}
   for i = 1, n do
     local r = rng:fork("petal" .. i)
-    local a = a0 + (i - 1) * 2 * pi / n + r:jit(spacing)
+    petals[i] = { r = r, a = a0 + (i - 1) * 2 * pi / n + r:jit(spacing) }
+  end
+  -- A tilted bloom paints its far (upper) petals first, so the near ones
+  -- overlap them.
+  if o.far_first then
+    table.sort(petals, function(p, q) return sin(p.a) > sin(q.a) end)
+  end
+  for _, pe in ipairs(petals) do
+    local r, a = pe.r, pe.a
     local L = R * r:range(1 - ragged * 1.5, 1 + ragged * 0.5)
     local Wd = R * width * r:range(0.92, 1.08)
     local local_pts = F.petal(r, kind, L, Wd, r:jit(slot and 0.04 or 0.10), st and st.rim, slot)
@@ -374,6 +383,47 @@ function F.bud(pt, x, y, ang, len, rgb)
   end
   local poly = G.transform(pts, x, y, ang - pi / 2)
   pt:fill(G.smooth(poly, true), rgb or pal.deep, 0.9, { blend = "multiply" })
+end
+
+-- A bloom of radius R at (cx, cy) seen tilted back by `deg` degrees. The
+-- bloom is a shallow cup (its rim rises CUP of R toward the viewer at the
+-- petal tips) turned back about its horizontal axis and seen in
+-- perspective from VIEW radii away: the far petals stand up behind the eye
+-- and shrink, the near ones lean forward, grow and foreshorten. Returns the
+-- projection fn(x, y) -> x, y for P:project, and the half-height of the
+-- projected rim.
+local CUP, VIEW = 0.08, 2.8
+function F.tilt(cx, cy, R, deg)
+  local t = math.rad(deg or 0)
+  local ct, st = cos(t), sin(t)
+  local D = VIEW * R
+  local function fn(x, y)
+    local dx, dy = x - cx, y - cy
+    local z = CUP * math.min(dx * dx + dy * dy, 1.6 * R * R) / R
+    local sy, depth = dy * ct + z * st, z * ct - dy * st
+    local s = D / (D - depth)
+    return cx + dx * s, cy + sy * s
+  end
+  local rh = 0
+  for k = 0, 15 do
+    local _, y = fn(cx + R * cos(k * pi / 8), cy + R * sin(k * pi / 8))
+    rh = math.max(rh, math.abs(y - cy))
+  end
+  return fn, rh
+end
+
+-- Paint the hero bloom at hero = {x, y, R}, tilted by tune.hero.tilt.
+function F.hero(pt, rng, hero)
+  local hc = Tune.hero
+  -- At tilt 0 the bloom is painted as is, with no projection at all.
+  local fn = hc.tilt > 0 and F.tilt(hero[1], hero[2], hero[3], hc.tilt) or nil
+  pt:project(fn)
+  F.bloom(pt, rng, hero[1], hero[2], hero[3], {
+    style = hc.style, look = "hero", petals = hc.petals, width = hc.petal_width,
+    rot = hc.rotation >= 0 and math.rad(hc.rotation) or nil, lost = hc.lost_edges,
+    far_first = hc.tilt > 0,
+  })
+  pt:project(nil)
 end
 
 return F

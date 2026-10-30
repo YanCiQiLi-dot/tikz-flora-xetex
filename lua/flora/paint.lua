@@ -176,10 +176,57 @@ local OPS = {
   },
 }
 
+-- While a projection is set (P:project), every coordinate passes through
+-- it before it is written or recorded.
+local function projected(cmds, pj)
+  local K = 0.5523
+  local out = {}
+  for _, c in ipairs(cmds) do
+    local op = c[1]
+    if op == "m" or op == "l" then
+      local x, y = pj(c[2], c[3])
+      out[#out + 1] = { op, x, y }
+    elseif op == "c" then
+      local a, b = pj(c[2], c[3])
+      local cc, d = pj(c[4], c[5])
+      local e, f = pj(c[6], c[7])
+      out[#out + 1] = { "c", a, b, cc, d, e, f }
+    elseif op == "o" then
+      -- A circle's four Bezier quarters, each control point projected.
+      local x, y, r = c[2], c[3], c[4]
+      local k = r * K
+      local function q(px, py) local u, v = pj(px, py) return u, v end
+      local mx, my = q(x + r, y)
+      out[#out + 1] = { "m", mx, my }
+      local arcs = {
+        { x + r, y + k, x + k, y + r, x, y + r }, { x - k, y + r, x - r, y + k, x - r, y },
+        { x - r, y - k, x - k, y - r, x, y - r }, { x + k, y - r, x + r, y - k, x + r, y },
+      }
+      for _, a in ipairs(arcs) do
+        local a1, a2 = q(a[1], a[2])
+        local a3, a4 = q(a[3], a[4])
+        local a5, a6 = q(a[5], a[6])
+        out[#out + 1] = { "c", a1, a2, a3, a4, a5, a6 }
+      end
+      out[#out + 1] = { "z" }
+    else
+      out[#out + 1] = c
+    end
+  end
+  return out
+end
+
+-- Set (or with nil, clear) a projection fn(x, y) -> x, y applied to every
+-- path and shading painted until it is cleared.
+function P:project(fn)
+  self.projection = fn
+end
+
 -- Append the path commands for `cmds`; circles become four Bezier quarters.
 function P:_path(cmds, buf)
   local K = 0.5523
   local ops = OPS[self.backend]
+  if self.projection then cmds = projected(cmds, self.projection) end
   for _, c in ipairs(cmds) do
     local op = c[1]
     if op == "m" then
@@ -303,6 +350,11 @@ end
 -- Paint gradient `name` so its start lies at p0 and its end at p1, covering
 -- `half` pt to either side of that axis. Use inside a clip.
 function P:shade(name, p0, p1, half)
+  if self.projection then
+    local a, b = self.projection(p0[1], p0[2])
+    local c, d = self.projection(p1[1], p1[2])
+    p0, p1 = { a, b }, { c, d }
+  end
   local dx, dy = p1[1] - p0[1], p1[2] - p0[2]
   local len = math.sqrt(dx * dx + dy * dy)
   if len < 0.01 then return end
