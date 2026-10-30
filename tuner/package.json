@@ -1,0 +1,19 @@
+{
+  "name": "tikz-flora-tuner",
+  "private": true,
+  "type": "module",
+  "description": "Component tuner for lua/flora/tune.lua",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "dialkit": "2.0.2",
+    "svelte": "5.57.3"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "playwright-core": "1.64.1",
+    "vite": "8.3.5"
+  }
+}

@@ -1,0 +1,123 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,left=5.57cm,right=1.8cm,top=4.58cm,bottom=3.5cm,
+  headheight=14pt,headsep=18pt]{geometry}
+% Margins match the reference photo, measured on its de-warped image: the
+% text block starts 158 pt from the page edge, the running-head rule sits
+% 112 pt below the top of the page and the last line 100 pt above the foot.
+\usepackage[french]{babel}
+\frenchsetup{StandardItemLabels=true}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{tikzflora}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{\small 3\quad\textsc{Structures algébriques}}
+\fancyfoot[R]{\small\thepage}
+\renewcommand\headrulewidth{0pt}
+
+\newtheorem{definition}{Définition}[section]
+\newtheorem{proposition}[definition]{Proposition}
+\theoremstyle{definition}
+\newtheorem*{exemples}{Exemples}
+\renewcommand\thesection{3.\arabic{section}}
+\setcounter{section}{1}
+
+\begin{document}
+
+\section{Groupes}
+
+Dans cette section, on introduit la notion de groupe, qui est l'une des
+structures algébriques fondamentales en mathématiques. Les groupes
+apparaissent naturellement dans de nombreux contextes, aussi bien en algèbre
+qu'en géométrie, et permettent d'unifier une grande variété d'exemples.
+
+\begin{definition}
+Un \emph{groupe} est un ensemble $G$ muni d'une \emph{loi de composition
+interne} $\ast : G\times G\to G$ telle que :
+\begin{enumerate}
+  \item \emph{(Associativité)} Pour tous $a,b,c\in G$, on a
+    $(a\ast b)\ast c = a\ast(b\ast c)$.
+  \item \emph{(Élément neutre)} Il existe un élément $e\in G$ tel que pour
+    tout $a\in G$, $e\ast a = a\ast e = a$.
+  \item \emph{(Inverse)} Pour tout $a\in G$, il existe un élément
+    $a^{-1}\in G$ tel que $a\ast a^{-1} = a^{-1}\ast a = e$.
+\end{enumerate}
+\end{definition}
+
+Lorsque la loi $\ast$ est commutative, on dit que le groupe est
+\emph{abélien}. On note alors généralement la loi de manière additive :
+$a+b$ au lieu de $a\ast b$.
+
+\begin{exemples}\leavevmode
+\begin{itemize}
+  \item $(\mathbb{Z},+)$ est un groupe abélien.
+  \item $(\mathbb{R}^\ast,\times) = (\mathbb{R}\setminus\{0\},\times)$ est un
+    groupe abélien.
+  \item Pour $n\ge 3$, le groupe symétrique $S_n$ des permutations de
+    $\{1,\dots,n\}$ est un groupe non abélien.
+  \item Le groupe linéaire inversible
+    $GL_n(\mathbb{R}) = \{A\in M_n(\mathbb{R}) \mid \det(A)\neq 0\}$ est un
+    groupe pour la multiplication des matrices, en général non abélien.
+\end{itemize}
+\end{exemples}
+
+\subsection{Sous-groupes}
+
+Soit $G$ un groupe. Un sous-ensemble $H\subset G$ est un \emph{sous-groupe}
+de $G$ si et seulement s'il est stable par la loi de composition et par
+passage aux inverses.
+
+\begin{proposition}[Critère de sous-groupe]
+Soit $H\subset G$ un sous-ensemble non vide. Alors $H$ est un sous-groupe de
+$G$ si et seulement si, pour tous $a,b\in H$, on a
+\[ a\ast b^{-1}\in H. \]
+\end{proposition}
+
+\begin{proof}
+($\Rightarrow$) Si $H$ est un sous-groupe, alors par stabilité on a $a\in H$
+et $b^{-1}\in H$, donc $a\ast b^{-1}\in H$.
+
+($\Leftarrow$) Supposons que $H$ soit non vide et que, pour tous
+$a,b\in H$, on ait $a\ast b^{-1}\in H$. Soit $a\in H$. Alors
+$e = a\ast a^{-1}\in H$, donc $H$ contient l'élément neutre. De plus, pour
+tout $a\in H$, on a $a^{-1} = e\ast a^{-1}\in H$. Enfin, si $a,b\in H$, alors
+$a\ast b = a\ast(b^{-1})^{-1}\in H$. Ainsi $H$ est un sous-groupe de $G$.
+\end{proof}
+
+\begin{flushright}\small\itshape
+Ad aliquid nutrire.\\ S. Ramanujan
+\end{flushright}
+
+\newpage
+
+\subsection{Morphismes de groupes}
+
+Soient $(G,\ast)$ et $(H,\cdot)$ deux groupes. Une application
+$f : G\to H$ est un \emph{morphisme de groupes} si, pour tous $a,b\in G$,
+\[ f(a\ast b) = f(a)\cdot f(b). \]
+
+\begin{proposition}
+Soit $f : G\to H$ un morphisme de groupes. Alors $f(e_G) = e_H$ et, pour
+tout $a\in G$, $f(a^{-1}) = f(a)^{-1}$.
+\end{proposition}
+
+\begin{proof}
+On a $f(e_G) = f(e_G\ast e_G) = f(e_G)\cdot f(e_G)$; en composant par
+$f(e_G)^{-1}$ on obtient $f(e_G) = e_H$. Ensuite
+$f(a)\cdot f(a^{-1}) = f(a\ast a^{-1}) = f(e_G) = e_H$.
+\end{proof}
+
+\begin{definition}
+Le \emph{noyau} de $f$ est $\ker f = \{a\in G \mid f(a) = e_H\}$ et son
+\emph{image} est $\operatorname{Im} f = \{f(a) \mid a\in G\}$.
+\end{definition}
+
+\begin{itemize}
+  \item $\ker f$ est un sous-groupe de $G$ ;
+  \item $\operatorname{Im} f$ est un sous-groupe de $H$ ;
+  \item $f$ est injectif si et seulement si $\ker f = \{e_G\}$.
+\end{itemize}
+
+\end{document}

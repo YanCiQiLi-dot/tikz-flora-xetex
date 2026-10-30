@@ -1,0 +1,33 @@
+-- Prints lua/flora/tune.lua (with any FLORA_TUNE overrides applied) as JSON,
+-- for the tuner page. Run with texlua from the repository root.
+package.path = "./lua/?.lua;" .. package.path
+local Tune = require("flora.tune")
+local Inks = require("flora.inks")
+
+local function encode(v)
+  local t = type(v)
+  if t == "number" then return string.format("%.6g", v) end
+  if t == "boolean" then return tostring(v) end
+  if t == "string" then return string.format("%q", v) end
+  if #v > 0 then
+    local out = {}
+    for i, x in ipairs(v) do out[i] = encode(x) end
+    return "[" .. table.concat(out, ",") .. "]"
+  end
+  local keys = {}
+  for k in pairs(v) do keys[#keys + 1] = k end
+  table.sort(keys)
+  local out = {}
+  for _, k in ipairs(keys) do out[#out + 1] = string.format("%q:%s", k, encode(v[k])) end
+  return "{" .. table.concat(out, ",") .. "}"
+end
+
+-- Choice lists for settings that name something, keyed by the setting's
+-- parent path: every color.palette part takes "look", a group or an ink.
+local palette = { "look" }
+for _, g in ipairs(Inks.group_order) do palette[#palette + 1] = g end
+for _, n in ipairs(Inks.order) do palette[#palette + 1] = n end
+local out = {}
+for k, v in pairs(Tune) do out[k] = v end
+out._choices = { ["color.palette"] = palette }
+io.write(encode(out), "\n")
