@@ -340,29 +340,42 @@ end
 -- Tiny five-petal florets, batched by tint. Each item is {x, y, r, rot, tint}
 -- with tint 1 (deep), 2 (blue) or 3 (sky). Florets large enough to read get
 -- an ink contour, as in an inked-and-washed drawing.
+-- Items {x, y, r, rot, tint, soft}: tint 1-3 is deep, blue or sky. Soft
+-- florets (baby's breath) are translucent, sit in a pale halo that blurs
+-- their edge, and keep only a faint white eye, so a cloud of them reads as
+-- airy rather than as dark specks.
 function F.florets(pt, items)
   local tints = { {}, {}, {} }
-  local eyes, specks, rims = {}, {}, {}
+  local soft = { {}, {}, {} }
+  local eyes, specks, rims, halos, soft_eyes = {}, {}, {}, {}, {}
   for _, f in ipairs(items) do
     local x, y, r, rot = f[1], f[2], f[3], f[4] or 0
-    local bucket = tints[f[5] or 2]
+    local bucket = (f[6] and soft or tints)[f[5] or 2]
+    if f[6] then halos[#halos + 1] = { { "o", x, y, 1.05 * r } } end
     for i = 0, 4 do
       local a = rot + i * 2 * pi / 5
       local petal = { { "o", x + 0.55 * r * cos(a), y + 0.55 * r * sin(a), 0.47 * r } }
       bucket[#bucket + 1] = petal
-      if r > 1.1 then rims[#rims + 1] = petal end
+      if r > 1.1 and not f[6] then rims[#rims + 1] = petal end
     end
-    if r > 0.9 then
+    if f[6] then
+      if r > 1.1 then soft_eyes[#soft_eyes + 1] = { { "o", x, y, 0.22 * r } } end
+    elseif r > 0.9 then
       eyes[#eyes + 1] = { { "o", x, y, 0.28 * r } }
       specks[#specks + 1] = { { "o", x, y, 0.12 * r } }
     end
   end
   local cols = { pal.deep, pal.blue, pal.sky }
+  if #halos > 0 then pt:fill(halos, pal.sky, 0.14, { many = true, blend = "multiply" }) end
   for i = 1, 3 do
     if #tints[i] > 0 then
       pt:fill(tints[i], cols[i], 0.88, { many = true, blend = "multiply" })
     end
+    if #soft[i] > 0 then
+      pt:fill(soft[i], cols[i], 0.55, { many = true, blend = "multiply" })
+    end
   end
+  if #soft_eyes > 0 then pt:fill(soft_eyes, pal.white, 0.6, { many = true }) end
   if #rims > 0 then pt:stroke(rims, Paint.mix(pal.ink, pal.blue, 0.5), 0.14, 0.45, { many = true, blend = "multiply" }) end
   if #eyes > 0 then pt:fill(eyes, pal.white, 0.85, { many = true }) end
   if #specks > 0 then pt:fill(specks, pal.copper, 0.85, { many = true }) end

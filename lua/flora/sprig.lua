@@ -38,8 +38,9 @@ function Batch:line(pts, class)
   bucket[#bucket + 1] = G.smooth(pts, false)
 end
 
-function Batch:floret(x, y, r, rot, tint)
-  self.florets[#self.florets + 1] = { x, y, r, rot, tint }
+-- A five-petalled floret; `soft` paints it as baby's breath (F.florets).
+function Batch:floret(x, y, r, rot, tint, soft)
+  self.florets[#self.florets + 1] = { x, y, r, rot, tint, soft }
 end
 
 function Batch:bud(x, y, ang, len)
@@ -192,13 +193,16 @@ function S.gypsophila(b, rng, base, ang, len, depth)
     local e = pts[#pts]
     local ea = G.angle(pts[#pts - 1], e)
     if d == 0 then
-      local n = rng:int(1, 2)
+      -- Mostly one soft floret per tip, mid-blue to pale, so the cloud
+      -- stays open; an occasional tiny star.
+      local n = rng:chance(0.7) and 1 or 2
       for k = 1, n do
-        local q = k == 1 and e or G.polar(e, ea + rng:jit(1.6), rng:range(2.4, 3.4))
-        if rng:chance(0.18) then
-          b:star(q[1], q[2], rng:range(0.8, 1.3))
+        local q = k == 1 and e or G.polar(e, ea + rng:jit(1.6), rng:range(2.8, 3.8))
+        if rng:chance(0.08) then
+          b:star(q[1], q[2], rng:range(0.7, 1.1))
         else
-          b:floret(q[1], q[2], rng:range(0.8, 1.4), rng:range(0, 2 * pi), rng:weighted({ [1] = 1, [2] = 3, [3] = 4 }))
+          b:floret(q[1], q[2], rng:range(0.9, 1.5), rng:range(0, 2 * pi),
+            rng:weighted({ [1] = 0.4, [2] = 3, [3] = 5 }), true)
         end
       end
       return
@@ -212,7 +216,7 @@ function S.gypsophila(b, rng, base, ang, len, depth)
     end
     if d <= 2 and rng:chance(0.5) then
       local q = G.polar(G.mix(p, e, 0.6), ea + rng:jit(1.2), rng:range(1.5, 2.5))
-      b:floret(q[1], q[2], rng:range(0.5, 0.8), 0, 2)
+      b:floret(q[1], q[2], rng:range(0.5, 0.8), 0, 3, true)
     end
   end
   branch(base, ang, len, depth)
