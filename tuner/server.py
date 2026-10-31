@@ -6,7 +6,7 @@
 #                          specimen with `values` as overrides
 #   GET  /api/tune         lua/flora/tune.lua as JSON, with tune-local.lua
 #                          applied when it exists
-#   POST /api/render       {values, seed, page, full}: draw that demo page
+#   POST /api/render       {values, seed, page, full}: draw that reference page
 #                          with `values` as overrides. By default the flora
 #                          is drawn without TeX (tools/preview.lua) over a
 #                          cached text-only compile, and the flora and text
@@ -106,7 +106,7 @@ def url(path):
 
 # Inputs that change the text layout. When any is newer than the base
 # compile, the base is rebuilt.
-LAYOUT_INPUTS = ["tex/demo.tex", "tex/tikzflora.sty", "lua/flora/init.lua", "lua/flora/measure.lua"]
+LAYOUT_INPUTS = ["tex/reference.tex", "tex/tikzflora.sty", "lua/flora/init.lua", "lua/flora/measure.lua"]
 
 
 def base():
@@ -118,7 +118,7 @@ def base():
         os.makedirs(base_dir, exist_ok=True)
         e = env()
         e["FLORA_SPEC_DIR"] = base_dir
-        lualatex("base", "\\def\\florapages{0}\\input{tex/demo.tex}", e, base_dir)
+        lualatex("base", "\\def\\florapages{0}\\input{tex/reference.tex}", e, base_dir)
         for name in os.listdir(base_dir):
             if name.startswith("text-"):
                 os.remove(os.path.join(base_dir, name))
@@ -154,7 +154,7 @@ def render_full(values, seed, page):
     # a second per page over the default.
     lualatex("tuner", "\\pdfvariable compresslevel=1"
              f"\\def\\florseed{{{int(seed)}}}\\def\\florapages{{{int(page)}}}"
-             "\\input{tex/demo.tex}", env(tune_path))
+             "\\input{tex/reference.tex}", env(tune_path))
     png = rasterize(os.path.join(OUT, "tuner.pdf"), page, fresh_png("page"))
     return {"png": url(png), "dpi": DPI, "seconds": round(time.time() - t0, 1)}
 

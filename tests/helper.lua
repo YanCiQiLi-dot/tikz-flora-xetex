@@ -19,7 +19,7 @@ function H.done(name)
   print(name .. ": ok")
 end
 
--- An A4 page laid out like tex/demo.tex. `last_y` is where the text stops;
+-- An A4 page laid out like tex/reference.tex. `last_y` is where the text stops;
 -- lines at `indent_rows` start 25pt in, as list items do.
 function H.page(seed, last_y, indent_rows)
   local text = { x0 = 173, y0 = 90, x1 = 544, y1 = 737 }

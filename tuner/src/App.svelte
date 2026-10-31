@@ -142,7 +142,7 @@
 
   // The reference and the render are aligned on the running-head rule: the
   // rectified photo shows 70 pt above its rule (row 154 at 0.456 pt per
-  // pixel, tex/reference/viewport.json); the demo page's rule is 115.3 pt
+  // pixel, tex/reference/viewport.json); the reference page's rule is 115.3 pt
   // below its top. The view ends where the photo does, at the page's foot.
   const PX_PER_PT = 1.15;
   const SHIFT_PT = 115.3 - 154 * 0.456;

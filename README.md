@@ -25,6 +25,10 @@ Wong, Zongker and Salesin,
 [Computer-Generated Floral Ornament](https://grail.cs.washington.edu/projects/ornament/ornament.pdf)
 (SIGGRAPH 1998).
 
+tikz-flora was written with Claude Code, Anthropic's coding agent. The art
+direction, the tuning against the reference and the choice of what to keep
+were done by hand.
+
 ## Setup
 
 You need a TeX distribution with **LuaLaTeX** (TeX Live 2023 or later,
@@ -122,8 +126,8 @@ The repository uses [just](https://github.com/casey/just). These recipes
 add the TinyTeX binaries to `PATH`:
 
 - `just build NAME [SEED]`: compile `tex/NAME.tex` to `build/` with a PNG
-  preview. Use `just build lorem` for the example and `just specimens` for
-  one of each element.
+  preview. `just build lorem` builds the example; `just build reference`
+  builds a page laid out like the reference photo, which the tuner uses.
 - `just grow NAME SEED PAGE`: build `build/grow-NAME-PAGE.mp4` and `.gif`
   of a page as it grows. It needs ffmpeg, poppler (`pdftocairo`) and
   ImageMagick.
@@ -134,8 +138,9 @@ add the TinyTeX binaries to `PATH`:
 - `just site-bake`, `just site-dev`, `just test-site`, `just site-deploy`:
   build, test and publish the site. `site/README.md` explains them.
 - `just tuner`: run a local web app with a slider for every setting in
-  `lua/flora/tune.lua`. It needs Python 3 with numpy and Pillow, and
-  Node.
+  `lua/flora/tune.lua`, drawing `tex/reference.tex` beside the de-warped
+  reference photo when `tex/reference/rectified.png` is present (it is not
+  tracked). It needs Python 3 with numpy and Pillow, and Node.
 
 ## Licence
 
