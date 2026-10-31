@@ -112,7 +112,7 @@ function P:gstate(ca, CA, bm)
     name = fmt("flgs%d", n + 1)
     registered.gs[key] = name
     local dict = fmt("<< /ca %s /CA %s /BM /%s >>", n2(ca or 1), n2(CA or 1), bm or "Normal")
-    registered.gs_list[#registered.gs_list + 1] = { name, dict }
+    registered.gs_list[#registered.gs_list + 1] = { name, dict, ca = ca or 1, CA = CA or 1, bm = bm or "Normal" }
     self.defs[#self.defs + 1] = fmt("\\csname pgfutil@addpdfresource@extgs\\endcsname{/%s %s}", name, dict)
   end
   return name
@@ -393,7 +393,9 @@ function P:shade(name, p0, p1, half)
       "<< /PatternType 2 /Shading << /ShadingType 2 /ColorSpace /DeviceRGB /Coords [%s %s %s %s] "
         .. "/Function %s /Extend [true true] >> >>",
       b2(p0[1]), b2(p0[2]), b2(p1[1]), b2(p1[2]), stitch(self.shadings[name]))
-    registered.pattern_list[#registered.pattern_list + 1] = { pname, src }
+    registered.pattern_list[#registered.pattern_list + 1] = {
+      pname, src, coords = { p0[1] * BP, p0[2] * BP, p1[1] * BP, p1[2] * BP }, stops = self.shadings[name],
+    }
     local obj = pdf_object(src)
     self.defs[#self.defs + 1] = fmt("\\csname pgfutil@addpdfresource@patterns\\endcsname{/%s %d 0 R}", pname, obj)
     -- Fill the band around the axis with the pattern.

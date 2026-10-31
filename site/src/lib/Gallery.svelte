@@ -3,7 +3,7 @@
   // drawn by the package's own Lua for three seeds, labelled with the name
   // that ornaments={...} weighs it by.
   import { onMount } from "svelte";
-  import { gallery, draw } from "./render.js";
+  import { gallery, show as picture, px } from "./render.js";
   import COLOURWAYS from "./colourways.json";
 
   let canvas, frame;
@@ -20,8 +20,8 @@
     status = "Drawing…";
     try {
       const palette = way < 0 ? {} : COLOURWAYS[way].palette;
-      const out = await gallery({ palette, spin: 0, base });
-      await draw(out.pdf, canvas, frame.clientWidth);
+      const out = await gallery({ palette, spin: 0, base, px: px(frame.clientWidth) });
+      await picture(out, canvas, frame.clientWidth);
       sheet = { w: out.w, h: out.h, cells: out.cells };
       status = `${out.cells.length} kinds`;
     } catch (e) {

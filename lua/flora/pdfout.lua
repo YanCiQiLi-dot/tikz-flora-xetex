@@ -42,6 +42,32 @@ function M.encode(pt, width, height)
   return table.concat(parts)
 end
 
+-- Painter `pt` as a scene for the site's canvas renderer
+-- (site/src/lib/scene.js): JSON holding the page size in bp, the content
+-- stream exactly as the PDF page carries it, and its resources as data —
+-- each opacity state's ca, CA and blend mode, and each pattern's axis (bp)
+-- and colour stops. The canvas replays the same operators the PDF holds.
+function M.scene(pt, width, height)
+  local res = Paint.resources()
+  local function num(v) return string.format("%.4f", v) end
+  local gs, pats = {}, {}
+  for _, g in ipairs(res.gs) do
+    gs[#gs + 1] = string.format('"%s":[%s,%s,"%s"]', g[1], num(g.ca), num(g.CA), g.bm)
+  end
+  for _, p in ipairs(res.patterns) do
+    local stops = {}
+    for _, s in ipairs(p.stops) do
+      stops[#stops + 1] = string.format("[%s,%s,%s,%s]", num(s[1]), num(s[2][1]), num(s[2][2]), num(s[2][3]))
+    end
+    local c = p.coords
+    pats[#pats + 1] = string.format('"%s":{"coords":[%s,%s,%s,%s],"stops":[%s]}', p[1],
+      num(c[1]), num(c[2]), num(c[3]), num(c[4]), table.concat(stops, ","))
+  end
+  local body = pt:body():gsub('[\\"]', "\\%0"):gsub("\n", "\\n")
+  return string.format('{"width":%s,"height":%s,"gs":{%s},"patterns":{%s},"content":"%s"}',
+    num(width * BP), num(height * BP), table.concat(gs, ","), table.concat(pats, ","), body)
+end
+
 -- Write painter `pt` to `path` as a PDF page `width` x `height` pt.
 function M.write(path, pt, width, height)
   local fh = assert(io.open(path, "wb"))

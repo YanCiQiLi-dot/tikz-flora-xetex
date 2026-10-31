@@ -59,11 +59,18 @@ generator as the package.
 1. `src/lib/render.worker.js` mounts the Lua files into wasmoon (Lua 5.4
    in WebAssembly) in a Web Worker.
 2. For each change, `src/lib/Mixer.svelte` sends the worker the baked
-   spec of the chosen layout with the seed, mix, palette and spin. The
-   worker calls `Compose.page` and returns the PDF bytes from
-   `pdfout.lua`.
-3. `src/lib/render.js` draws the PDF with pdf.js, and the baked text
-   image is multiplied over it.
+   spec of the chosen layout with the seed, mix, ornaments, palette and
+   spin. The worker calls `Compose.page`.
+3. The worker draws the page on an OffscreenCanvas with
+   `src/lib/scene.js`, which replays the PDF content stream `paint.lua`
+   writes (`pdfout.lua` `M.scene`), and returns a bitmap. The baked text
+   image is multiplied over it. With `?renderer=pdf` the worker returns
+   PDF bytes instead and pdf.js draws them, for comparison.
+
+   `scene.js` knows only the operators in `src/lib/scene-ops.json`;
+   `tests/test_scene_ops.lua` fails when `paint.lua` writes any other,
+   and `tests/e2e.mjs` checks the canvas matches pdf.js on the same
+   page.
 4. `src/lib/setup.js` writes the `\florasetup{...}` line for the current
    settings.
 

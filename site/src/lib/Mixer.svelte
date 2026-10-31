@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { meta as loadMeta, render, draw } from "./render.js";
+  import { meta as loadMeta, render, show, px, renderer } from "./render.js";
   import { setupLine, documentFor } from "./setup.js";
   import InkPicker from "./InkPicker.svelte";
   import COLOURWAYS from "./colourways.json";
@@ -80,10 +80,10 @@
     const pg = pages[layout];
     status = "Growing…";
     try {
-      const job = { spec: await spec(pg.page), seed, page: pg.page, mix: $state.snapshot(mix), ornaments: $state.snapshot(ornaments), palette: $state.snapshot(palette), spin };
+      const job = { spec: await spec(pg.page), seed, page: pg.page, mix: $state.snapshot(mix), ornaments: $state.snapshot(ornaments), palette: $state.snapshot(palette), spin, px: px(frame.clientWidth) };
       const out = await render(job);
-      await draw(out.pdf, canvas, frame.clientWidth);
-      status = `Grown in ${(out.ms / 1000).toFixed(1)} s`;
+      await show(out, canvas, frame.clientWidth);
+      status = `Grown in ${(out.ms / 1000).toFixed(1)} s${renderer === "pdf" ? " (pdf.js)" : ""}`;
     } catch (e) {
       status = `Something went wrong: ${e.message}`;
     }

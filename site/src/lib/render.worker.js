@@ -3,14 +3,18 @@
 // paints. Messages:
 //   { id, kind: "meta" }            -> { id, meta }  settings to offer, with
 //                                      each ink's ramp and each group's inks
-//   { id, kind: "render", spec, seed, page, mix, ornaments, palette, spin }
-//                                   -> { id, pdf: Uint8Array, ms }
-//   { id, kind: "gallery", palette, spin, base }
-//                                   -> { id, pdf, cells, w, h }  every
-//                                      ornament kind (gallery.lua), with
-//                                      where to label each
+//   { id, kind: "render", spec, seed, page, mix, ornaments, palette, spin, px }
+//                                   -> { id, bitmap | pdf, ms }
+//   { id, kind: "gallery", palette, spin, base, px }
+//                                   -> { id, bitmap | pdf, cells, w, h }
+//                                      every ornament kind (gallery.lua),
+//                                      with where to label each
+// With `px` (the picture's width in device pixels) the page's content
+// stream is drawn here on an OffscreenCanvas (scene.js) and returned as an
+// ImageBitmap; without it, as PDF bytes for pdf.js.
 import { LuaFactory } from "wasmoon";
 import wasmUrl from "wasmoon/dist/glue.wasm?url";
+import { paint } from "./scene.js";
 
 const sources = import.meta.glob("../../../lua/flora/*.lua", { query: "?raw", import: "default", eager: true });
 
@@ -89,6 +93,26 @@ return "{\\"kinds\\":[" .. table.concat(kinds, ",") .. "],\\"ornaments\\":[" .. 
   .. "],\\"ramps\\":{" .. table.concat(ramps, ",") .. "},\\"groupInks\\":{" .. table.concat(members, ",") .. "}}"
 `;
 
+// The transferable objects of the last picture() call.
+let transfers = [];
+
+// Lua's output as a message body: a scene drawn to a bitmap `px` wide, or
+// PDF bytes.
+function picture(out, px) {
+  if (px) {
+    const scene = JSON.parse(out);
+    const scale = px / scene.width;
+    const canvas = new OffscreenCanvas(Math.round(px), Math.round(scene.height * scale));
+    paint(canvas.getContext("2d"), scene, scale);
+    const bitmap = canvas.transferToImageBitmap();
+    transfers = [bitmap];
+    return { bitmap };
+  }
+  const bytes = new TextEncoder().encode(out);
+  transfers = [bytes.buffer];
+  return { pdf: bytes };
+}
+
 onmessage = async (e) => {
   const { id, kind } = e.data;
   try {
@@ -98,7 +122,7 @@ onmessage = async (e) => {
       return;
     }
     if (kind === "gallery") {
-      const { palette, spin, base } = e.data;
+      const { palette, spin, base, px } = e.data;
       const pdf = await l.doString(`
         local Gallery = require("flora.gallery")
         local Mix = require("flora.mix")
@@ -115,13 +139,12 @@ onmessage = async (e) => {
           end
         end
         GALLERY = string.format('{"w":%.1f,"h":%.1f,"cells":[%s]}', w, h, table.concat(rows, ","))
-        return Pdf.encode(pt, w, h)`);
+        return ${px ? "Pdf.scene" : "Pdf.encode"}(pt, w, h)`);
       const { w, h, cells } = JSON.parse(await l.doString("return GALLERY"));
-      const bytes = new TextEncoder().encode(pdf);
-      postMessage({ id, pdf: bytes, cells, w, h }, [bytes.buffer]);
+      postMessage({ id, ...picture(pdf, px), cells, w, h }, transfers);
       return;
     }
-    const { spec, seed, page, mix, ornaments, palette, spin } = e.data;
+    const { spec, seed, page, mix, ornaments, palette, spin, px } = e.data;
     const t0 = performance.now();
     l.global.set("SPEC", spec);
     l.global.set("SEED", String(seed));
@@ -138,9 +161,9 @@ onmessage = async (e) => {
       spec.palette = ${table(palette)}
       spec.spin = ${Number(spin) | 0}
       Paint.reset_resources()
-      return Pdf.encode(Compose.page(spec), spec.width, spec.height)`);
-    const bytes = new TextEncoder().encode(pdf);
-    postMessage({ id, pdf: bytes, ms: Math.round(performance.now() - t0) }, [bytes.buffer]);
+      return ${px ? "Pdf.scene" : "Pdf.encode"}(Compose.page(spec), spec.width, spec.height)`);
+    const out = picture(pdf, px);
+    postMessage({ id, ...out, ms: Math.round(performance.now() - t0) }, transfers);
   } catch (err) {
     postMessage({ id, error: String(err && err.message || err) });
   }

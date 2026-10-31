@@ -71,6 +71,50 @@ try {
   check(first.blue < 0.1, `the first colourway is ${(first.blue * 100).toFixed(0)}% blue`);
   check(/seed=11/.test(await code()) && /hero=yu-yake/.test(await code()), `the mixer does not start on the first colourway: ${await code()}`);
 
+  // The canvas renderer (scene.js) draws what pdf.js draws from the same
+  // page's PDF, up to antialiasing: few sampled pixels differ visibly.
+  const pixels = (p) => p.evaluate(() => {
+    const c = document.querySelector(".sheet canvas");
+    const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+    // Each sample averages a 3 x 3 block over white paper, so a hairline
+    // antialiased half a pixel differently does not count as a difference.
+    const out = [];
+    for (let y = 0; y + 3 <= c.height; y += 3) {
+      for (let x = 0; x + 3 <= c.width; x += 3) {
+        const sum = [0, 0, 0];
+        for (let v = 0; v < 3; v++) {
+          for (let u = 0; u < 3; u++) {
+            const i = ((y + v) * c.width + x + u) * 4, a = d[i + 3] / 255;
+            for (let k = 0; k < 3; k++) sum[k] += d[i + k] * a + 255 * (1 - a);
+          }
+        }
+        out.push(...sum.map((v) => Math.round(v / 9)));
+      }
+    }
+    return { w: Math.floor(c.width / 3), h: Math.floor(c.height / 3), px: out };
+  });
+  {
+    const viaPdf = await context.newPage();
+    await viaPdf.goto(URL + "?renderer=pdf");
+    await viaPdf.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
+    check(/pdf\.js/.test(await viaPdf.locator(".status").textContent()), "?renderer=pdf did not draw with pdf.js");
+    const [a, b] = [await pixels(page), await pixels(viaPdf)];
+    await viaPdf.close();
+    const w = Math.min(a.w, b.w), h = Math.min(a.h, b.h);
+    let differ = 0, ink = 0;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * a.w + x) * 3, j = (y * b.w + x) * 3;
+        const d = Math.max(Math.abs(a.px[i] - b.px[j]), Math.abs(a.px[i + 1] - b.px[j + 1]), Math.abs(a.px[i + 2] - b.px[j + 2]));
+        if (b.px[j] + b.px[j + 1] + b.px[j + 2] < 720) ink++;
+        if (d > 48) differ++;
+      }
+    }
+    console.log(`renderers: ${differ} of ${ink} inked samples differ (${((differ / Math.max(1, ink)) * 100).toFixed(2)}%), sizes ${a.w}x${a.h} / ${b.w}x${b.h}`);
+    check(Math.abs(a.w - b.w) <= 1 && Math.abs(a.h - b.h) <= 1, `the renderers draw different sizes (${a.w}x${a.h}, ${b.w}x${b.h})`);
+    check(ink > 2000 && differ < ink * 0.03, `canvas and pdf.js differ at ${differ} of ${ink} inked samples`);
+  }
+
   // Scrolling the controls leaves the page viewer where it is.
   const sheetTop = () => page.evaluate(() => document.querySelector(".sheet").getBoundingClientRect().top);
   await page.evaluate(() => document.querySelector("#mixer").scrollIntoView({ behavior: "instant" }));
