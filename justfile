@@ -61,7 +61,7 @@ test-lua54:
 # Assets for the site (site/) made from the example, tex/lorem.tex: the
 # zip, each layout's measured layout and text page for the mixer, page
 # renders, the grow animation and the link-preview image.
-site-bake seed="3":
+site-bake seed="3" CW="site/src/lib/colourways.json":
     just dist
     rm -rf site/public/bake site/public/img site/public/media build/site-bake
     mkdir -p site/public/bake site/public/img site/public/media build/site-bake
@@ -71,12 +71,16 @@ site-bake seed="3":
     printf '%s\n' '[{"layout":"left","page":4,"label":"Left"},{"layout":"right","page":3,"label":"Right"},{"layout":"centered","page":6,"label":"Centred"},{"layout":"title","page":1,"label":"Title"},{"layout":"surround","page":2,"label":"Surround"}]' > site/public/bake/manifest.json
     just build lorem {{seed}} >/dev/null; just build lorem {{seed}} 110 >/dev/null
     pdftocairo -jpeg -jpegopt quality=86 -r 110 build/lorem.pdf site/public/img/page
-    texlua tools/preview.lua build/site-bake/spec-4.lua doc 4 build/site-bake/flora-4.pdf
-    pdftocairo -png -transp -singlefile -r 90 build/site-bake/flora-4.pdf site/public/img/flora-margin
+    # Page 4 in each colourway of site/src/lib/colourways.json, grown as the
+    # mixer grows it, and the first colourway's flora alone beside the guide.
+    for i in 0 1 2; do s=$(jq -r ".[$i].seed" $CW) && p=$(jq -r ".[$i].palette | to_entries | map(\"\(.key)=\(.value)\") | join(\", \")" $CW) && texlua tools/preview.lua build/site-bake/spec-4.lua $s 4 build/site-bake/cw-$i.pdf - "fresh, visitors=1, palette={$p}" && pdftocairo -png -singlefile -r 110 build/site-bake/cw-$i.pdf build/site-bake/cw-$i && magick build/site-bake/cw-$i.png site/public/bake/text-4.png -compose multiply -composite -quality 86 site/public/img/colourway-$i.jpg || exit 1; done
+    p=$(jq -r ".[0].palette | to_entries | map(\"\(.key)=\(.value)\") | join(\", \")" $CW) && texlua tools/preview.lua build/site-bake/spec-4.lua $(jq -r ".[0].seed" $CW) 4 build/site-bake/flora-4.pdf - "fresh, noheader, visitors=1, palette={$p}"
+    pdftocairo -png -transp -singlefile -r 90 build/site-bake/flora-4.pdf build/site-bake/flora-4
+    magick build/site-bake/flora-4.png -gravity west -crop 36%x100%+0+0 +repage site/public/img/flora-margin.png
     just grow lorem {{seed}} 3 20 8
     cp build/grow-lorem-3.mp4 site/public/media/grow.mp4
     cp build/grow-lorem-3.gif site/public/media/grow.gif
-    magick -size 1200x630 xc:'#f4f1ea' \( site/public/img/page-1.jpg -resize x560 \) -geometry +12+35 -composite \( site/public/img/page-2.jpg -resize x560 \) -geometry +402+35 -composite \( site/public/img/page-3.jpg -resize x560 \) -geometry +792+35 -composite -quality 86 site/public/img/og.jpg
+    magick -size 1200x630 xc:'#f5f2eb' \( site/public/img/colourway-0.jpg -resize x560 \) -geometry +12+35 -composite \( site/public/img/colourway-1.jpg -resize x560 \) -geometry +402+35 -composite \( site/public/img/colourway-2.jpg -resize x560 \) -geometry +792+35 -composite -quality 86 site/public/img/og.jpg
 
 # The site with hot reload at http://127.0.0.1:5174/ (run site-bake first).
 site-dev:
