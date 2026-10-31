@@ -17,6 +17,21 @@
 % tuner uses it to recompile one page quickly.
 \providecommand\florapages{}
 
+% Settings for the rest of the document, as key=value pairs:
+%   \florasetup{layout=split, seed=4}
+% Keys are checked when given; see lua/flora/settings.lua and the guide.
+\newcommand\florasetup[1]{\directlua{flora.setup("\luaescapestring{\detokenize{#1}}")}}
+% The same keys for the next page shipped only, usually the current one:
+%   \florathispage{layout=surround}
+\newcommand\florathispage[1]{\directlua{flora.setup("\luaescapestring{\detokenize{#1}}", true)}}
+
+% A title block for layout=title: the flora crowns the lines between the
+% environment's start and end. Without it the title layout frames the
+% first block of lines on the page.
+\newenvironment{floratitle}
+  {\par\directlua{flora.mark("title-start")}}
+  {\par\directlua{flora.mark("title-end")}}
+
 % Draw the specimen sheet inside the current tikzpicture.
 \newcommand\florasheet[1]{\directlua{flora.specimens(#1)}}
 
@@ -26,12 +41,17 @@
 \newcommand\floraoff{\global\floraonfalse}
 \newcommand\floraon{\global\floraontrue}
 
+% The side margin of the page being shipped: two-sided documents set even
+% pages by \evensidemargin.
+\def\flora@sidemargin{%
+  \ifodd\value{page}\oddsidemargin\else\if@twoside\evensidemargin\else\oddsidemargin\fi\fi}
+
 \AddToHook{shipout/background}{%
   \iffloraon
     \put(0pt,-\paperheight){\directlua{flora.page{
       width = "\the\paperwidth", height = "\the\paperheight",
-      text_x0 = "\the\dimexpr 1in+\hoffset+\oddsidemargin\relax",
-      text_x1 = "\the\dimexpr 1in+\hoffset+\oddsidemargin+\textwidth\relax",
+      text_x0 = "\the\dimexpr 1in+\hoffset+\flora@sidemargin\relax",
+      text_x1 = "\the\dimexpr 1in+\hoffset+\flora@sidemargin+\textwidth\relax",
       text_y1 = "\the\dimexpr\paperheight-1in-\voffset-\topmargin-\headheight-\headsep\relax",
       text_y0 = "\the\dimexpr\paperheight-1in-\voffset-\topmargin-\headheight-\headsep-\textheight\relax",
       header_y = "\the\dimexpr\paperheight-1in-\voffset-\topmargin-\headheight\relax",

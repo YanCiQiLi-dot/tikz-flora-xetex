@@ -28,6 +28,31 @@ function M.flush()
   node.write(n)
 end
 
+-- Settings from \florasetup (the document's) and \florathispage (the next
+-- page shipped only); see settings.lua for the keys.
+M.settings = {}
+M.once = nil
+
+local function report(err)
+  tex.error("tikzflora: " .. tostring(err):gsub("^.-:%d+: ", ""))
+end
+
+function M.setup(s, once)
+  local Settings = require("flora.settings")
+  local ok, t = pcall(Settings.parse, s)
+  if not ok then return report(t) end
+  if once then
+    M.once = Settings.merge(M.once, t)
+  else
+    M.settings = Settings.merge(M.settings, t)
+  end
+end
+
+-- Leave a named mark at this point of the page (measure.lua).
+function M.mark(name)
+  require("flora.measure").mark(name)
+end
+
 function M.specimens(seed)
   local spec = require("flora.specimen")
   tex.sprint(string.format(
@@ -63,13 +88,20 @@ function M.page(a)
   local dump = os.getenv("FLORA_SPEC_DIR")
   local skip = a.only and a.only ~= "" and tonumber(a.only) ~= a.page
   if skip and not (dump and dump ~= "") then return end
+  local set = require("flora.settings").merge(M.settings, M.once)
+  M.once = nil
+  local lines, marks
+  if a.box then lines, marks = require("flora.measure").boxes(a.box, pt_of(a.height)) end
   local spec = {
     width = pt_of(a.width), height = pt_of(a.height),
     text = { x0 = pt_of(a.text_x0), y0 = pt_of(a.text_y0), x1 = pt_of(a.text_x1), y1 = pt_of(a.text_y1) },
     header_y = a.header_y and pt_of(a.header_y),
-    seed = M.seed(a.seed, a.page),
-    lines = a.box and require("flora.measure").boxes(a.box, pt_of(a.height)),
+    seed = M.seed(set.seed or a.seed, a.page),
+    lines = lines, layout = set.layout, page = a.page,
   }
+  if marks and marks["title-start"] and lines then
+    spec.title = require("flora.frames").between(lines, marks["title-start"], marks["title-end"] or 0)
+  end
   if dump and dump ~= "" then
     local f = assert(io.open(string.format("%s/spec-%d.lua", dump, a.page), "w"))
     local saved = {}

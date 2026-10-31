@@ -13,6 +13,21 @@ local ONE_INCH = 4736286
 local id = node.id
 local HLIST, VLIST, GLYPH, RULE = id("hlist"), id("vlist"), id("glyph"), id("rule")
 local GLUE, KERN, MATH, DISC = id("glue"), id("kern"), id("math"), id("disc")
+local WHATSIT, USER = id("whatsit"), node.subtype("user_defined")
+
+-- user_id of the marks \begin{floratitle} and \end{floratitle} leave.
+M.MARK_ID = 0x464c
+
+-- Leave a named mark in the current list; M.boxes reports its height.
+function M.mark(name)
+  local n = node.new(WHATSIT, USER)
+  n.user_id, n.type, n.value = M.MARK_ID, 115, name
+  node.write(n)
+end
+
+local function is_mark(n)
+  return n.id == WHATSIT and n.subtype == USER and n.user_id == M.MARK_ID
+end
 
 -- Width a node advances along an hlist.
 local function advance(n, parent)
@@ -51,6 +66,8 @@ local function walk_h(box, x, y, out)
         top = math.min(top or y - h, y - h)
         bot = math.max(bot or y + d, y + d)
       end
+    elseif is_mark(n) then
+      out.marks[n.value] = y
     elseif t == HLIST then
       walk_h(n, cx, y + (n.shift or 0), out)
     elseif t == VLIST then
@@ -85,19 +102,22 @@ function walk_v(box, x, top, out)
       cy = cy + (node.effective_glue(n, box) or 0)
     elseif t == KERN then
       cy = cy + n.kern
+    elseif is_mark(n) then
+      out.marks[n.value] = cy
     end
   end
 end
 
 -- Ink boxes of box register `reg` as shipped on a page of height `paper_h`
--- (pt). TeX places the box's top-left corner at (1in + \hoffset,
--- 1in + \voffset) from the paper's top-left corner.
+-- (pt), and the heights of the marks on the page by name. TeX places the
+-- box's top-left corner at (1in + \hoffset, 1in + \voffset) from the
+-- paper's top-left corner.
 function M.boxes(reg, paper_h)
   local b = tex.box[reg]
-  if not b then return {} end
+  if not b then return {}, {} end
   local ox = ONE_INCH + tex.hoffset
   local oy = ONE_INCH + tex.voffset
-  local raw = {}
+  local raw = { marks = {} }
   if b.id == VLIST then
     walk_v(b, 0, 0, raw)
   else
@@ -110,7 +130,9 @@ function M.boxes(reg, paper_h)
       y0 = paper_h - (oy + r.bot) / SP, y1 = paper_h - (oy + r.top) / SP,
     }
   end
-  return out
+  local marks = {}
+  for name, y in pairs(raw.marks) do marks[name] = paper_h - (oy + y) / SP end
+  return out, marks
 end
 
 return M

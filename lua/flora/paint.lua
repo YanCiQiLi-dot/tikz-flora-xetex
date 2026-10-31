@@ -222,11 +222,28 @@ function P:project(fn)
   self.projection = fn
 end
 
+-- Set (or with nil, clear) the frame: a map fn(x, y) -> x, y from a layout
+-- frame's own coordinates to the page's (frames.lua). It applies after any
+-- projection, so elements that project themselves still land in the frame.
+function P:frame(fn)
+  self.frame_fn = fn
+end
+
+-- The map every coordinate passes through, or nil for none.
+function P:_pj()
+  local pj, fr = self.projection, self.frame_fn
+  if pj and fr then
+    return function(x, y) return fr(pj(x, y)) end
+  end
+  return pj or fr
+end
+
 -- Append the path commands for `cmds`; circles become four Bezier quarters.
 function P:_path(cmds, buf)
   local K = 0.5523
   local ops = OPS[self.backend]
-  if self.projection then cmds = projected(cmds, self.projection) end
+  local pj = self:_pj()
+  if pj then cmds = projected(cmds, pj) end
   for _, c in ipairs(cmds) do
     local op = c[1]
     if op == "m" then
@@ -350,9 +367,10 @@ end
 -- Paint gradient `name` so its start lies at p0 and its end at p1, covering
 -- `half` pt to either side of that axis. Use inside a clip.
 function P:shade(name, p0, p1, half)
-  if self.projection then
-    local a, b = self.projection(p0[1], p0[2])
-    local c, d = self.projection(p1[1], p1[2])
+  local pj = self:_pj()
+  if pj then
+    local a, b = pj(p0[1], p0[2])
+    local c, d = pj(p1[1], p1[2])
     p0, p1 = { a, b }, { c, d }
   end
   local dx, dy = p1[1] - p0[1], p1[2] - p0[2]

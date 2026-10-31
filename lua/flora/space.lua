@@ -34,6 +34,7 @@ end
 -- 4 = a stem's corridor (a placed element that leaves may grow over).
 function S:open(x0, y0, x1, y1) self:_set_rect(x0, y0, x1, y1, 0) end
 function S:block_text(x0, y0, x1, y1) self:_set_rect(x0, y0, x1, y1, 2) end
+function S:close(x0, y0, x1, y1) self:_set_rect(x0, y0, x1, y1, 1) end
 
 -- Is the cell at (x, y) free? With `over_stems`, stem corridors count as
 -- free too.

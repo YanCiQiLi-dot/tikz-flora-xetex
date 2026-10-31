@@ -44,6 +44,8 @@ function M.region(spec)
   if spec.header_y then
     g:block_text(t.x0 - 4, spec.header_y - 4, t.x1, spec.header_y + 12)
   end
+  -- Rectangles another plant of the same page owns (frames.lua).
+  for _, r in ipairs(spec.closed or {}) do g:close(r[1], r[2], r[3], r[4]) end
   return g, m
 end
 

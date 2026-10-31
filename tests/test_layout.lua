@@ -1,0 +1,174 @@
+local H = dofile("tests/helper.lua")
+local Compose = require("flora.compose")
+local Paint = require("flora.paint")
+local Frames = require("flora.frames")
+local Settings = require("flora.settings")
+
+local W = 595.28
+
+-- The helper's page with its text block (and lines) mirrored, so the wide
+-- margin is on the right.
+local function mirrored(seed)
+  local s = H.page(seed)
+  s.text = { x0 = W - s.text.x1, x1 = W - s.text.x0, y0 = s.text.y0, y1 = s.text.y1 }
+  for _, l in ipairs(s.lines) do l.x0, l.x1 = W - l.x1, W - l.x0 end
+  s.header_y = nil
+  return s
+end
+
+-- A page with a centred text block and margins of 120pt on both sides.
+local function centred(seed)
+  local s = H.page(seed)
+  s.text = { x0 = 120, y0 = 140, x1 = 475, y1 = 700 }
+  local ls = {}
+  for _, l in ipairs(s.lines) do
+    if l.y0 > 140 and l.y1 < 700 then
+      ls[#ls + 1] = { x0 = 120, x1 = math.min(475, l.x1 - 53), y0 = l.y0, y1 = l.y1 }
+    end
+  end
+  s.lines, s.header_y = ls, nil
+  return s
+end
+
+-- Every painted point of a page, in order.
+local function points(spec)
+  local pts = {}
+  spec.probe = function(x, y, r) pts[#pts + 1] = { x, y, r } end
+  Paint.reset_resources()
+  Compose.page(spec)
+  return pts
+end
+
+local function on_text(spec, pts)
+  for _, p in ipairs(pts) do
+    local x, y, r = p[1], p[2], p[3]
+    for _, l in ipairs(spec.lines) do
+      if x + r > l.x0 + 1 and x - r < l.x1 - 1 and y + r > l.y0 + 1 and y - r < l.y1 - 1 then
+        return string.format("(%.1f, %.1f)", x, y)
+      end
+    end
+  end
+end
+
+-- The default layout is the plain page: naming it changes nothing.
+do
+  Paint.reset_resources()
+  local a = Compose.page(H.page(2)):code()
+  local s = H.page(2)
+  s.layout = "left"
+  Paint.reset_resources()
+  H.check(Compose.page(s):code() == a, "layout=left differs from the default")
+end
+
+-- layout=right on a mirrored page is the left layout mirrored: same seed,
+-- same plant. Each layer's extents (paint.lua's boxes) match its mirror.
+-- (Points themselves differ in number: a circle under a frame map is
+-- painted as four curves rather than one centre and radius.)
+do
+  local base = H.page(4)
+  base.header_y = nil
+  Paint.reset_resources()
+  local l = Compose.page(base).boxes
+  local s = mirrored(4)
+  s.layout = "right"
+  Paint.reset_resources()
+  local r = Compose.page(s).boxes
+  H.check(#l == #r and #l >= 5, string.format("right has %d layers, left %d", #r, #l))
+  local worst = 0
+  for i = 1, math.min(#l, #r) do
+    local a, b = l[i], r[i]
+    H.check(a.tag == b.tag, "layers out of order: " .. a.tag .. " / " .. b.tag)
+    worst = math.max(worst, math.abs(W - a.x1 - b.x0), math.abs(W - a.x0 - b.x1),
+      math.abs(a.y0 - b.y0), math.abs(a.y1 - b.y1))
+  end
+  H.check(worst < 1e-6, string.format("right is not left mirrored (off by %.3g pt)", worst))
+end
+
+-- No layout paints over text.
+for _, lay in ipairs({ "right", "centered", "surround", "title", "split" }) do
+  for seed = 1, 1 do
+    local spec = (lay == "right" or lay == "split") and mirrored(seed) or centred(seed)
+    if lay == "title" then
+      spec.lines = { { x0 = 170, x1 = 425, y0 = 560, y1 = 600 }, { x0 = 230, x1 = 365, y0 = 530, y1 = 545 } }
+    end
+    spec.layout, spec.page = lay, 1
+    local where = on_text(spec, points(spec))
+    H.check(not where, string.format("%s seed %d paints on text at %s", lay, seed, tostring(where)))
+  end
+end
+
+-- Surround: each plant keeps to its own side. The first never enters the
+-- right margin beside the text, the second never the left one.
+do
+  local spec = centred(5)
+  spec.layout = "surround"
+  local t, label = spec.text, nil
+  local stray = {}
+  spec.on_frame = function(f) label = f.label end
+  spec.probe = function(x, y)
+    local in_right = x > t.x1 + 12 and y > t.y0 + 12 and y < t.y1 - 12
+    local in_left = x < t.x0 - 12 and y > t.y0 + 12 and y < t.y1 - 12
+    if (label == "left" and in_right) or (label == "right" and in_left) then
+      stray[label] = (stray[label] or 0) + 1
+    end
+  end
+  Paint.reset_resources()
+  Compose.page(spec)
+  H.check(not stray.left, string.format("left plant strays into the right margin %d times", stray.left or 0))
+  H.check(not stray.right, string.format("right plant strays into the left margin %d times", stray.right or 0))
+end
+
+-- Split follows page parity: odd pages are mirrored, even ones are not.
+do
+  local s = H.page(1)
+  s.layout = "split"
+  s.page = 3
+  H.check(Frames.of(s)[1].map ~= nil, "split on an odd page is not mirrored")
+  s.page = 4
+  H.check(Frames.of(s)[1].map == nil, "split on an even page is mirrored")
+end
+
+-- Frame maps invert exactly, and boxes keep their size through a frame.
+do
+  for _, m in ipairs({ { -1, 0, 0, 1, W, 0 }, { 0, -1, 1, 0, 0, 841.89 }, { -1, 0, 0, -1, W, 841.89 } }) do
+    local inv = Frames.invert(m)
+    local x, y = Frames.apply(inv, Frames.apply(m, 123.4, 567.8))
+    H.check(math.abs(x - 123.4) < 1e-9 and math.abs(y - 567.8) < 1e-9, "frame map does not round-trip")
+  end
+  local s = centred(1)
+  s.layout = "title"
+  s.title = { x0 = 170, x1 = 425, y0 = 530, y1 = 600 }
+  local f = Frames.of(s)[1]
+  local tx = f.spec.text
+  H.check(math.abs((tx.x1 - tx.x0) - 70) < 1e-6, "title block's height is not the frame's text width")
+  H.check(f.spec.text.y1 <= f.spec.height, "title frame's text runs past the frame")
+end
+
+-- The title block: lines between two marks, or the top block by default.
+do
+  local lines = {
+    { x0 = 200, x1 = 400, y0 = 600, y1 = 630 },
+    { x0 = 250, x1 = 350, y0 = 570, y1 = 585 },
+    { x0 = 120, x1 = 470, y0 = 400, y1 = 410 },
+  }
+  local B = Frames.between(lines, 640, 560)
+  H.check(B and B.x0 == 200 and B.x1 == 400 and B.y0 == 570 and B.y1 == 630, "between misses the title lines")
+  H.check(Frames.between(lines, 300, 200) == nil, "between found lines outside its range")
+  local top = Frames.top_block({ text = { x0 = 120, y0 = 100, x1 = 470, y1 = 700 }, lines = lines })
+  H.check(top.y0 == 570 and top.x0 == 200, "top block runs past the gap below the title")
+end
+
+-- Settings: keys are checked, nested values keep their braces' contents.
+do
+  local t = Settings.parse("layout=surround, seed = 12")
+  H.check(t.layout == "surround" and t.seed == "12", "settings did not parse")
+  local list = Settings.parse_list("a=1, mix={b=2, c=3}, d")
+  H.check(#list == 3 and list[2][2] == "b=2, c=3" and list[3][2] == nil, "nested list split wrongly")
+  for _, bad in ipairs({ "layout=diagonal", "colour=blue", "seed=", "layout", "mix={a=1" }) do
+    H.check(not pcall(Settings.parse, bad), "accepted bad settings \"" .. bad .. "\"")
+  end
+  local m = Settings.merge({ layout = "left", mix = { a = 1, b = 2 } }, { mix = { b = 5 } })
+  H.check(m.layout == "left" and m.mix.a == 1 and m.mix.b == 5, "merge lost or kept the wrong values")
+end
+
+H.done("layout")

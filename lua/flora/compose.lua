@@ -16,16 +16,16 @@ local O = require("flora.ornament")
 local Tune = require("flora.tune")
 local Plant = require("flora.plant")
 local Brush = require("flora.brush")
+local Frames = require("flora.frames")
 local pal = Paint.palette
 
 local C = {}
 local pi = math.pi
 local HERO_TOP = 8
 
--- Plan and paint a page. spec: width, height, text = {x0, y0, x1, y1},
--- optional lines, header_y, seed, edge, and probe(x, y, r), which sees
--- every painted point (tests use it to check nothing lands on text).
-function C.page(spec)
+-- Plan and paint one plant in its frame's left margin (frames.lua), onto
+-- `pt` when given, else onto a new painter.
+local function plant(spec, pt)
   local rng = Rng.new(spec.seed or 1)
   local W = spec.width
   local edge = spec.edge or 16
@@ -219,8 +219,10 @@ function C.page(spec)
   for _, s in ipairs(runners) do stem_batch:stem_by(s.pts, s.width) end
 
   -- Paint back to front.
-  local pt = Paint.new({ backend = os.getenv("FLORA_BACKEND") })
-  pt.probe = spec.probe
+  if not pt then
+    pt = Paint.new({ backend = os.getenv("FLORA_BACKEND") })
+    pt.probe = spec.probe
+  end
   local function layer(tag, fn)
     pt:begin_group(tag)
     fn()
@@ -254,6 +256,30 @@ function C.page(spec)
   pt.coverage = g:coverage()
   pt.panel = panel
   pt.ghost = ghost
+  return pt
+end
+
+-- Plan and paint a page. spec: width, height, text = {x0, y0, x1, y1},
+-- optional lines, header_y, seed, edge, layout (frames.lua) with page and
+-- title, and probe(x, y, r), which sees every painted point in page
+-- coordinates (tests use it to check nothing lands on text); on_frame(f),
+-- when given, is told each frame before its plant is painted.
+function C.page(spec)
+  local frames = Frames.of(spec)
+  if #frames == 1 and not frames[1].map then return plant(spec) end
+  local pt = Paint.new({ backend = os.getenv("FLORA_BACKEND") })
+  pt.probe = spec.probe
+  local cover = 0
+  for _, f in ipairs(frames) do
+    local m = f.map
+    if spec.on_frame then spec.on_frame(f) end
+    pt:frame(function(x, y) return Frames.apply(m, x, y) end)
+    plant(f.spec, pt)
+    cover = cover + pt.coverage / #frames
+  end
+  pt:frame(nil)
+  pt.coverage = cover
+  pt.frames = frames
   return pt
 end
 
