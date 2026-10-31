@@ -36,7 +36,9 @@ function M.region(spec)
   g:open(m.x0, m.y0, W - edge, m.foot)
   g:open(t.x1 + 5, m.y0, W - edge * 0.6, t.y0 + (t.y1 - t.y0) * 0.22)
   if spec.lines and #spec.lines > 0 then
-    M.open_short_lines(g, spec, gutter)
+    -- Room the text leaves inside its block is opened, except for layouts
+    -- that only frame the text (frames.lua).
+    if not spec.frame_only then M.open_short_lines(g, spec, gutter) end
     for _, l in ipairs(spec.lines) do
       g:block_text(l.x0 - 4, l.y0 - 3, l.x1 + 4, l.y1 + 3)
     end

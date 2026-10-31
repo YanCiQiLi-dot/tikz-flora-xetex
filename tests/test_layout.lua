@@ -118,6 +118,22 @@ do
   H.check(not stray.right, string.format("right plant strays into the left margin %d times", stray.right or 0))
 end
 
+-- A wreath frames a short page's text; it does not grow into the empty
+-- part of the text block, as the left layout's excursion does.
+do
+  local spec = centred(3)
+  local short = {}
+  for _, l in ipairs(spec.lines) do if l.y0 > 560 then short[#short + 1] = l end end
+  spec.lines, spec.layout = short, "surround"
+  local t, inside = spec.text, 0
+  spec.probe = function(x, y)
+    if x > t.x0 + 12 and x < t.x1 - 12 and y > t.y0 + 12 and y < 540 then inside = inside + 1 end
+  end
+  Paint.reset_resources()
+  Compose.page(spec)
+  H.check(inside == 0, string.format("surround grows %d points into the empty text block", inside))
+end
+
 -- Split follows page parity: odd pages are mirrored, even ones are not.
 do
   local s = H.page(1)

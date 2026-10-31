@@ -69,6 +69,8 @@ local function frame(spec, m, w, h, opts)
   s.width, s.height, s.text, s.lines = w, h, text, lines
   s.header_y = opts.header and spec.header_y or nil
   s.closed = opts.closed
+  -- A wreath or a crown frames the text; it does not grow into it.
+  s.frame_only = opts.frame_only
   s.layout = nil
   if opts.seed then s.seed = opts.seed end
   return { spec = s, map = m, label = opts.label }
@@ -114,8 +116,8 @@ function M.of(spec)
     -- meet in a pinwheel: the first owns the left margin up to the text's
     -- top and the whole foot; the second, turned 180 degrees, owns the
     -- right margin down to the text's foot and the whole top band.
-    local a = frame(spec, IDENTITY, W, H, { label = "left" })
-    local b = frame(spec, { -1, 0, 0, -1, W, H }, W, H, { seed = seed_of(spec, 2), label = "right" })
+    local a = frame(spec, IDENTITY, W, H, { label = "left", frame_only = true })
+    local b = frame(spec, { -1, 0, 0, -1, W, H }, W, H, { seed = seed_of(spec, 2), label = "right", frame_only = true })
     for _, f in ipairs({ a, b }) do
       local ft = f.spec.text
       f.spec.closed = {
@@ -133,8 +135,8 @@ function M.of(spec)
     local R = hero_radius(spec, H - B.y1)
     local half = W / 2 - R * 0.47
     return {
-      frame(spec, { 0, -1, 1, 0, 0, H }, depth, half, { block = B, label = "left" }),
-      frame(spec, { 0, -1, -1, 0, W, H }, depth, half, { block = B, seed = seed_of(spec, 2), label = "right" }),
+      frame(spec, { 0, -1, 1, 0, 0, H }, depth, half, { block = B, label = "left", frame_only = true }),
+      frame(spec, { 0, -1, -1, 0, W, H }, depth, half, { block = B, seed = seed_of(spec, 2), label = "right", frame_only = true }),
     }
   end
 end

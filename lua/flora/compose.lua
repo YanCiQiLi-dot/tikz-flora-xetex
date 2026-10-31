@@ -64,7 +64,7 @@ local function plant(spec, pt)
   local pw, ph = Layout.cartouche_size(mw)
   local strands, root = Layout.strands(rng:fork("strands"), m, hero, W, gest,
     { m.x0, py - ph / 2 - 3, m.x0 + pw + 5, py + ph / 2 + 3 })
-  local excursion = Layout.excursion(rng:fork("excursion"), spec, root)
+  local excursion = not spec.frame_only and Layout.excursion(rng:fork("excursion"), spec, root)
   if excursion then strands[#strands + 1] = excursion end
   local runners = Layout.runners(rng:fork("runners"), m, strands[1].pts[1], W, edge)
   Plant.fork(strands[1], 0.005, 0.8)
