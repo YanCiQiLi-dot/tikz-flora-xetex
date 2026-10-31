@@ -64,13 +64,27 @@ end
 
 -- Small gilt in the gaps of the foliage. Items {x, y, r, kind}: kind
 -- "plain" (a four-point sparkle), "dotted" (a sparkle with four dots on its
--- diagonals) or "lozenge" (a small lozenge on a short dotted thread).
+-- diagonals), "cross" (a slender sparkle with a dot past each point),
+-- "rosette" (four dots round a copper heart) or "lozenge" (a small lozenge
+-- on a short dotted thread).
 function O.sparkles(pt, items)
-  local paths, dots = {}, {}
+  local paths, dots, hearts = {}, {}, {}
   for _, s in ipairs(items) do
     local x, y, r, kind = s[1], s[2], s[3], s[4] or "plain"
     if kind == "lozenge" then
       O.lozenge(pt, x, y, r * 0.8)
+    elseif kind == "rosette" then
+      for k = 0, 3 do
+        local p = G.polar({ x, y }, k * pi / 2, r * 0.5)
+        dots[#dots + 1] = { { "o", p[1], p[2], r * 0.3 } }
+      end
+      hearts[#hearts + 1] = { { "o", x, y, r * 0.2 } }
+    elseif kind == "cross" then
+      paths[#paths + 1] = sparkle(x, y, r)
+      for k = 0, 3 do
+        local p = G.polar({ x, y }, k * pi / 2, r * 1.4)
+        dots[#dots + 1] = { { "o", p[1], p[2], r * 0.13 } }
+      end
     else
       paths[#paths + 1] = sparkle(x, y, r)
       if kind == "dotted" then
@@ -83,6 +97,7 @@ function O.sparkles(pt, items)
   end
   if #paths > 0 then pt:fill(paths, pal.gold, 0.9, { many = true }) end
   if #dots > 0 then pt:fill(dots, pal.gold, 0.85, { many = true }) end
+  if #hearts > 0 then pt:fill(hearts, pal.copper, 0.85, { many = true }) end
 end
 
 -- A lozenge of half-height h at (x, y): a gilt outline round a copper heart,

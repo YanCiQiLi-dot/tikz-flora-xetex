@@ -75,15 +75,33 @@ end
 function Fill.sparkles(rng, g, n)
   local cells = g:free_cells(2)
   local items = {}
-  local tries = 0
+  local function put(x, y, size, kind)
+    local reach = (kind == "cross" and 1.55 or 1) * size
+    items[#items + 1] = { x, y, size, kind }
+    g:reserve(x, y, reach * 2.2)
+  end
+  -- First the larger gilt, as the reference's dotted crosses and rosettes:
+  -- one in each of the wider gaps the foliage leaves, up to a third of n.
+  local big, tries = 0, 0
+  while big < n / 3 and tries < n * 30 and #cells > 0 do
+    tries = tries + 1
+    local c = cells[rng:int(1, #cells)]
+    local r = g:clearance(c[1], c[2], 14)
+    if r >= 9 then
+      local size = rng:range(4.2, math.min(7.5, r * 0.5))
+      put(c[1], c[2], size, rng:weighted({ cross = 4, rosette = 3, dotted = 3, lozenge = 1 }))
+      big = big + 1
+    end
+  end
+  -- Then small sparkles in the narrower gaps.
+  tries = 0
   while #items < n and tries < n * 20 and #cells > 0 do
     tries = tries + 1
     local c = cells[rng:int(1, #cells)]
     local r = g:clearance(c[1], c[2], 8)
     if r >= 3 then
       local size = rng:range(1.4, math.min(3.4, r * 0.8))
-      items[#items + 1] = { c[1], c[2], size, rng:weighted({ plain = 5, dotted = 3, lozenge = 2 }) }
-      g:reserve(c[1], c[2], size * 3)
+      put(c[1], c[2], size, rng:weighted({ plain = 5, dotted = 3, lozenge = 2 }))
     end
   end
   return items

@@ -210,7 +210,7 @@ local function plant(spec, pt)
       end
     end
   end
-  local sparkles = Fill.sparkles(rng:fork("sparkles"), g, 26)
+  local sparkles = Fill.sparkles(rng:fork("sparkles"), g, 40)
   local midfoot = { W * 0.66, m.y0 + 10 }
 
   -- The plant's stems are drawn once every fork is known, so each narrows
