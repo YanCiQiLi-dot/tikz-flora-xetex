@@ -134,6 +134,26 @@ do
   H.check(inside == 0, string.format("surround grows %d points into the empty text block", inside))
 end
 
+-- A clearing between paragraphs (a gap of more than Layout.CLEARING) is
+-- grown into across the text's width; ordinary paragraph breaks are not.
+do
+  local spec = H.page(3)
+  local keep = {}
+  for _, l in ipairs(spec.lines) do if l.y1 > 520 or l.y0 < 370 then keep[#keep + 1] = l end end
+  spec.lines = keep
+  local deep, bad = 0, nil
+  spec.probe = function(x, y, r)
+    if x > spec.text.x0 + 120 and y > 380 and y < 510 then deep = deep + 1 end
+    for _, l in ipairs(spec.lines) do
+      if x + r > l.x0 + 1 and x - r < l.x1 - 1 and y + r > l.y0 + 1 and y - r < l.y1 - 1 then bad = bad or string.format("(%.1f, %.1f)", x, y) end
+    end
+  end
+  Paint.reset_resources()
+  Compose.page(spec)
+  H.check(deep > 500, string.format("only %d points grow into the clearing", deep))
+  H.check(not bad, "flora in the clearing lands on text at " .. tostring(bad))
+end
+
 -- Split follows page parity: odd pages are mirrored, even ones are not.
 do
   local s = H.page(1)

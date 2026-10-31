@@ -51,9 +51,15 @@ function M.region(spec)
   return g, m
 end
 
+-- A vertical gap between lines at least this tall (pt) is a clearing:
+-- room left for a figure, a break between sections or a \vspace.
+M.CLEARING = 40
+
 -- Inside the text block, open the space left of each line's first ink, and
 -- the empty stretch below the last line. Gaps between lines inherit the
--- narrower of their neighbours so flora does not fill paragraph breaks.
+-- narrower of their neighbours so flora does not fill paragraph breaks, but
+-- a clearing (M.CLEARING) opens across the whole width, kept 10 pt from the
+-- lines around it, so the flora grows into it.
 function M.open_short_lines(g, spec, gutter)
   local t, pad = spec.text, 5
   local lines = {}
@@ -80,9 +86,15 @@ function M.open_short_lines(g, spec, gutter)
           if l.y0 >= y and (not above or l.y0 < above.y0) then above = l end
           if l.y1 <= y and (not below or l.y1 > below.y1) then below = l end
         end
-        reach = math.min(above and above.x0 or t.x0, below and below.x0 or t.x0)
+        if above and below and above.y0 - below.y1 >= M.CLEARING
+          and above.y0 - y >= 10 and y + g.c - below.y1 >= 10 then
+          reach = t.x1 + pad
+        else
+          reach = math.min(above and above.x0 or t.x0, below and below.x0 or t.x0, cap)
+        end
+      else
+        reach = math.min(reach, cap)
       end
-      reach = math.min(reach, cap)
     end
     if reach - pad > t.x0 - gutter then
       g:open(t.x0 - gutter, y, reach - pad, y + g.c)
