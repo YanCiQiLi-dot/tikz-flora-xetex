@@ -18,6 +18,7 @@ local Plant = require("flora.plant")
 local Brush = require("flora.brush")
 local Frames = require("flora.frames")
 local Mix = require("flora.mix")
+local Visitor = require("flora.visitor")
 local pal = Paint.palette
 
 local C = {}
@@ -141,6 +142,8 @@ local function plant(spec, pt)
   local grow_rng = rng:fork("grow")
   Grow.node_leaves(g, grow_rng:fork("nodes"), strands, ctx)
   Grow.tips(g, grow_rng:fork("tips"), strands, ctx)
+  -- Visitors claim their space before the holes fill (visitor.lua).
+  Visitor.place(g, rng:fork("visitors"), ctx, strands)
 
   -- Gilt ornaments claim their space before the sprays fill in.
   if spec.header_y then
@@ -250,6 +253,11 @@ local function plant(spec, pt)
     for _, f in ipairs(blooms) do f(pt) end
     F.hero(pt, rng:fork("hero"), hero)
   end)
+  if ctx.visitors then
+    layer("visitors", function()
+      for _, f in ipairs(ctx.visitors) do f(pt) end
+    end)
+  end
   layer("ornaments", function()
     for _, f in ipairs(orn) do f(pt) end
     O.sparkles(pt, sparkles)

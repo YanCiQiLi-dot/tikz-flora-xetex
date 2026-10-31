@@ -7,9 +7,10 @@ local F = require("flora.flower")
 local L = require("flora.leaf")
 local S = require("flora.sprig")
 local O = require("flora.ornament")
+local V = require("flora.visitor")
 
 local M = {}
-M.width, M.height = 620, 440
+M.width, M.height = 620, 520
 
 function M.draw(seed)
   local rng = Rng.new(seed or 1)
@@ -56,6 +57,19 @@ function M.draw(seed)
   O.panel(pt, rng:fork("panel"), 395, 30, 34, 50)
   O.chain(pt, rng:fork("chain"), 600, 300, 210)
   O.sparkles(pt, { { 520, 400, 4 }, { 540, 300, 3 }, { 330, 410, 3.5 }, { 20, 410, 2.5 } })
+
+  -- The visitors along the top: a bee on its trail, a butterfly, a bird on
+  -- a twig and a snail on a stem.
+  local trail = V.trail(rng:fork("trail"), 70, 475, -0.2, 18, function() return true end)
+  V.paint_trail(pt, trail)
+  V.bee(pt, rng:fork("bee"), 70, 475, -0.2, 18)
+  V.butterfly(pt, rng:fork("butterfly"), 190, 478, math.pi / 2 + 0.25, 40, 0.9)
+  local twig = S.batch()
+  twig:stem(G.link({ 270, 445 }, 0.2, { 340, 452 }, 0.1, 0.5), 1.2, 0.5)
+  twig:stem(G.curve({ 420, 446 }, 0.05, 110, 0.1, 0, 12), 1.4, 1.0)
+  twig:paint(pt)
+  V.bird(pt, rng:fork("bird"), 322, 451, 1, 46)
+  V.snail(pt, rng:fork("snail"), 460, 449, 0.08, 1, 28)
 
   return pt
 end
