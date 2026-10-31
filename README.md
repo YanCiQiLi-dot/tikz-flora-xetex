@@ -73,6 +73,7 @@ compile with a message naming the key.
 | `density` | 0 to 10 | Fuller (above 1) or airier (below 1) |
 | `visitors` | 0 to 10 | The weight of every visitor at once |
 | `palette` | `{part=ink, ...}` | What paints the `hero`, `blooms`, `leaves`, `leaflets`, `stems` |
+| `spin` | a whole number | Picks other inks for parts set to `random`; the shapes stay |
 
 Mix kinds: `bloom`, `soft`, `lily`, `ghost`, `umbel`, `cyme`
 (forget-me-nots), `gyps` (baby's breath), `leaves`, `leaflets`, `sprays`,
@@ -82,6 +83,9 @@ unless you give them weight.
 Palette values are `look` (the default gradients), an ink group (`blue`,
 `blue-grey`, `teal`, `green`, `violet`, `warm`, `earth`, `gold`) or one ink
 by name, such as `kon-peki` (all of them are in `lua/flora/inks.lua`).
+`random` paints that part in one ink picked per page. The pick has its own
+random stream, so changing `spin` changes only the colours: every stem,
+leaf and bloom stays where it was.
 
 ```latex
 \florasetup{layout=split, visitors=0.5, mix={lily=2, umbel=0},
@@ -104,6 +108,11 @@ The flora fills whatever margins the page has, so give it room with
 `geometry` (about 5 cm for a side margin, or 3 cm all round for
 `surround`).
 
+It also grows into gaps in the text. A gap between lines taller than about
+three lines (40 pt), such as a `\vspace` left for a figure, opens across
+the text's full width and the flora reaches into it. The space below a
+short last page fills the same way.
+
 `tex/lorem.tex` (`example.tex` in the zip) uses each of these, with a
 comment at every setting.
 
@@ -122,6 +131,8 @@ add the TinyTeX binaries to `PATH`:
   example from the unpacked zip alone.
 - `just test`: run the Lua and Python unit tests. `just test-tex` and
   `just test-preview` check against real compiles.
+- `just site-bake`, `just site-dev`, `just test-site`, `just site-deploy`:
+  build, test and publish the site. `site/README.md` explains them.
 - `just tuner`: run a local web app with a slider for every setting in
   `lua/flora/tune.lua`. It needs Python 3 with numpy and Pillow, and
   Node.
