@@ -78,6 +78,20 @@ local T = {
     leaves = 1, leaflets = 1, sprays = 1, curls = 1, density = 1,
     bee = 0, butterfly = 0, bird = 0, snail = 0,
   },
+  -- How often each ornament kind is picked for its slot (ornaments.lua),
+  -- as weights among the slot's kinds; 0 never. A kind not listed weighs
+  -- 1. \florasetup{ornaments={...}} overrides these per document.
+  ornaments = {
+    night = 3, sun = 1, moon = 1, constellation = 1, planet = 1, armillary = 1, scrolled = 1, strapwork = 1,
+    compass = 3, rosette = 1, sunburst = 1, quatrefoil = 1,
+    knot = 3, medallion = 1, zodiac_pendant = 1,
+    sun_crest = 2, compass_rose = 2, armillary_crest = 1, zodiac = 1, wreath = 1,
+    swash = 1, fleuron_rule = 1, headpiece = 1,
+    cul_de_lampe = 1, hedera = 1, garland = 1,
+    bracket = 1, fan = 1, corner_leaf = 1,
+    gilt_cross = 4, gilt_rosette = 3, gilt_dotted = 3, gilt_lozenge = 1,
+    gilt_star = 1.5, gilt_crescent = 1, gilt_trefoil = 1,
+  },
   -- Size distributions (dist.lua): a smooth curve through control points
   -- {x, weight}, x running 0-1 across the range, so each kind of element
   -- comes in a mix of sizes.
@@ -202,6 +216,7 @@ T._doc = {
   ["compose.leaflet_size"] = { "Leaflet size", "Length of the small leaflets along the stems, in pt." },
   ["compose.leaflet_spacing"] = { "Leaflet spacing", "Distance between neighbouring leaflets along the stems, in pt, picked per gap. Larger is sparser." },
   mix = { "Mix", "How much of each kind of growth a page gets: 1 is the usual amount, 0 none, 2 about twice as much." },
+  ornaments = { "Ornaments", "How often each ornament kind is picked for its place on the page, against the other kinds for that place: 0 never." },
   ["mix.bloom"] = { "Small blooms", "Five-petalled blooms in the holes." },
   ["mix.soft"] = { "Soft blooms", "Pale, wide-petalled blooms." },
   ["mix.lily"] = { "Lilies", "Lilies seen from the side." },

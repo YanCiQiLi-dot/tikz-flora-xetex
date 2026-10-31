@@ -183,6 +183,7 @@ end
 -- settings repeated in each look, by key; labels within a folder differ.
 do
   local Tune = require("flora.tune")
+  require("flora.ornaments")  -- labels the ornament weights
   local doc = Tune._doc
   local function walk(tbl, path)
     local seen = {}

@@ -18,6 +18,7 @@
 
 local G = require("flora.geom")
 local Tune = require("flora.tune")
+local Title = require("flora.orn_title")
 
 local M = {}
 
@@ -131,13 +132,28 @@ function M.of(spec)
     -- The left plant's frame is the page turned a quarter: its left margin
     -- is the band above the title, its foot the strip beside the title, and
     -- its top the page's centre line. The right plant mirrors it.
+    -- The two crowns stop short of the centre line, leaving the gap at the
+    -- top centre that the crest (orn_title.lua) fills.
     local depth = math.min(H, H - B.y0 + 60)
     local R = hero_radius(spec, H - B.y1)
-    local half = W / 2 - R * 0.47
-    return {
+    local crest = Title.crest_size(spec, R)
+    local half = W / 2 - R * 0.47 - crest * 0.45
+    local fs = {
       frame(spec, { 0, -1, 1, 0, 0, H }, depth, half, { block = B, label = "left", frame_only = true }),
       frame(spec, { 0, -1, -1, 0, W, H }, depth, half, { block = B, seed = seed_of(spec, 2), label = "right", frame_only = true }),
     }
+    -- The plants keep out of the furniture's boxes.
+    local plan, keep = Title.plan(spec, B, crest)
+    for _, f in ipairs(fs) do
+      local closed = {}
+      for _, k in ipairs(keep) do
+        local c = clip(map_box(M.invert(f.map), { x0 = k[1] - 4, y0 = k[2] - 4, x1 = k[3] + 4, y1 = k[4] + 4 }), depth, half)
+        if c then closed[#closed + 1] = { c.x0, c.y0, c.x1, c.y1 } end
+      end
+      f.spec.closed = closed
+    end
+    fs.title = plan
+    return fs
   end
 end
 

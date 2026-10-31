@@ -61,6 +61,22 @@ function M.specimens(seed)
   M.typeset(spec.draw(seed))
 end
 
+-- The ornament gallery (gallery.lua): every kind for `seeds` seeds, each
+-- labelled with its name and the key that weighs it.
+function M.gallery(seeds)
+  local pt, cells, w, h = require("flora.gallery").sheet(nil, tonumber(seeds) or 3)
+  tex.sprint(string.format(
+    "\\pgfpathrectangle{\\pgfpointorigin}{\\pgfqpoint{%.2fpt}{%.2fpt}}\\pgfusepath{use as bounding box}", w, h))
+  M.typeset(pt)
+  for _, c in ipairs(cells) do
+    if c.seed == 1 then
+      tex.sprint(string.format(
+        "\\pgftext[left,base,at=\\pgfqpoint{%.2fpt}{%.2fpt}]{\\footnotesize %s \\texttt{\\color{gray}%s}}",
+        c.box[1], c.box[4] + 5 + c.lift, c.label, (c.name:gsub("_", "\\_"))))
+    end
+  end
+end
+
 local function pt_of(s)
   return tonumber((tostring(s):gsub("pt$", "")))
 end
@@ -97,7 +113,7 @@ function M.page(a)
     text = { x0 = pt_of(a.text_x0), y0 = pt_of(a.text_y0), x1 = pt_of(a.text_x1), y1 = pt_of(a.text_y1) },
     header_y = a.header_y and pt_of(a.header_y),
     seed = M.seed(set.seed or a.seed, a.page),
-    lines = lines, layout = set.layout, page = a.page, mix = set.mix, palette = set.palette, spin = set.spin,
+    lines = lines, layout = set.layout, page = a.page, mix = set.mix, ornaments = set.ornaments, palette = set.palette, spin = set.spin,
     doc_seed = tostring(set.seed or a.seed),
   }
   if marks and marks["title-start"] and lines then

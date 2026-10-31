@@ -22,6 +22,7 @@
   let layout = $state(0);
   let seed = $state(COLOURWAYS[0].seed);
   let mix = $state({});
+  let ornaments = $state({});
   let palette = $state({});
   let spin = $state(0);
   let status = $state("Loading the generator…");
@@ -33,7 +34,7 @@
 
   const label = (k) => meta?.kinds.find((x) => x[0] === k)?.[1] ?? k;
   const hint = (k) => meta?.kinds.find((x) => x[0] === k)?.[2] ?? "";
-  let line = $derived(meta && pages.length ? setupLine({ layout: pages[layout].layout, seed, mix, palette, spin }, meta) : "");
+  let line = $derived(meta && pages.length ? setupLine({ layout: pages[layout].layout, seed, mix, ornaments, palette, spin }, meta) : "");
   let anyRandom = $derived(Object.values(palette).includes("random"));
   // The colourway the inks and seed match now, if any (-1 for the
   // package's own look).
@@ -57,6 +58,7 @@
       meta = m;
       pages = man;
       mix = Object.fromEntries(m.kinds.map(([k, , , d]) => [k, d]));
+      ornaments = Object.fromEntries(m.ornaments.flatMap((s) => s.kinds.map(([k, , d]) => [k, d])));
       // Visitors start on here, so the mixer shows them.
       for (const k of ["bee", "butterfly", "bird", "snail"]) mix[k] = 1;
       palette = { ...Object.fromEntries(m.parts), ...COLOURWAYS[0].palette };
@@ -78,7 +80,7 @@
     const pg = pages[layout];
     status = "Growing…";
     try {
-      const job = { spec: await spec(pg.page), seed, page: pg.page, mix: $state.snapshot(mix), palette: $state.snapshot(palette), spin };
+      const job = { spec: await spec(pg.page), seed, page: pg.page, mix: $state.snapshot(mix), ornaments: $state.snapshot(ornaments), palette: $state.snapshot(palette), spin };
       const out = await render(job);
       await draw(out.pdf, canvas, frame.clientWidth);
       status = `Grown in ${(out.ms / 1000).toFixed(1)} s`;
@@ -207,6 +209,22 @@
           {/each}
         </details>
       {/each}
+      <details class="ornaments">
+        <summary>Ornaments</summary>
+        <p class="hint">Each place on the page picks one kind by these weights; 0 never.
+          The crest, flourish, tailpiece and corners appear on the title layout.</p>
+        {#each meta.ornaments as s}
+          <h4 title={s.desc}>{s.label}</h4>
+          {#each s.kinds as [k, name]}
+            <label class="row">
+              <span>{name}</span>
+              <input type="range" min="0" max="5" step="0.5" bind:value={ornaments[k]} oninput={changed}>
+              <output>{ornaments[k]}</output>
+            </label>
+          {/each}
+        {/each}
+        <p class="hint"><a href="#gallery">See every kind in the gallery.</a></p>
+      </details>
     {/if}
     {#if line}
       <h3>LaTeX settings</h3>
@@ -268,6 +286,7 @@
   .spin { display: flex; flex-wrap: wrap; gap: .45rem; margin: .7rem 0 0; }
   details { border-top: 1px solid var(--rule); padding: .35rem 0; }
   details:last-of-type { border-bottom: 1px solid var(--rule); }
+  h4 { font-size: .95rem; margin: .8rem 0 .2rem; }
   summary { cursor: pointer; font-family: var(--display); font-size: 1.05rem; padding: .3rem 0; }
   pre { white-space: pre-wrap; word-break: break-word; margin: .3rem 0; }
   .links { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }

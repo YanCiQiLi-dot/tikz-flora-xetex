@@ -1,11 +1,14 @@
 // The \florasetup line for a mixer state: only what differs from the
 // defaults, so it reads like something a person would write.
-export function setupLine({ layout, seed, mix, palette, spin }, meta) {
+export function setupLine({ layout, seed, mix, ornaments = {}, palette, spin }, meta) {
   const parts = [`layout=${layout}`, `seed=${seed}`];
   const defaults = Object.fromEntries(meta.kinds.map(([k, , , d]) => [k, d]));
   const changed = Object.entries(mix).filter(([k, v]) => k !== "density" && v !== defaults[k]);
   if (mix.density !== undefined && mix.density !== defaults.density) parts.push(`density=${mix.density}`);
   if (changed.length) parts.push(`mix={${changed.map(([k, v]) => `${k}=${v}`).join(", ")}}`);
+  const ornDefaults = Object.fromEntries((meta.ornaments ?? []).flatMap((s) => s.kinds.map(([k, , d]) => [k, d])));
+  const orn = Object.entries(ornaments).filter(([k, v]) => v !== ornDefaults[k]);
+  if (orn.length) parts.push(`ornaments={${orn.map(([k, v]) => `${k}=${v}`).join(", ")}}`);
   const partDefaults = Object.fromEntries(meta.parts);
   const pal = Object.entries(palette).filter(([k, v]) => v !== partDefaults[k]);
   if (pal.length) parts.push(`palette={${pal.map(([k, v]) => `${k}=${v}`).join(", ")}}`);

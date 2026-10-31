@@ -13,6 +13,7 @@ local F = require("flora.flower")
 local L = require("flora.leaf")
 local S = require("flora.sprig")
 local O = require("flora.ornament")
+local Gallery = require("flora.gallery")
 local Plant = require("flora.plant")
 local Brush = require("flora.brush")
 
@@ -169,6 +170,14 @@ M.list = {
       O.medallion(pt, 225, 20, 9)
       O.pendant(pt, rng:fork("pendant"), 70, 24, 22, 32, 14)
       O.sparkles(pt, { { 150, 20, 4, "plain" }, { 222, 62, 3.5, "dotted" }, { 70, 95, 3.5, "lozenge" } })
+    end,
+  },
+  {
+    id = "ornaments", label = "Ornaments",
+    desc = "Every ornament kind (ornaments.lua), two seeds each. The weights pick one kind per place on the page; the page shows them in place.",
+    paths = { "ornaments" }, w = select(2, Gallery.layout(2, 560)), h = select(3, Gallery.layout(2, 560)),
+    draw = function(pt, rng)
+      Gallery.sheet(pt, 2, 560, rng:int(0, 9999))
     end,
   },
   {

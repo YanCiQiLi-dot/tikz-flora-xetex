@@ -34,6 +34,10 @@ export async function render(job) {
   return post({ kind: "render", ...job });
 }
 
+export async function gallery(job) {
+  return post({ kind: "gallery", ...job });
+}
+
 // Draw PDF bytes on `canvas` at `width` CSS pixels.
 export async function draw(bytes, canvas, width) {
   const task = pdfjs.getDocument({ data: bytes });

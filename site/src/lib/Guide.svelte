@@ -40,6 +40,7 @@ Some text.
     ["visitors", "0 to 10", "The weight of every visitor at once: bees, butterflies, birds and snails."],
     ["palette", "{part=ink, …}", "What paints each part: hero (the main flower), blooms, leaves, leaflets, stems, sprays, ghost (the pale bloom) and cartouche."],
     ["spin", "a whole number", "Picks the random inks again. The shapes stay where they are."],
+    ["ornaments", "{kind=weight, …}", "How often each ornament kind is picked for its place on the page: the cartouche, header mark, pendant, gilt, and on title pages the crest, flourish, tailpiece and corners. 0 never. The gallery shows every kind with its name."],
   ];
   const kinds = "bloom, soft, lily, ghost, umbel, cyme (forget-me-nots), gyps (baby's breath), leaves, leaflets, sprays, curls, density, bee, butterfly, bird, snail";
   const layouts = [

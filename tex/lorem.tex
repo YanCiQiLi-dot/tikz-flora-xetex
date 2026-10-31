@@ -36,10 +36,13 @@
 
 % --- Title page -----------------------------------------------------------
 % A narrower, centred text block leaves room around the title. The title
-% layout crowns the lines inside the floratitle environment.
+% layout crowns the lines inside the floratitle environment, with a crest
+% where the crowns meet, a flourish under the title, a tailpiece and two
+% corner pieces. ornaments weighs which kind each place picks: here the
+% sun crest and the cul-de-lampe tailpiece weigh three times their usual.
 \newgeometry{left=3.2cm,right=3.2cm,top=5cm,bottom=4cm}
 \thispagestyle{empty}
-\florathispage{layout=title}
+\florathispage{layout=title, ornaments={sun_crest=6, cul_de_lampe=3}}
 \begin{floratitle}
 \centering
 {\Huge\scshape Florilegium\par}

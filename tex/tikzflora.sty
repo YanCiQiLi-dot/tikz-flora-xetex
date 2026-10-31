@@ -44,6 +44,9 @@
 
 % Draw the specimen sheet inside the current tikzpicture.
 \newcommand\florasheet[1]{\directlua{flora.specimens(#1)}}
+% Draw the ornament gallery inside the current tikzpicture: every ornament
+% kind, labelled with the name ornaments={...} weighs it by, for [3] seeds.
+\newcommand\floragallery[1][3]{\directlua{flora.gallery(#1)}}
 
 % Every shipped page gets a page-sized picture behind its content. Geometry
 % is read at shipout, so per-page layout changes are honoured.

@@ -12,6 +12,8 @@
 --             hero=kon-peki}: look, an ink group, one ink (inks.lua), or
 --             random for one ink picked per page
 --   spin      a number that re-picks the random inks; the shapes stay
+--   ornaments weights per ornament kind, e.g. ornaments={moon=2, night=0}
+--             (ornaments.lua registers the kinds; each slot picks one)
 
 local M = {}
 
@@ -19,6 +21,7 @@ local Frames = require("flora.frames")
 local Tune = require("flora.tune")
 local Inks = require("flora.inks")
 local Mix = require("flora.mix")
+local Orn = require("flora.ornaments")
 
 -- Key name -> function(value string) returning the parsed value, or nil
 -- and a message.
@@ -68,6 +71,17 @@ M.define("mix", function(v)
   for _, kv in ipairs(M.parse_list(v)) do
     local k, w = kv[1], weight(kv[2])
     if Tune.mix[k] == nil then return nil, "no kind \"" .. k .. "\" (kinds: " .. known(Tune.mix) .. ")" end
+    if not w then return nil, k .. " needs a weight from 0 to 10" end
+    t[k] = w
+  end
+  return t
+end)
+
+M.define("ornaments", function(v)
+  local t = {}
+  for _, kv in ipairs(M.parse_list(v)) do
+    local k, w = kv[1], weight(kv[2])
+    if not Orn.kinds[k] then return nil, "no ornament \"" .. k .. "\" (kinds: " .. known(Orn.kinds) .. ")" end
     if not w then return nil, k .. " needs a weight from 0 to 10" end
     t[k] = w
   end

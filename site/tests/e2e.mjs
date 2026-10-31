@@ -105,6 +105,11 @@ try {
   check(/leaves=0/.test(line) && /gyps=0/.test(line), `setup line does not follow the controls: ${line}`);
   check(line.startsWith("\\florasetup{layout=left, seed="), `setup line has the wrong head: ${line}`);
 
+  // An ornament weight reaches the setup line, and the page regrows.
+  await page.locator(".controls details.ornaments .row", { hasText: "Crescent moon" }).locator('input[type="range"]').fill("5");
+  await grown();
+  check(/ornaments=\{[^}]*moon=5/.test(await code()), `the ornament weight is not in the setup line: ${await code()}`);
+
   // Randomise sets every part random; a hand-picked ink then survives a spin.
   await page.getByRole("button", { name: "Randomise all inks" }).click();
   await grown();
@@ -151,6 +156,23 @@ try {
   await page.locator(".ways figure").nth(1).getByRole("button", { name: "Use these inks" }).click();
   await grown();
   check(/seed=23/.test(await code()) && /hero=murasaki-shikibu/.test(await code()), `the second colourway did not load: ${await code()}`);
+
+  // The gallery draws every ornament kind, labelled, once it scrolls near.
+  await page.locator("#gallery").scrollIntoViewIfNeeded();
+  await page.locator("#gallery .count", { hasText: /\d+ kinds/ }).waitFor({ timeout: 120000 });
+  const plate = await page.evaluate(() => {
+    const c = document.querySelector(".plate canvas");
+    const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4 * 11) if (d[i + 3] > 0 && d[i] + d[i + 1] + d[i + 2] < 600) n++;
+    const box = document.querySelector(".plate").getBoundingClientRect();
+    const tags = [...document.querySelectorAll(".plate .tag")];
+    const out = tags.filter((t) => { const r = t.getBoundingClientRect(); return r.left < box.left - 1 || r.top < box.top - 1; });
+    return { n, tags: tags.length, out: out.map((t) => t.textContent.trim()), names: tags.map((t) => t.querySelector("code").textContent) };
+  });
+  check(plate.n > 3000, `the gallery shows too little (${plate.n} inked samples)`);
+  check(plate.tags >= 36 && plate.names.includes("cul_de_lampe") && plate.names.includes("night"), `the gallery labels ${plate.tags} kinds: ${plate.names.join(", ")}`);
+  check(plate.out.length === 0, `gallery labels fall outside the sheet: ${plate.out.join("; ")}`);
 
   // Phones: no sideways scroll, and the page stays in view below the
   // header while the inks are chosen.

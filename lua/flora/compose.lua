@@ -13,6 +13,8 @@ local F = require("flora.flower")
 local L = require("flora.leaf")
 local S = require("flora.sprig")
 local O = require("flora.ornament")
+local Orn = require("flora.ornaments")
+local Title = require("flora.orn_title")
 local Tune = require("flora.tune")
 local Plant = require("flora.plant")
 local Brush = require("flora.brush")
@@ -78,7 +80,10 @@ local function plant(spec, pt)
   end
 
   local orn, panel = {}, nil
-  do
+  -- Each slot's kind is drawn by weight (ornaments.lua) from a stream of
+  -- its own; a slot whose kinds all weigh 0 is left empty.
+  local cartouche = Orn.pick(rng:fork("choose cartouche"), "cartouche", spec.ornaments)
+  if cartouche then
     -- The star cartouche sits in a quiet stretch, where the stems hug the
     -- outer edge and bend around it.
     -- The panel sits against the outer edge, so its own rectangle (with a
@@ -96,7 +101,7 @@ local function plant(spec, pt)
       if fits then
         g:box(cx - w / 2, py - h / 2, cx + w / 2, py + h / 2)
         local r = rng:fork("panel")
-        orn[#orn + 1] = function(pt) O.panel(pt, r, cx - w / 2, py - h / 2, w, h) end
+        orn[#orn + 1] = function(pt) Orn.draw(cartouche, pt, r, { cx - w / 2, py - h / 2, cx + w / 2, py + h / 2 }) end
         panel = { cx, py, w, h }
         break
       end
@@ -150,15 +155,17 @@ local function plant(spec, pt)
   -- Gilt ornaments claim their space before the sprays fill in.
   if spec.header_y then
     local hx, hy = spec.text.x0 - 6, spec.header_y - 3
+    local mark = Orn.pick(rng:fork("choose header"), "header", spec.ornaments)
     orn[#orn + 1] = function(pt)
       pt:stroke(G.polyline({ { hx + 4, hy }, { spec.text.x1, hy } }), pal.ink, 0.4, 0.9)
-      O.compass(pt, hx, hy, 13, { hair = 1.5 })
+      if mark then Orn.draw(mark, pt, rng:fork("header"), { hx - 13, hy - 13, hx + 13, hy + 13 }) end
     end
   end
   -- A pendant knot hangs in the foot's corner on a cord from the foliage
   -- above, at the lowest place with room for it; its size and place vary
   -- with the seed.
-  do
+  local pendant = Orn.pick(rng:fork("choose pendant"), "pendant", spec.ornaments)
+  if pendant then
     local r = rng:fork("pendant")
     local w = G.clamp(mw * r:range(0.15, 0.19), 14, 30)
     local h = w * r:range(1.3, 1.5)
@@ -173,7 +180,7 @@ local function plant(spec, pt)
         local cord = 0
         while cord < 40 and g:free(x, y + h / 2 + cord + 2) do cord = cord + 2 end
         if cord >= 6 then g:box(x - 1, y + h / 2, x + 1, y + h / 2 + cord) else cord = 0 end
-        orn[#orn + 1] = function(pt) O.pendant(pt, r, x, y, w, h, cord) end
+        orn[#orn + 1] = function(pt) Orn.draw(pendant, pt, r, { x - w / 2, y - h / 2, x + w / 2, y + h / 2 }, { cord = cord }) end
         break
       end
     end
@@ -212,7 +219,7 @@ local function plant(spec, pt)
       end
     end
   end
-  local sparkles = Fill.sparkles(rng:fork("sparkles"), g, 40)
+  local sparkles = Fill.sparkles(rng:fork("sparkles"), g, 40, spec.ornaments)
   local midfoot = { W * 0.66, m.y0 + 10 }
 
   -- The plant's stems are drawn once every fork is known, so each narrows
@@ -292,6 +299,7 @@ local function plant(spec, pt)
   -- Motifs placed by kind (grow.lua), and the large leaves, for tests.
   pt.counts = ctx.counts
   pt.counts.leaves = #leaves
+  pt.sparkles = sparkles
   return pt
 end
 
@@ -320,6 +328,14 @@ function C.frames(spec)
     cover = cover + pt.coverage / #frames
   end
   pt:frame(nil)
+  -- Title furniture paints over the finished crowns, in page coordinates;
+  -- while the page grows it waits for the plants.
+  if frames.title and (spec.grow or 1) >= 0.9 then
+    pt:begin_group("title")
+    Title.paint(pt, spec, frames.title)
+    pt:end_group()
+  end
+  pt.title = frames.title
   pt.coverage = cover
   pt.frames = frames
   return pt

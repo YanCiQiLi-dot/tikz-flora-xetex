@@ -21,6 +21,11 @@ test:
     for f in tests/test_*.lua; do texlua "$f" || exit 1; done
     {{PYTHON}} -I tests/test_bake.py
 
+# The ornament gallery: every ornament kind, labelled, for three seeds
+# (tex/gallery.tex), to build/gallery.pdf and .png.
+gallery:
+    just build gallery 1 100
+
 # "Watch it grow": page PAGE of tex/NAME.tex as its flora grows, written to
 # build/grow-NAME-PAGE.mp4 and .gif (tools/grow.sh; needs ffmpeg).
 grow name="lorem" seed="1" page="1" fps="20" secs="8":

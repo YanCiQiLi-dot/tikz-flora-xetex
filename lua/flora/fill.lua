@@ -3,6 +3,7 @@
 
 local G = require("flora.geom")
 local S = require("flora.sprig")
+local Orn = require("flora.ornaments")
 
 local Fill = {}
 local pi = math.pi
@@ -71,9 +72,30 @@ function Fill.fits(g, b)
   return ok
 end
 
--- Sparkles in whatever free space is left.
-function Fill.sparkles(rng, g, n)
+-- The larger gilt's kinds by weight (orn_gilt.lua): the reference's own,
+-- drawn from rng as they always were, and the newer ones, which replace a
+-- pick from a stream of their own in proportion to their share of the
+-- weight. With the newer kinds at 0, rng sees exactly the draws it did.
+local function gilt_picker(rng, weights)
+  local old, new, so, sn = {}, {}, 0, 0
+  for _, k in ipairs(Orn.of("gilt")) do
+    local w = Orn.weight(weights, k.name)
+    if k.classic then old[k.sparkle], so = w, so + w else new[k.sparkle], sn = w, sn + w end
+  end
+  if so + sn == 0 then return nil end
+  local alt = rng:fork("gilt kinds")
+  return function()
+    local kind = so > 0 and rng:weighted(old) or nil
+    if sn > 0 and (not kind or alt:chance(sn / (so + sn))) then kind = alt:weighted(new) end
+    return kind
+  end
+end
+
+-- Sparkles in whatever free space is left; `weights` (ornaments settings)
+-- weigh the larger gilt.
+function Fill.sparkles(rng, g, n, weights)
   local cells = g:free_cells(2)
+  local pick = gilt_picker(rng, weights)
   local items = {}
   local function put(x, y, size, kind)
     local reach = (kind == "cross" and 1.55 or 1) * size
@@ -83,13 +105,13 @@ function Fill.sparkles(rng, g, n)
   -- First the larger gilt, as the reference's dotted crosses and rosettes:
   -- one in each of the wider gaps the foliage leaves, up to a third of n.
   local big, tries = 0, 0
-  while big < n / 3 and tries < n * 30 and #cells > 0 do
+  while pick and big < n / 3 and tries < n * 30 and #cells > 0 do
     tries = tries + 1
     local c = cells[rng:int(1, #cells)]
     local r = g:clearance(c[1], c[2], 14)
     if r >= 9 then
       local size = rng:range(4.2, math.min(7.5, r * 0.5))
-      put(c[1], c[2], size, rng:weighted({ cross = 4, rosette = 3, dotted = 3, lozenge = 1 }))
+      put(c[1], c[2], size, pick())
       big = big + 1
     end
   end

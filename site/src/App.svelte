@@ -1,6 +1,7 @@
 <script>
   import Mixer from "./lib/Mixer.svelte";
   import Guide from "./lib/Guide.svelte";
+  import Gallery from "./lib/Gallery.svelte";
   import COLOURWAYS from "./lib/colourways.json";
 
   // The example document's pages, with what each shows.
@@ -26,6 +27,7 @@
     <a class="brand" href="#top">tikz-flora</a>
     <nav>
       <a href="#mixer">Mixer</a>
+      <a href="#gallery">Gallery</a>
       <a href="#guide">Guide</a>
       <a href="/tikzflora.zip" download>Download</a>
       <a href="https://github.com/wn-mitch/tikz-flora">GitHub</a>
@@ -85,6 +87,19 @@
 
   <section id="mixer">
     <Mixer />
+  </section>
+
+  <section class="wrap ornaments" id="gallery">
+    <div class="say">
+      <h2>Ornaments</h2>
+      <p>The gilt comes from a registry of ornament kinds: cartouches, header
+        marks, pendants, title crests, flourishes, tailpieces, corners and the
+        small gilt in the gaps. Each place on a page picks one kind by weight;
+        set them with <code>{"ornaments={moon=2, night=0}"}</code> or in the mixer.
+        A new kind is one Lua file that registers itself, and this gallery
+        draws it with the rest.</p>
+    </div>
+    <Gallery />
   </section>
 
   <section class="guide" id="guide">
@@ -147,6 +162,8 @@
   .pages img { height: clamp(320px, 56vh, 560px); width: auto; display: block; }
   .pages figcaption { font-size: .88rem; color: var(--muted); margin-top: .45rem; max-width: 26ch; }
   .pages figcaption code { font-size: .75rem; }
+  .ornaments { padding-block: 2.5rem 3rem; border-top: 1px solid var(--rule); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 720px); gap: 3rem; align-items: start; }
+  .ornaments .say { position: sticky; top: calc(var(--bar) + 1.5rem); }
   /* The guide opens beside one painted margin, on paper in both themes. */
   .guide { padding-block: 3rem 4rem; border-top: 1px solid var(--rule); }
   .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 3rem; align-items: start; }
@@ -156,6 +173,9 @@
     .ways { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
     .ways img { max-height: 80svh; object-fit: contain; }
     .grow { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+    .ornaments { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+    nav { gap: .7rem; font-size: .9rem; }
+    .ornaments .say { position: static; }
     .pages img { height: min(48svh, 420px); }
     .layout { grid-template-columns: minmax(0, 1fr); }
     .inset { display: none; }

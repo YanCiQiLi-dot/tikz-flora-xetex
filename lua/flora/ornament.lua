@@ -69,7 +69,8 @@ end
 -- "rosette" (four dots round a copper heart) or "lozenge" (a small lozenge
 -- on a short dotted thread).
 function O.sparkles(pt, items)
-  local paths, dots, hearts = {}, {}, {}
+  local K = require("flora.orn_kit")
+  local paths, dots, hearts, stars = {}, {}, {}, {}
   for _, s in ipairs(items) do
     local x, y, r, kind = s[1], s[2], s[3], s[4] or "plain"
     if kind == "lozenge" then
@@ -80,6 +81,14 @@ function O.sparkles(pt, items)
         dots[#dots + 1] = { { "o", p[1], p[2], r * 0.3 } }
       end
       hearts[#hearts + 1] = { { "o", x, y, r * 0.2 } }
+    elseif kind == "star5" then
+      stars[#stars + 1] = G.polyline(K.star(x, y, r * 0.75, r * 0.3, 5), true)
+    elseif kind == "crescent" then
+      stars[#stars + 1] = G.smooth(K.crescent(x, y, r * 0.62, 0.62, pi / 4), true)
+      dots[#dots + 1] = { { "o", x + r * 0.8, y - r * 0.45, r * 0.1 } }
+    elseif kind == "trefoil" then
+      for _, p in ipairs(K.trefoil(x, y - r * 0.1, r * 0.8, pi / 2)) do dots[#dots + 1] = p end
+      hearts[#hearts + 1] = { { "o", x, y - r * 0.05, r * 0.12 } }
     elseif kind == "cross" then
       paths[#paths + 1] = sparkle(x, y, r)
       for k = 0, 3 do
@@ -98,6 +107,7 @@ function O.sparkles(pt, items)
   end
   if #paths > 0 then pt:fill(paths, pal.gold, 0.9, { many = true }) end
   if #dots > 0 then pt:fill(dots, pal.gold, 0.85, { many = true }) end
+  if #stars > 0 then pt:fill(stars, pal.gold, 0.92, { many = true }) end
   if #hearts > 0 then pt:fill(hearts, pal.copper, 0.85, { many = true }) end
 end
 
@@ -353,41 +363,62 @@ local function lit_star(pt, cx, cy, rx, ry)
   end
 end
 
--- The star cartouche filling the box (x, y, w, h): a square frame in a dark
--- hairline with a pale silver band, round a field with notched corners.
-function O.panel(pt, rng, x, y, w, h)
-  -- palette.cartouche repaints the sky in its ink; the gilt stays gold.
+-- The cartouche's frame and sky for the box (x, y, w, h): a square frame
+-- with a pale band, round a field with notched corners washed in the sky's
+-- ink (palette.cartouche; the gilt stays gold). `sky` = {pigment, pool,
+-- light, strength} changes the wash (default: the night blue). Returns the
+-- field, for drawing inside it and for O.panel_close.
+function O.panel_open(pt, rng, x, y, w, h, sky)
+  sky = sky or {}
   local tint = Color.part_ink("cartouche")
-  local blue, deep, sky, ink = Color.recolor(pal.blue, tint), Color.recolor(pal.deep, tint),
-    Color.recolor(pal.sky, tint), Color.recolor(pal.ink, tint)
+  local f = {
+    tint = tint, deep = Color.recolor(pal.deep, tint), dilute = Color.recolor(pal.sky, tint),
+    ink = Color.recolor(pal.ink, tint),
+  }
+  local blue = Color.recolor(pal.blue, tint)
   local band = G.clamp(w * 0.065, 1.6, 3)
-  local x0, y0, x1, y1 = x + band, y + band, x + w - band, y + h - band
-  local c = math.min(w, h) * 0.09
-  local frame = G.polyline({ { x, y }, { x + w, y }, { x + w, y + h }, { x, y + h } }, true)
-  pt:fill(frame, Paint.mix(blue, pal.paper, 0.86), 1)
-  local body = notched(x0, y0, x1, y1, c, 6)
-  W.wash(pt, body, {
-    rng = rng:fork("sky"), size = math.min(w, h), pigment = pal.blue, pool = pal.deep, ink = tint,
-    light = { (x0 + x1) / 2, (y0 + y1) / 2 }, strength = 1, rings = 10, lift = 0.022, grain = 0.04,
-    outline = 0, lost = 0, lifts = 0,
+  f.x0, f.y0, f.x1, f.y1 = x + band, y + band, x + w - band, y + h - band
+  f.c = math.min(w, h) * 0.09
+  f.frame = G.polyline({ { x, y }, { x + w, y }, { x + w, y + h }, { x, y + h } }, true)
+  pt:fill(f.frame, Paint.mix(blue, pal.paper, 0.86), 1)
+  f.body = notched(f.x0, f.y0, f.x1, f.y1, f.c, 6)
+  W.wash(pt, f.body, {
+    rng = rng:fork("sky"), size = math.min(w, h), pigment = sky.pigment or pal.blue, pool = sky.pool or pal.deep,
+    ink = tint, light = sky.light or { (f.x0 + f.x1) / 2, (f.y0 + f.y1) / 2 }, strength = sky.strength or 1,
+    rings = 10, lift = 0.022, grain = 0.04, outline = 0, lost = 0, lifts = 0,
   })
-  local puffs = cloud_puffs(rng:fork("clouds"), x0, y0, x1, y1)
-  pt:clip_begin(G.polyline(body, true))
-  starfield(pt, rng:fork("stars"), puffs, x0, y0, x1, y1)
-  clouds(pt, puffs, sky, deep)
-  pt:clip_end()
-  pt:stroke(G.polyline(body, true), Paint.mix(deep, pal.paper, 0.35), 0.35, 0.8)
-  -- A pale curl in each notch, and the frame's dark hairline.
+  return f
+end
+
+-- The field's edge, a pale curl in each notch, and the frame's hairline.
+function O.panel_close(pt, f)
+  pt:stroke(G.polyline(f.body, true), Paint.mix(f.deep, pal.paper, 0.35), 0.35, 0.8)
   local curls = {}
-  for _, q in ipairs({ { x0, y0, 0 }, { x1, y0, pi / 2 }, { x1, y1, pi }, { x0, y1, 3 * pi / 2 } }) do
+  for _, q in ipairs({ { f.x0, f.y0, 0 }, { f.x1, f.y0, pi / 2 }, { f.x1, f.y1, pi }, { f.x0, f.y1, 3 * pi / 2 } }) do
     local pts = {}
-    for s = 0, 6 do pts[#pts + 1] = G.polar(q, q[3] + s / 6 * pi / 2, c * 0.55) end
+    for s = 0, 6 do pts[#pts + 1] = G.polar(q, q[3] + s / 6 * pi / 2, f.c * 0.55) end
     curls[#curls + 1] = G.polyline(pts)
   end
   pt:stroke(curls, pal.white, 0.35, 0.9, { many = true })
-  pt:stroke(frame, Paint.mix(ink, pal.paper, 0.25), 0.45, 0.9)
-  lit_star(pt, (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) * 0.47, (y1 - y0) * 0.47)
+  pt:stroke(f.frame, Paint.mix(f.ink, pal.paper, 0.25), 0.45, 0.9)
 end
+
+-- The star cartouche filling the box (x, y, w, h): a night field seen
+-- through drifting cloud, stars in the gaps, a luminous star at its heart.
+function O.panel(pt, rng, x, y, w, h)
+  local f = O.panel_open(pt, rng, x, y, w, h)
+  local puffs = cloud_puffs(rng:fork("clouds"), f.x0, f.y0, f.x1, f.y1)
+  pt:clip_begin(G.polyline(f.body, true))
+  starfield(pt, rng:fork("stars"), puffs, f.x0, f.y0, f.x1, f.y1)
+  clouds(pt, puffs, f.dilute, f.deep)
+  pt:clip_end()
+  O.panel_close(pt, f)
+  lit_star(pt, (f.x0 + f.x1) / 2, (f.y0 + f.y1) / 2, (f.x1 - f.x0) * 0.47, (f.y1 - f.y0) * 0.47)
+end
+
+-- Pieces of the night cartouche for other ornaments (orn_celestial.lua).
+O.sparkle, O.ellipse, O.cloud_puffs, O.starfield, O.clouds, O.lit_star =
+  sparkle, ellipse, cloud_puffs, starfield, clouds, lit_star
 
 -- A pendant knot in the foot's corner, as in the reference, filling the box
 -- centred at (x, y), w wide and h tall, and hung from a beaded cord running

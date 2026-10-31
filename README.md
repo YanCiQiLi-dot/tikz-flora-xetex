@@ -78,6 +78,7 @@ compile with a message naming the key.
 | `visitors` | 0 to 10 | The weight of every visitor at once |
 | `palette` | `{part=ink, ...}` | What paints the `hero`, `blooms`, `leaves`, `leaflets`, `stems`, `sprays`, `ghost`, `cartouche` |
 | `spin` | a whole number | Picks other inks for parts set to `random`; the shapes stay |
+| `ornaments` | `{kind=weight, ...}` | How often each ornament kind is picked for its place; 0 never |
 
 Mix kinds: `bloom`, `soft`, `lily`, `ghost`, `umbel`, `cyme`
 (forget-me-nots), `gyps` (baby's breath), `leaves`, `leaflets`, `sprays`,
@@ -95,6 +96,32 @@ leaf and bloom stays where it was.
 pale ghost bloom, and `cartouche` the sky in the star cartouche. A non-blue
 ink also repaints the rims, grain and contours of the part it paints, so a
 page with every part set keeps only a few navy pen lines.
+
+Ornaments fill places on the page: the `cartouche` panel, the `header`
+mark on the running-head rule, the `pendant` in the foot's corner, the
+larger `gilt` in the foliage's gaps, and on title pages a `crest` where the
+crown meets, a `flourish` under the title, a `tailpiece` under the last
+line and a piece in each foot `corner`. Each place picks one kind by
+weight, so `ornaments={moon=3, night=0}` favours the crescent moon
+cartouche and drops the night sky; setting every kind of a place to 0
+leaves it empty. `just gallery` (or `\floragallery` in a `tikzpicture`)
+draws every kind with the name to weigh it by. The kinds:
+
+- cartouche: `night`, `sun`, `moon`, `constellation`, `planet`,
+  `armillary`, `scrolled`, `strapwork`
+- header: `compass`, `rosette`, `sunburst`, `quatrefoil`
+- pendant: `knot`, `medallion`, `zodiac_pendant`
+- crest: `sun_crest`, `compass_rose`, `armillary_crest`, `zodiac`, `wreath`
+- flourish: `swash`, `fleuron_rule`, `headpiece`
+- tailpiece: `cul_de_lampe`, `hedera`, `garland`
+- corner: `bracket`, `fan`, `corner_leaf`
+- gilt: `gilt_cross`, `gilt_rosette`, `gilt_dotted`, `gilt_lozenge`,
+  `gilt_star`, `gilt_crescent`, `gilt_trefoil`
+
+A new kind is a Lua file that calls `register` in
+`lua/flora/ornaments.lua` (which explains the fields) and is listed in its
+`MODULES`; the gallery and the tests pick it up, and `tests/test_ornaments.lua`
+holds it to its box.
 
 ```latex
 \florasetup{layout=split, visitors=0.5, mix={lily=2, umbel=0},
@@ -136,6 +163,8 @@ add the TinyTeX binaries to `PATH`:
 - `just grow NAME SEED PAGE`: build `build/grow-NAME-PAGE.mp4` and `.gif`
   of a page as it grows. It needs ffmpeg, poppler (`pdftocairo`) and
   ImageMagick.
+- `just gallery`: draw every ornament kind, labelled, to
+  `build/gallery.pdf` (`tex/gallery.tex`).
 - `just dist`: build `build/tikzflora.zip`. `just test-dist` compiles the
   example from the unpacked zip alone.
 - `just test`: run the Lua and Python unit tests. `just test-tex` and
