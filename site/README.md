@@ -37,9 +37,18 @@ committed.
 | `public/bake/text-N.png` | The text of each of those pages, without flora |
 | `public/bake/manifest.json` | Which baked page each mixer layout uses |
 | `public/img/page-N.jpg` | Every page of the finished example |
-| `public/img/flora-margin.png` | The flora of page 4 alone, behind the guide |
-| `public/img/og.jpg` | The 1200 x 630 link preview |
+| `public/img/colourway-N.jpg` | Page 4 in each colourway of `src/lib/colourways.json` |
+| `public/img/flora-margin.png` | The first colourway's flora alone, beside the guide |
+| `public/img/og.jpg` | The 1200 x 630 link preview, from the colourway pages |
 | `public/media/grow.mp4`, `grow.gif` | Page 3 growing |
+
+## Colourways
+
+`src/lib/colourways.json` lists the colourways the site opens with: a
+name, a seed and an ink for every palette part. The opening and the mixer
+read it, and `site-bake` renders each one with `tools/preview.lua` on
+page 4, grown with the mixer's starting mix (the `fresh, visitors=1`
+settings), so "Use these inks" reproduces the picture exactly.
 
 ## The mixer
 

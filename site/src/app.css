@@ -1,11 +1,12 @@
-/* Paper and ink. Page renders stay paper-white in both themes, as printed
-   pages are. */
+/* Paper and ink in neutral tones, so the artwork carries the colour. Page
+   renders stay paper-white in both themes, as printed pages are. */
 :root {
   --paper: #f5f2eb;
-  --ink: #1b2440;
-  --muted: #5d6680;
-  --blue: #2a4fa8;
+  --ink: #292824;
+  --muted: #625e55;
+  --accent: #74502e;
   --rule: #dcd6c8;
+  --control: #8b8578;
   --code-bg: #ece8de;
   --display: "IM Fell English", "Iowan Old Style", Georgia, serif;
   --body: "STIX Two Text", "Iowan Old Style", Georgia, serif;
@@ -15,18 +16,20 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #12161f; --ink: #e3e6ee; --muted: #9aa2b6; --blue: #9db5ee;
-    --rule: #2b3242; --code-bg: #1c2230;
+    --paper: #191a19; --ink: #e9e6de; --muted: #b5b0a4; --accent: #dfb986;
+    --rule: #2f302d; --control: #777368; --code-bg: #232421;
     color-scheme: dark;
   }
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: var(--bar); }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 body {
   margin: 0; background: var(--paper); color: var(--ink);
   font-family: var(--body); font-size: 1.05rem; line-height: 1.6;
 }
-a { color: var(--blue); }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 h1, h2, h3 { font-family: var(--display); font-weight: 400; line-height: 1.15; }
 h2 { font-size: 1.7rem; margin: 0 0 .8rem; }
 h3 { font-size: 1.2rem; margin: 1.8rem 0 .4rem; }

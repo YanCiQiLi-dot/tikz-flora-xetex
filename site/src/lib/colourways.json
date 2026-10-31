@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Ember and moss",
+    "seed": 11,
+    "palette": {
+      "hero": "yu-yake",
+      "blooms": "momiji",
+      "leaves": "green",
+      "leaflets": "hotaru-bi",
+      "stems": "yama-guri",
+      "sprays": "to-ro",
+      "ghost": "benzaiten",
+      "cartouche": "fuyu-gaki"
+    }
+  },
+  {
+    "name": "Plum and jade",
+    "seed": 23,
+    "palette": {
+      "hero": "murasaki-shikibu",
+      "blooms": "yama-budo",
+      "leaves": "teal",
+      "leaflets": "chiku-rin",
+      "stems": "yama-guri",
+      "sprays": "edo-murasaki",
+      "ghost": "rikka",
+      "cartouche": "ku-jaku"
+    }
+  },
+  {
+    "name": "Rose and slate",
+    "seed": 37,
+    "palette": {
+      "hero": "tsutsuji",
+      "blooms": "hana-ikada",
+      "leaves": "blue-grey",
+      "leaflets": "fukagawa-nezu",
+      "stems": "take-sumi",
+      "sprays": "kosumosu",
+      "ghost": "hana-ikada",
+      "cartouche": "tsuki-yo"
+    }
+  }
+]

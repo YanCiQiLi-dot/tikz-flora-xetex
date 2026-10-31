@@ -1,25 +1,32 @@
 <script>
   import { onMount } from "svelte";
   import { meta as loadMeta, render, draw } from "./render.js";
-  import { setupLine } from "./setup.js";
+  import { setupLine, documentFor } from "./setup.js";
   import InkPicker from "./InkPicker.svelte";
+  import COLOURWAYS from "./colourways.json";
+  import { face } from "./ink.js";
 
   const GROUPS = [
     { title: "Blooms", keys: ["bloom", "soft", "lily", "ghost", "umbel"] },
     { title: "Sprays and foliage", keys: ["cyme", "gyps", "sprays", "curls", "leaves", "leaflets"] },
     { title: "Visitors", keys: ["bee", "butterfly", "bird", "snail"] },
   ];
+  // What each palette part is called here; the setup line keeps the key.
+  const PART_LABEL = {
+    hero: "Main flower", blooms: "Blooms", leaves: "Leaves", leaflets: "Leaflets", stems: "Stems",
+    sprays: "Sprays", ghost: "Ghost bloom", cartouche: "Cartouche",
+  };
 
   let meta = $state(null);
   let pages = $state([]);
   let layout = $state(0);
-  let seed = $state(3);
+  let seed = $state(COLOURWAYS[0].seed);
   let mix = $state({});
   let palette = $state({});
   let spin = $state(0);
   let status = $state("Loading the generator…");
   let busy = $state(false);
-  let copied = $state(false);
+  let copied = $state("");
   let canvas, frame;
   const specs = new Map();
   let timer, again = false;
@@ -27,21 +34,37 @@
   const label = (k) => meta?.kinds.find((x) => x[0] === k)?.[1] ?? k;
   const hint = (k) => meta?.kinds.find((x) => x[0] === k)?.[2] ?? "";
   let line = $derived(meta && pages.length ? setupLine({ layout: pages[layout].layout, seed, mix, palette, spin }, meta) : "");
+  let anyRandom = $derived(Object.values(palette).includes("random"));
+  // The colourway the inks and seed match now, if any (-1 for the
+  // package's own look).
+  let current = $derived.by(() => {
+    if (!meta) return null;
+    const same = (p) => meta.parts.every(([k, d]) => (palette[k] ?? d) === (p[k] ?? d));
+    if (same(Object.fromEntries(meta.parts))) return -1;
+    return COLOURWAYS.findIndex((c) => c.seed === seed && same(c.palette));
+  });
 
-  onMount(async () => {
+  onMount(() => {
+    const load = (e) => useColourway(e.detail);
+    window.addEventListener("flora:colourway", load);
+    start();
+    return () => window.removeEventListener("flora:colourway", load);
+  });
+
+  async function start() {
     try {
       const [m, man] = await Promise.all([loadMeta(), fetch("/bake/manifest.json").then((r) => r.json())]);
       meta = m;
       pages = man;
       mix = Object.fromEntries(m.kinds.map(([k, , , d]) => [k, d]));
-      palette = Object.fromEntries(m.parts);
       // Visitors start on here, so the mixer shows them.
       for (const k of ["bee", "butterfly", "bird", "snail"]) mix[k] = 1;
+      palette = { ...Object.fromEntries(m.parts), ...COLOURWAYS[0].palette };
       grow();
     } catch (e) {
       status = `The mixer could not start: ${e.message}`;
     }
-  });
+  }
 
   async function spec(p) {
     if (!specs.has(p)) specs.set(p, await fetch(`/bake/spec-${p}.lua`).then((r) => r.text()));
@@ -71,9 +94,31 @@
     timer = setTimeout(grow, 500);
   }
 
-  // New inks for every part set to random; the shapes stay as they are.
-  function spinColours() {
+  // A colourway's inks and seed on the left-margin page, as baked on the
+  // site's opening; i = -1 restores the package's own look.
+  function useColourway(i) {
+    if (!meta) return;
+    const defaults = Object.fromEntries(meta.parts);
+    if (i < 0) {
+      palette = defaults;
+    } else {
+      palette = { ...defaults, ...COLOURWAYS[i].palette };
+      seed = COLOURWAYS[i].seed;
+      layout = Math.max(0, pages.findIndex((p) => p.layout === "left"));
+    }
+    spin = 0;
+    changed();
+  }
+
+  // Every part to a random ink, and a new draw of them.
+  function randomiseAll() {
     for (const [part] of meta.parts) palette[part] = "random";
+    spin += 1;
+    changed();
+  }
+
+  // New inks for the parts already set to random; the rest stay.
+  function spinRandom() {
     spin += 1;
     changed();
   }
@@ -83,62 +128,95 @@
     changed();
   }
 
-  async function copy() {
-    await navigator.clipboard.writeText(line);
-    copied = true;
-    setTimeout(() => (copied = false), 1600);
+  async function copy(what) {
+    const text = what === "document" ? documentFor(line, pages[layout].layout) : line;
+    await navigator.clipboard.writeText(text);
+    copied = what;
+    setTimeout(() => (copied = ""), 1600);
   }
+
+  // A colourway shown by the inks of its main parts.
+  const swatches = (c) => ["hero", "blooms", "leaves", "sprays"].map((k) => c.palette[k]);
+  const swatch = (ink) => (meta?.ramps[ink] ? face(meta.ramps[ink]) : meta?.groupInks[ink] ? face(meta.ramps[meta.groupInks[ink][0]]) : "transparent");
 </script>
 
 <div class="mixer">
   <div class="controls">
     <h2>Mixer</h2>
     <p class="note">The package's own Lua, running in your browser on a page
-      of the example. 1 is the usual amount, 0 none, 2 about twice as
-      much.</p>
+      of the example.</p>
     {#if meta}
-      <h3>Layout</h3>
-      <div class="layouts" role="radiogroup" aria-label="Layout">
+      <fieldset class="layouts">
+        <legend>Layout</legend>
         {#each pages as p, i}
-          <button type="button" role="radio" aria-checked={layout === i} class:on={layout === i}
-            onclick={() => { layout = i; changed(); }}>{p.label}</button>
+          <label class:on={layout === i}>
+            <input type="radio" name="layout" value={i} checked={layout === i}
+              onchange={() => { layout = i; changed(); }}>{p.label}
+          </label>
         {/each}
+      </fieldset>
+
+      <h3>Colourway</h3>
+      <div class="ways" role="group" aria-label="Colourways">
+        {#each COLOURWAYS as c, i}
+          <button type="button" aria-pressed={current === i} onclick={() => useColourway(i)}>
+            <span class="dots">{#each swatches(c) as ink}<i style:background={swatch(ink)}></i>{/each}</span>
+            {c.name}
+          </button>
+        {/each}
+        <button type="button" aria-pressed={current === -1} onclick={() => useColourway(-1)}>
+          <span class="dots original"><i></i><i></i><i></i><i></i></span>
+          Original blue
+        </button>
       </div>
+      <div class="spin">
+        <button type="button" class="primary" onclick={randomiseAll}>Randomise all inks</button>
+        <button type="button" onclick={spinRandom} disabled={!anyRandom}>Spin random inks</button>
+      </div>
+      <p class="hint">The shapes stay put; only the inks change.</p>
+
+      <h3>Inks</h3>
+      {#each meta.parts as [part]}
+        <div class="row">
+          <span class="cap">{PART_LABEL[part] ?? part}</span>
+          <InkPicker {part} label={PART_LABEL[part] ?? part} {meta} bind:value={palette[part]} onchange={changed} />
+        </div>
+      {/each}
+
+      <h3>Shapes</h3>
       <label class="row">
         <span>Seed</span>
         <input type="number" min="1" max="99999" bind:value={seed} onchange={changed}>
-        <button type="button" onclick={reroll}>New</button>
       </label>
+      <p class="spin"><button type="button" onclick={reroll}>New shapes</button></p>
       <label class="row" title={hint("density")}>
         <span>{label("density")}</span>
         <input type="range" min="0.2" max="2" step="0.1" bind:value={mix.density} oninput={changed}>
         <output>{mix.density}</output>
       </label>
+      <p class="hint">Weights: 0 none, 1 the usual amount, 2 about double.</p>
       {#each GROUPS as g}
-        <h3>{g.title}</h3>
-        {#each g.keys as k}
-          <label class="row" title={hint(k)}>
-            <span>{label(k)}</span>
-            <input type="range" min="0" max="3" step="0.25" bind:value={mix[k]} oninput={changed}>
-            <output>{mix[k]}</output>
-          </label>
-        {/each}
+        <details>
+          <summary>{g.title}</summary>
+          {#each g.keys as k}
+            <label class="row" title={hint(k)}>
+              <span>{label(k)}</span>
+              <input type="range" min="0" max="3" step="0.25" bind:value={mix[k]} oninput={changed}>
+              <output>{mix[k]}</output>
+            </label>
+          {/each}
+        </details>
       {/each}
-      <h3>Inks</h3>
-      {#each meta.parts as [part]}
-        <div class="row">
-          <span class="cap">{part}</span>
-          <InkPicker {part} {meta} bind:value={palette[part]} onchange={changed} />
-        </div>
-      {/each}
-      <p class="spin"><button type="button" onclick={spinColours}>Spin colours</button>
-        <span>Random inks for every part. The shapes stay put.</span></p>
     {/if}
     {#if line}
-      <h3>Your setting</h3>
+      <h3>LaTeX settings</h3>
       <pre><code>{line}</code></pre>
-      <p class="links"><button type="button" onclick={copy}>{copied ? "Copied" : "Copy"}</button>
-        <a href="/tikzflora.zip" download>Download tikzflora.zip</a></p>
+      <p class="links">
+        <button type="button" onclick={() => copy("line")}>{copied === "line" ? "Copied" : "Copy settings"}</button>
+        <button type="button" onclick={() => copy("document")}>{copied === "document" ? "Copied" : "Copy complete document"}</button>
+      </p>
+      <p class="hint">The document compiles with <code>lualatex</code> beside the unzipped
+        <a href="/tikzflora.zip" download>tikzflora.zip</a>. Your own text grows its own shapes.</p>
     {/if}
   </div>
 
@@ -156,37 +234,56 @@
 <style>
   /* The controls scroll on their own; the page stays in view. */
   .mixer {
-    display: grid; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+    display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
     height: calc(100dvh - var(--bar)); border-top: 1px solid var(--rule);
   }
   .controls { overflow-y: auto; overscroll-behavior: contain; padding: 1.4rem 1.4rem 3rem; border-right: 1px solid var(--rule); }
-  .note { color: var(--muted); font-size: .92rem; margin-top: 0; }
-  h3 { font-size: 1.05rem; margin: 1.3rem 0 .3rem; }
-  .row { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr) 2.4rem; align-items: center; gap: .6rem; padding: .12rem 0; font-size: .93rem; }
+  .note, .hint { color: var(--muted); font-size: .9rem; margin: .2rem 0 .6rem; }
+  h3 { font-size: 1.1rem; margin: 1.4rem 0 .45rem; }
+  .row { display: grid; grid-template-columns: 8rem minmax(0, 1fr) 2.4rem; align-items: center; gap: .6rem; min-height: 36px; font-size: .93rem; }
   .row > span { color: var(--muted); }
-  .cap { text-transform: capitalize; }
   output { font-family: var(--mono); font-size: .8rem; text-align: right; }
-  input[type="range"] { width: 100%; accent-color: var(--blue); }
-  input[type="number"] { width: 100%; padding: .2rem .4rem; border: 1px solid var(--rule); background: transparent; }
-  button { border: 1px solid var(--rule); background: transparent; padding: .2rem .65rem; cursor: pointer; }
-  button:hover { border-color: var(--ink); }
-  .layouts { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .4rem; }
-  .layouts button.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-  .spin { display: flex; gap: .7rem; align-items: center; font-size: .88rem; color: var(--muted); }
-  .spin button { flex: none; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  input[type="number"] { grid-column: 2 / 4; width: 100%; padding: .3rem .45rem; border: 1px solid var(--control); background: transparent; }
+  button { border: 1px solid var(--control); background: transparent; padding: .35rem .75rem; cursor: pointer; min-height: 36px; }
+  button:hover:not(:disabled) { border-color: var(--ink); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  fieldset { border: 0; padding: 0; margin: .8rem 0 0; }
+  legend { font-family: var(--display); font-size: 1.1rem; padding: 0; margin-bottom: .45rem; }
+  .layouts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
+  .layouts label { display: flex; align-items: center; justify-content: center; min-height: 36px; border: 1px solid var(--control); cursor: pointer; font-size: .93rem; }
+  .layouts label.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .layouts input { position: absolute; opacity: 0; pointer-events: none; }
+  .layouts label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .ways { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; }
+  .ways button { display: flex; align-items: center; gap: .5rem; text-align: left; font-size: .9rem; }
+  .ways button[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+  .dots { display: inline-flex; flex: none; width: 2.6rem; height: 1rem; border-radius: 2px; overflow: hidden; }
+  .dots i { flex: 1; }
+  .dots.original i:nth-child(1) { background: oklab(0.40 -0.01 -0.19); }
+  .dots.original i:nth-child(2) { background: oklab(0.55 -0.04 -0.18); }
+  .dots.original i:nth-child(3) { background: oklab(0.62 -0.08 -0.12); }
+  .dots.original i:nth-child(4) { background: oklab(0.75 -0.05 -0.09); }
+  .spin { display: flex; flex-wrap: wrap; gap: .45rem; margin: .7rem 0 0; }
+  details { border-top: 1px solid var(--rule); padding: .35rem 0; }
+  details:last-of-type { border-bottom: 1px solid var(--rule); }
+  summary { cursor: pointer; font-family: var(--display); font-size: 1.05rem; padding: .3rem 0; }
   pre { white-space: pre-wrap; word-break: break-word; margin: .3rem 0; }
-  .links { display: flex; gap: 1rem; align-items: center; }
+  .links { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }
   .viewer { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.2rem; min-height: 0; overflow: hidden; }
   .sheet { position: relative; height: min(100%, calc(100dvh - var(--bar) - 4.5rem)); aspect-ratio: 210 / 297; max-width: 100%; }
   .sheet canvas, .sheet img { position: absolute; inset: 0; width: 100%; height: 100%; }
   .sheet img { mix-blend-mode: multiply; }
   .sheet.busy canvas { opacity: .45; transition: opacity .3s; }
   .status { color: var(--muted); font-size: .85rem; margin: .5rem 0 0; }
+  /* Phones: the page scrolls as one, with a small page kept in view. */
   @media (max-width: 860px) {
-    .mixer { grid-template-columns: minmax(0, 1fr); grid-template-rows: 52dvh minmax(0, 1fr); height: calc(100dvh - var(--bar)); }
-    .viewer { order: -1; padding: .6rem; border-bottom: 1px solid var(--rule); }
-    .sheet { height: calc(52dvh - 3rem); }
-    .controls { border-right: 0; }
-    .row { grid-template-columns: 7rem minmax(0, 1fr) 2.4rem; }
+    .mixer { display: flex; flex-direction: column; height: auto; }
+    .viewer { order: -1; position: sticky; top: var(--bar); z-index: 2; height: 36dvh; padding: .5rem; background: var(--paper); border-bottom: 1px solid var(--rule); }
+    .sheet { height: calc(36dvh - 2.6rem); }
+    .controls { overflow: visible; border-right: 0; padding-inline: 16px; }
+    .row { grid-template-columns: 7rem minmax(0, 1fr) 2.4rem; min-height: 44px; }
+    button, .layouts label { min-height: 44px; }
   }
 </style>

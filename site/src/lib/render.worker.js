@@ -53,7 +53,7 @@ for _, k in ipairs(order) do
   kinds[#kinds + 1] = "[" .. q(k) .. "," .. doc("mix." .. k) .. "," .. Tune.mix[k] .. "]"
 end
 local parts = {}
-for _, p in ipairs({ "hero", "blooms", "leaves", "leaflets", "stems" }) do
+for _, p in ipairs({ "hero", "blooms", "leaves", "leaflets", "stems", "sprays", "ghost", "cartouche" }) do
   parts[#parts + 1] = "[" .. q(p) .. "," .. q(Tune.color.palette[p]) .. "]"
 end
 local groups, inks, ramps, members = {}, {}, {}, {}

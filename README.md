@@ -76,7 +76,7 @@ compile with a message naming the key.
 | `mix` | `{kind=weight, ...}` | How much of each kind: 1 usual, 0 none, 2 about double |
 | `density` | 0 to 10 | Fuller (above 1) or airier (below 1) |
 | `visitors` | 0 to 10 | The weight of every visitor at once |
-| `palette` | `{part=ink, ...}` | What paints the `hero`, `blooms`, `leaves`, `leaflets`, `stems` |
+| `palette` | `{part=ink, ...}` | What paints the `hero`, `blooms`, `leaves`, `leaflets`, `stems`, `sprays`, `ghost`, `cartouche` |
 | `spin` | a whole number | Picks other inks for parts set to `random`; the shapes stay |
 
 Mix kinds: `bloom`, `soft`, `lily`, `ghost`, `umbel`, `cyme`
@@ -91,9 +91,14 @@ by name, such as `kon-peki` (all of them are in `lua/flora/inks.lua`).
 random stream, so changing `spin` changes only the colours: every stem,
 leaf and bloom stays where it was.
 
+`sprays` paints the forget-me-nots, baby's breath and umbels, `ghost` the
+pale ghost bloom, and `cartouche` the sky in the star cartouche. A non-blue
+ink also repaints the rims, grain and contours of the part it paints, so a
+page with every part set keeps only a few navy pen lines.
+
 ```latex
 \florasetup{layout=split, visitors=0.5, mix={lily=2, umbel=0},
-  palette={leaves=green}}
+  palette={hero=murasaki-shikibu, blooms=warm, leaves=teal}}
 ```
 
 ### Layouts

@@ -14,7 +14,7 @@ Some text.
   const settings = String.raw`% For the rest of the document, from this page on:
 \florasetup{layout=split, seed=3, visitors=0.5,
   mix={lily=2, umbel=0, gyps=1.5},
-  palette={leaves=green, hero=kon-peki}}
+  palette={hero=murasaki-shikibu, blooms=warm, leaves=teal}}
 
 % For one page only (the page this lands on):
 \florathispage{layout=surround}`;
@@ -38,7 +38,7 @@ Some text.
     ["mix", "{kind=weight, …}", "How much of each kind: 1 the usual amount, 0 none, 2 about twice as much."],
     ["density", "0 to 10", "Fuller above 1, airier below."],
     ["visitors", "0 to 10", "The weight of every visitor at once: bees, butterflies, birds and snails."],
-    ["palette", "{part=ink, …}", "What paints the hero, blooms, leaves, leaflets and stems."],
+    ["palette", "{part=ink, …}", "What paints each part: hero (the main flower), blooms, leaves, leaflets, stems, sprays, ghost (the pale bloom) and cartouche."],
     ["spin", "a whole number", "Picks the random inks again. The shapes stay where they are."],
   ];
   const kinds = "bloom, soft, lily, ghost, umbel, cyme (forget-me-nots), gyps (baby's breath), leaves, leaflets, sprays, curls, density, bee, butterfly, bird, snail";
@@ -54,7 +54,12 @@ Some text.
 
 <h2>Guide</h2>
 <div class="col">
-  <h3>1. Get LuaLaTeX</h3>
+  <p class="toc">
+    <a href="#g-install">Install</a> · <a href="#g-first">A first page</a> ·
+    <a href="#g-overleaf">Overleaf</a> · <a href="#g-settings">Settings</a> ·
+    <a href="#g-layouts">Layouts</a> · <a href="#g-trouble">Troubleshooting</a>
+  </p>
+  <h3 id="g-install">1. Get LuaLaTeX</h3>
   <p>
     tikz-flora needs LuaLaTeX, which comes with every full TeX
     distribution: <a href="https://tug.org/texlive/">TeX Live</a> 2023 or
@@ -80,7 +85,7 @@ Some text.
   </p>
   <pre><code>{texmf}</code></pre>
 
-  <h3>3. A first page</h3>
+  <h3 id="g-first">3. A first page</h3>
   <pre><code>{minimal}</code></pre>
   <p>
     Compile with <code>lualatex</code>, or with <code>latexmk</code>, which
@@ -89,14 +94,14 @@ Some text.
     or two to grow.
   </p>
 
-  <h3>On Overleaf</h3>
+  <h3 id="g-overleaf">On Overleaf</h3>
   <ol>
     <li>Choose New Project, then Upload Project, and pick <code>tikzflora.zip</code>.</li>
     <li>The <code>latexmkrc</code> in the zip selects LuaLaTeX. If your project lacks it, open Menu and set Compiler to LuaLaTeX.</li>
     <li>Recompile. <code>example.tex</code> shows every setting with a comment at each.</li>
   </ol>
 
-  <h3>4. Settings</h3>
+  <h3 id="g-settings">4. Settings</h3>
   <p>
     <code>\florasetup</code> sets keys for the rest of the document,
     starting with the page it is on. <code>\florathispage</code> sets them
@@ -114,15 +119,18 @@ Some text.
   </div>
   <p>Mix kinds: {kinds}. Visitors are off unless you give them weight.</p>
   <p>
-    Palette values are <code>look</code> (the default gradients), an ink
-    group (blue, blue-grey, teal, green, violet, warm, earth, gold), one
-    Pilot iroshizuku ink by name, such as <code>kon-peki</code>, or
-    <code>random</code> for one ink picked per page. With
+    Palette values are <code>look</code> (the original blue gradients), an
+    ink group (warm, violet, gold, earth, green, teal, blue-grey, blue), one
+    Pilot iroshizuku ink by name, such as <code>momiji</code> or
+    <code>sui-gyoku</code>, or <code>random</code> for one ink picked per
+    page. A non-blue ink also repaints that part's rims, grain and contours,
+    so with every part set only a few pen lines stay navy. With
     <code>random</code>, <code>spin=N</code> picks again and changes only
-    the colours. The <a href="#mixer">mixer</a> lists every ink.
+    the colours. The <a href="#mixer">mixer</a> shows every ink as a
+    swatch.
   </p>
 
-  <h3>5. Layouts</h3>
+  <h3 id="g-layouts">5. Layouts</h3>
   <dl>
     {#each layouts as [k, e]}<dt><code>{k}</code></dt><dd>{e}</dd>{/each}
   </dl>
@@ -133,11 +141,11 @@ Some text.
   <p>
     The repository's <code>just grow NAME SEED PAGE</code> renders a page
     of any document in <code>tex/</code> as it grows and writes an MP4 and
-    a GIF. It needs ffmpeg, poppler and ImageMagick. The animation at the
-    top of this page is <code>just grow lorem 3 3</code>.
+    a GIF. It needs ffmpeg, poppler and ImageMagick. The animation on this
+    page is <code>just grow lorem 3 3</code>.
   </p>
 
-  <h3>Troubleshooting</h3>
+  <h3 id="g-trouble">Troubleshooting</h3>
   <dl>
     <dt>"tikzflora needs LuaLaTeX"</dt>
     <dd>Compile with <code>lualatex</code>. On Overleaf, set Menu, Compiler to LuaLaTeX.</dd>
@@ -158,4 +166,14 @@ Some text.
   dt { margin-top: .6rem; }
   dd { margin: .1rem 0 0 1.2rem; color: var(--muted); }
   ol { padding-left: 1.3rem; }
+  h3 { font-size: 1.4rem; margin: 2.5rem 0 .65rem; }
+  .toc { color: var(--muted); }
+  /* Phones: each setting stacks as key, values, effect. */
+  @media (max-width: 600px) {
+    thead { display: none; }
+    tr, td { display: block; }
+    tr { padding: .5rem 0; border-bottom: 1px solid var(--rule); }
+    td { border: 0; padding: .1rem 0; }
+    td:nth-child(2) { color: var(--muted); }
+  }
 </style>

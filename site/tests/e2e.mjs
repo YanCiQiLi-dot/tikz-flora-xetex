@@ -32,33 +32,44 @@ try {
     try { if ((await fetch(URL)).ok) break; } catch { /* not up yet */ }
     await new Promise((r) => setTimeout(r, 150));
   }
-  for (const path of ["tikzflora.zip", "media/grow.mp4", "media/grow.gif", "img/og.jpg", "img/page-1.jpg", "bake/manifest.json"]) {
+  for (const path of ["tikzflora.zip", "media/grow.mp4", "media/grow.gif", "img/og.jpg", "img/page-1.jpg", "bake/manifest.json",
+    "img/colourway-0.jpg", "img/colourway-1.jpg", "img/colourway-2.jpg", "img/flora-margin.png"]) {
     const r = await fetch(URL + path);
     check(r.ok, `${path} is not served (${r.status})`);
   }
   browser = await chromium.launch({ channel: "chrome", headless: true });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["clipboard-read", "clipboard-write"] });
+  const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.goto(URL);
   check(await page.locator('meta[property="og:image"]').getAttribute("content") === "https://flora.alpacasoft.dev/img/og.jpg",
     "og:image is not the absolute preview URL");
-
-  // The first page grows.
-  await page.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
+  const code = () => page.locator(".controls pre code").textContent();
+  const grown = async () => {
+    await page.locator(".status", { hasText: "Growing" }).waitFor({ timeout: 10000 });
+    await page.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
+  };
+  // Inked samples of the canvas, and how many of them are blue.
   const inked = () => page.evaluate(() => {
     const c = document.querySelector(".sheet canvas");
     const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
-    let n = 0;
-    for (let i = 0; i < d.length; i += 4 * 7) if (d[i + 3] > 0 && d[i] + d[i + 1] + d[i + 2] < 600) n++;
-    return n;
+    let n = 0, blue = 0;
+    for (let i = 0; i < d.length; i += 4 * 7) {
+      if (d[i + 3] > 0 && d[i] + d[i + 1] + d[i + 2] < 600) {
+        n++;
+        if (d[i + 2] > d[i] + 40 && d[i + 2] > d[i + 1] + 15) blue++;
+      }
+    }
+    return { n, blue: blue / Math.max(1, n) };
   });
-  const first = await inked();
-  check(first > 2000, `the first page shows too little flora (${first} inked samples)`);
 
-  // Turning everything but the stems off grows a sparser page, and the
-  // line follows the controls.
-  const before = await page.locator(".controls pre code").textContent();
+  // The mixer starts on the first colourway: a full page with little blue.
+  await page.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
+  const first = await inked();
+  check(first.n > 2000, `the first page shows too little flora (${first.n} inked samples)`);
+  check(first.blue < 0.1, `the first colourway is ${(first.blue * 100).toFixed(0)}% blue`);
+  check(/seed=11/.test(await code()) && /hero=yu-yake/.test(await code()), `the mixer does not start on the first colourway: ${await code()}`);
 
   // Scrolling the controls leaves the page viewer where it is.
   const sheetTop = () => page.evaluate(() => document.querySelector(".sheet").getBoundingClientRect().top);
@@ -73,42 +84,89 @@ try {
   check(scrolled > 100, `the controls did not scroll (${scrolled})`);
   check(Math.abs((await sheetTop()) - top0) < 1 && (await page.evaluate(() => window.scrollY)) === scrollY0,
     `scrolling the controls moved the page viewer (top ${top0} -> ${await sheetTop()}, scrollY ${scrollY0} -> ${await page.evaluate(() => window.scrollY)})`);
+
+  // The original look is blue, and spinning has nothing to spin in it.
+  await page.getByRole("button", { name: "Original blue" }).click();
+  await grown();
+  const original = await inked();
+  check(original.blue > 0.3, `the original look is only ${(original.blue * 100).toFixed(0)}% blue; the measure is broken`);
+  check(await page.getByRole("button", { name: "Spin random inks" }).isDisabled(), "Spin random inks is enabled with no random part");
+
+  // Zero weights (behind their disclosures) grow a sparser page, and the
+  // line follows the controls.
+  for (const summary of await page.locator(".controls summary").all()) await summary.click();
   for (const name of ["Leaves", "Baby's breath", "Forget-me-nots", "Sprays"]) {
-    const slider = page.locator(".controls .row", { hasText: name }).locator('input[type="range"]');
-    await slider.fill("0");
+    await page.locator(".controls details .row", { hasText: name }).locator('input[type="range"]').fill("0");
   }
-  await page.locator(".status", { hasText: "Growing" }).waitFor({ timeout: 10000 });
-  await page.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
+  await grown();
   const second = await inked();
-  check(second < first * 0.85, `zero weights did not thin the page (${first} -> ${second})`);
-  const line = await page.locator(".controls pre code").textContent();
-  check(line !== before && /leaves=0/.test(line) && /gyps=0/.test(line), `setup line does not follow the controls: ${line}`);
+  check(second.n < original.n * 0.85, `zero weights did not thin the page (${original.n} -> ${second.n})`);
+  const line = await code();
+  check(/leaves=0/.test(line) && /gyps=0/.test(line), `setup line does not follow the controls: ${line}`);
   check(line.startsWith("\\florasetup{layout=left, seed="), `setup line has the wrong head: ${line}`);
 
-  // Spinning colours keeps the shapes: the inked area barely changes, the
-  // line names random inks and a spin.
-  await page.getByRole("button", { name: "Spin colours" }).click();
-  await page.locator(".status", { hasText: "Growing" }).waitFor({ timeout: 10000 });
-  await page.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
-  const spun = await page.locator(".controls pre code").textContent();
-  check(/hero=random/.test(spun) && /spin=1/.test(spun), `spin is not in the setup line: ${spun}`);
+  // Randomise sets every part random; a hand-picked ink then survives a spin.
+  await page.getByRole("button", { name: "Randomise all inks" }).click();
+  await grown();
+  check(/hero=random/.test(await code()) && /spin=1/.test(await code()), `randomise is not in the setup line: ${await code()}`);
 
-  // The ink picker shows every ink as a swatch with a plain colour name,
-  // and a pick reaches the setup line.
-  const leavesRow = page.locator(".controls .row", { has: page.locator(".cap", { hasText: /^leaves$/ }) });
-  await leavesRow.locator("button.current").click();
+  // The ink picker shows every ink as a swatch with a plain colour name; it
+  // answers the keyboard, and a pick reaches the setup line.
+  const leavesRow = page.locator(".controls .row", { has: page.locator(".cap", { hasText: /^Leaves$/ }) });
+  const trigger = leavesRow.locator("button.current");
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  const focused = () => page.evaluate(() => document.activeElement?.getAttribute("role") + ":" + document.activeElement?.textContent.trim().slice(0, 30));
+  check(/^option:/.test(await focused()), `opening the picker did not focus an option (${await focused()})`);
+  const at0 = await focused();
+  await page.keyboard.press("ArrowDown");
+  check(/^option:/.test(await focused()) && (await focused()) !== at0, "ArrowDown did not move to the next option");
+  await page.keyboard.press("Escape");
+  check(await leavesRow.locator("[role=listbox]").count() === 0, "Escape did not close the picker");
+  check(await trigger.evaluate((el) => el === document.activeElement), "Escape did not return focus to the picker");
+  await trigger.click();
   const inks = await leavesRow.locator(".inks [role=option]").evaluateAll((els) => els.map((el) => ({
     swatch: getComputedStyle(el.querySelector(".ramp")).backgroundImage,
-    plain: el.querySelector(".label span").textContent,
+    plain: el.querySelector(".text span").textContent,
   })));
   check(inks.length === 40, `the picker lists ${inks.length} inks, not 40`);
   const bad = inks.find((i) => !/gradient/.test(i.swatch) || !/^(deep |pale )?[a-z -]+$/.test(i.plain));
   check(!bad, `an ink lacks a swatch or a plain name: ${JSON.stringify(bad)}`);
   await leavesRow.locator(".inks [role=option]", { hasText: "momiji" }).click();
-  await page.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
-  const picked = await page.locator(".controls pre code").textContent();
-  check(/leaves=momiji/.test(picked), `the picked ink is not in the setup line: ${picked}`);
-  check(/red/.test(await leavesRow.locator("button.current").textContent()), "the picker does not name momiji's colour");
+  await grown();
+  check(/leaves=momiji/.test(await code()), `the picked ink is not in the setup line: ${await code()}`);
+  check(/red/.test(await trigger.textContent()), "the picker does not name momiji's colour");
+  await page.getByRole("button", { name: "Spin random inks" }).click();
+  await grown();
+  check(/leaves=momiji/.test(await code()) && /spin=2/.test(await code()), `spinning lost the hand-picked ink: ${await code()}`);
+
+  // The complete document carries the settings and compiles as written.
+  await page.getByRole("button", { name: "Copy complete document" }).click();
+  const doc = await page.evaluate(() => navigator.clipboard.readText());
+  check(doc.includes("\\documentclass") && doc.includes("\\usepackage{tikzflora}") && doc.includes(await code()),
+    `the copied document lacks the package or the settings:\n${doc}`);
+
+  // A colourway on the opening loads into the mixer.
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator(".ways figure").nth(1).getByRole("button", { name: "Use these inks" }).click();
+  await grown();
+  check(/seed=23/.test(await code()) && /hero=murasaki-shikibu/.test(await code()), `the second colourway did not load: ${await code()}`);
+
+  // Phones: no sideways scroll, and the page stays in view below the
+  // header while the inks are chosen.
+  const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  phone.on("pageerror", (e) => errors.push(String(e)));
+  await phone.goto(URL);
+  await phone.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
+  check(await phone.evaluate(() => document.documentElement.scrollWidth) <= 390, "the phone page scrolls sideways");
+  const heroRow = phone.locator(".controls .row", { has: phone.locator(".cap", { hasText: /^Main flower$/ }) });
+  await heroRow.scrollIntoViewIfNeeded();
+  await heroRow.locator("button.current").click();
+  const sheet = await phone.evaluate(() => document.querySelector(".sheet").getBoundingClientRect().toJSON());
+  check(sheet.top >= 40 && sheet.bottom <= 844 * 0.5, `the phone page is not kept in view (${JSON.stringify(sheet)})`);
+  const panelBox = await heroRow.locator("[role=listbox]").boundingBox();
+  check(panelBox && panelBox.width >= 300, "the phone picker does not open across the controls");
+  await phone.close();
   check(errors.length === 0, "page errors: " + errors.join("; "));
 } finally {
   if (browser) await browser.close();
