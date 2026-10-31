@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { meta as loadMeta, render, draw } from "./render.js";
   import { setupLine } from "./setup.js";
+  import InkPicker from "./InkPicker.svelte";
 
   const GROUPS = [
     { title: "Blooms", keys: ["bloom", "soft", "lily", "ghost", "umbel"] },
@@ -125,19 +126,10 @@
       {/each}
       <h3>Inks</h3>
       {#each meta.parts as [part]}
-        <label class="row">
+        <div class="row">
           <span class="cap">{part}</span>
-          <select bind:value={palette[part]} onchange={changed}>
-            <option value="look">look</option>
-            <option value="random">random</option>
-            <optgroup label="Ink groups">
-              {#each meta.groups as gname}<option value={gname}>{gname}</option>{/each}
-            </optgroup>
-            <optgroup label="Inks">
-              {#each meta.inks as ink}<option value={ink}>{ink}</option>{/each}
-            </optgroup>
-          </select>
-        </label>
+          <InkPicker {part} {meta} bind:value={palette[part]} onchange={changed} />
+        </div>
       {/each}
       <p class="spin"><button type="button" onclick={spinColours}>Spin colours</button>
         <span>Random inks for every part. The shapes stay put.</span></p>
@@ -176,7 +168,6 @@
   output { font-family: var(--mono); font-size: .8rem; text-align: right; }
   input[type="range"] { width: 100%; accent-color: var(--blue); }
   input[type="number"] { width: 100%; padding: .2rem .4rem; border: 1px solid var(--rule); background: transparent; }
-  select { grid-column: 2 / 4; padding: .25rem; border: 1px solid var(--rule); background: var(--paper); }
   button { border: 1px solid var(--rule); background: transparent; padding: .2rem .65rem; cursor: pointer; }
   button:hover { border-color: var(--ink); }
   .layouts { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .4rem; }

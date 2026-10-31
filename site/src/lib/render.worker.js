@@ -1,7 +1,8 @@
 // Runs the tikz-flora generator (lua/flora/*.lua) under wasmoon, Lua 5.4
 // in WebAssembly. `just test-lua54` checks it paints exactly what LuaLaTeX
 // paints. Messages:
-//   { id, kind: "meta" }            -> { id, meta }  settings to offer
+//   { id, kind: "meta" }            -> { id, meta }  settings to offer, with
+//                                      each ink's ramp and each group's inks
 //   { id, kind: "render", spec, seed, page, mix, palette, spin }
 //                                   -> { id, pdf: Uint8Array, ms }
 import { LuaFactory } from "wasmoon";
@@ -55,11 +56,24 @@ local parts = {}
 for _, p in ipairs({ "hero", "blooms", "leaves", "leaflets", "stems" }) do
   parts[#parts + 1] = "[" .. q(p) .. "," .. q(Tune.color.palette[p]) .. "]"
 end
-local groups, inks = {}, {}
-for _, g in ipairs(Inks.group_order) do groups[#groups + 1] = q(g) end
-for _, n in ipairs(Inks.order) do inks[#inks + 1] = q(n) end
+local groups, inks, ramps, members = {}, {}, {}, {}
+for _, g in ipairs(Inks.group_order) do
+  groups[#groups + 1] = q(g)
+  local ns = {}
+  for _, n in ipairs(Inks.groups[g]) do ns[#ns + 1] = q(n) end
+  members[#members + 1] = q(g) .. ":[" .. table.concat(ns, ",") .. "]"
+end
+for _, n in ipairs(Inks.order) do
+  inks[#inks + 1] = q(n)
+  local stops = {}
+  for _, st in ipairs(Inks.ramps[n]) do
+    stops[#stops + 1] = string.format("[%.4f,%.4f,%.4f]", st[1], st[2], st[3])
+  end
+  ramps[#ramps + 1] = q(n) .. ":[" .. table.concat(stops, ",") .. "]"
+end
 return "{\\"kinds\\":[" .. table.concat(kinds, ",") .. "],\\"parts\\":[" .. table.concat(parts, ",")
-  .. "],\\"groups\\":[" .. table.concat(groups, ",") .. "],\\"inks\\":[" .. table.concat(inks, ",") .. "]}"
+  .. "],\\"groups\\":[" .. table.concat(groups, ",") .. "],\\"inks\\":[" .. table.concat(inks, ",")
+  .. "],\\"ramps\\":{" .. table.concat(ramps, ",") .. "},\\"groupInks\\":{" .. table.concat(members, ",") .. "}}"
 `;
 
 onmessage = async (e) => {

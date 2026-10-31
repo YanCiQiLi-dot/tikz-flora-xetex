@@ -92,6 +92,23 @@ try {
   await page.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
   const spun = await page.locator(".controls pre code").textContent();
   check(/hero=random/.test(spun) && /spin=1/.test(spun), `spin is not in the setup line: ${spun}`);
+
+  // The ink picker shows every ink as a swatch with a plain colour name,
+  // and a pick reaches the setup line.
+  const leavesRow = page.locator(".controls .row", { has: page.locator(".cap", { hasText: /^leaves$/ }) });
+  await leavesRow.locator("button.current").click();
+  const inks = await leavesRow.locator(".inks [role=option]").evaluateAll((els) => els.map((el) => ({
+    swatch: getComputedStyle(el.querySelector(".ramp")).backgroundImage,
+    plain: el.querySelector(".label span").textContent,
+  })));
+  check(inks.length === 40, `the picker lists ${inks.length} inks, not 40`);
+  const bad = inks.find((i) => !/gradient/.test(i.swatch) || !/^(deep |pale )?[a-z -]+$/.test(i.plain));
+  check(!bad, `an ink lacks a swatch or a plain name: ${JSON.stringify(bad)}`);
+  await leavesRow.locator(".inks [role=option]", { hasText: "momiji" }).click();
+  await page.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
+  const picked = await page.locator(".controls pre code").textContent();
+  check(/leaves=momiji/.test(picked), `the picked ink is not in the setup line: ${picked}`);
+  check(/red/.test(await leavesRow.locator("button.current").textContent()), "the picker does not name momiji's colour");
   check(errors.length === 0, "page errors: " + errors.join("; "));
 } finally {
   if (browser) await browser.close();
