@@ -83,6 +83,25 @@ function M.motif(m, mix)
   return out
 end
 
+-- `palette` with each "random" part replaced by one ink, drawn from its own
+-- stream for page seed `seed` and colour spin `spin`. Shapes never draw
+-- from that stream, and a single ink spends no shape randomness, so
+-- spinning changes the colours and nothing else.
+function M.resolve(palette, seed, spin)
+  if not palette then return nil end
+  local Rng = require("flora.rng")
+  local order = require("flora.inks").order
+  local out = {}
+  for part, v in pairs(palette) do
+    if v == "random" then
+      local r = Rng.new((tonumber(seed) or 1) + (tonumber(spin) or 0) * 104723):fork("ink " .. part)
+      v = order[r:int(1, #order)]
+    end
+    out[part] = v
+  end
+  return out
+end
+
 -- Run fn() with tune.color.palette overridden by `palette` (part -> ink,
 -- group or "look"), restoring it afterwards even if fn fails.
 function M.with_palette(palette, fn)

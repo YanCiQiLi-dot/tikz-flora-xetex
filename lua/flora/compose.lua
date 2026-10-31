@@ -301,7 +301,8 @@ end
 -- coordinates (tests use it to check nothing lands on text); on_frame(f),
 -- when given, is told each frame before its plant is painted.
 function C.page(spec)
-  return Mix.with_palette(spec.palette, function() return C.frames(spec) end)
+  local palette = Mix.resolve(spec.palette, spec.seed, spec.spin)
+  return Mix.with_palette(palette, function() return C.frames(spec) end)
 end
 
 -- C.page, after the page's palette is in place.

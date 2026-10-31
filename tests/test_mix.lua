@@ -57,6 +57,28 @@ do
   H.check(Tune.color.palette.leaves == before, "palette override leaked after an error")
 end
 
+-- A random palette spins colours only: every painted point stays where it
+-- was, and different spins give different colours.
+do
+  local function run(palette, spin)
+    local s = H.page(4)
+    s.palette, s.spin = palette, spin
+    local pts = {}
+    s.probe = function(x, y) pts[#pts + 1] = x * 1000 + y end
+    Paint.reset_resources()
+    return Compose.page(s):code(), pts
+  end
+  local look, p0 = run(nil)
+  local a, p1 = run({ leaves = "random", blooms = "random", hero = "random" }, 1)
+  local b, p2 = run({ leaves = "random", blooms = "random", hero = "random" }, 2)
+  local a2 = run({ leaves = "random", blooms = "random", hero = "random" }, 1)
+  local same = #p0 == #p1 and #p1 == #p2
+  for i = 1, #p0 do if p0[i] ~= p1[i] or p1[i] ~= p2[i] then same = false break end end
+  H.check(same, "a random palette moved the shapes")
+  H.check(a ~= look and a ~= b, "spinning the random palette did not change the colours")
+  H.check(a == a2, "the same spin gave different colours")
+end
+
 -- Settings fold density and visitors into the mix and reject bad values.
 do
   local t = Settings.parse("mix={lily=2, umbel=0}, density=0.7, visitors=1, mix={bee=0}")
@@ -64,7 +86,8 @@ do
   H.check(t.mix.butterfly == 1 and t.mix.bee == 0, "visitors shorthand or a later override lost")
   local p = Settings.parse("palette={leaves=green, hero=kon-peki, stems=look}")
   H.check(p.palette.leaves == "green" and p.palette.hero == "kon-peki", "palette settings lost")
-  for _, bad in ipairs({ "mix={rose=1}", "mix={lily=-1}", "mix={lily=many}", "density=11",
+  H.check(Settings.parse("palette={leaves=random}, spin=3").spin == 3, "spin lost")
+  for _, bad in ipairs({ "spin=1.5", "mix={rose=1}", "mix={lily=-1}", "mix={lily=many}", "density=11",
       "palette={leaves=plaid}", "palette={petals=green}", "visitors=lots" }) do
     H.check(not pcall(Settings.parse, bad), "accepted bad settings \"" .. bad .. "\"")
   end

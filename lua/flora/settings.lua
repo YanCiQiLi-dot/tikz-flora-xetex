@@ -9,7 +9,9 @@
 --   visitors  the weight of every visitor at once (bee, butterfly, bird,
 --             snail); mix={bee=0} after it still turns one off
 --   palette   what paints each part, e.g. palette={leaves=green,
---             hero=kon-peki}: look, an ink group or one ink (inks.lua)
+--             hero=kon-peki}: look, an ink group, one ink (inks.lua), or
+--             random for one ink picked per page
+--   spin      a number that re-picks the random inks; the shapes stay
 
 local M = {}
 
@@ -79,12 +81,18 @@ M.define("palette", function(v)
     if Tune.color.palette[part] == nil then
       return nil, "no part \"" .. part .. "\" (parts: " .. known(Tune.color.palette) .. ")"
     end
-    if not (ink == "look" or Inks.groups[ink] or Inks.ramps[ink]) then
-      return nil, "\"" .. tostring(ink) .. "\" is not look, an ink group or an ink name"
+    if not (ink == "look" or ink == "random" or Inks.groups[ink] or Inks.ramps[ink]) then
+      return nil, "\"" .. tostring(ink) .. "\" is not look, random, an ink group or an ink name"
     end
     t[part] = ink
   end
   return t
+end)
+
+M.define("spin", function(v)
+  local n = tonumber(v)
+  if n and n == math.floor(n) and n >= 0 then return n end
+  return nil, "spin must be a whole number"
 end)
 
 local function trim(s)
