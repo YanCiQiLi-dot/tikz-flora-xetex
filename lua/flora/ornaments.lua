@@ -83,6 +83,7 @@ function M.draw(kind, pt, rng, box, o)
   local was = pt.gilding
   pt.gilding = true
   kind.draw(pt, rng, box, o or {})
+  if pt.gilt_pending then require("flora.orn_raster").flush(pt) end
   pt.gilding = was
 end
 

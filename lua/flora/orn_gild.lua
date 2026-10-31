@@ -1,6 +1,7 @@
 -- Gilt for the ornaments: filled shapes, stroked lines and tooled dots,
--- painted as gold in relief (orn_relief.lua), or flat when the painter
--- has `flat_gilt` set. Every part is an ordinary colour, so it survives a
+-- computed as raster gold (orn_raster.lua, the default with the pdf
+-- backend), else painted as gold in relief (orn_relief.lua), or flat when
+-- the painter has `flat_gilt` set. Every part is an ordinary colour, so it survives a
 -- desktop printer or a grayscale copy. Light falls from the page's upper
 -- left whatever frame (a mirrored corner, say) the shape is drawn in.
 
@@ -13,6 +14,12 @@ local pal = Paint.palette
 
 M.pale = { 0.965, 0.905, 0.700 }
 M.umber = { 0.330, 0.200, 0.090 }
+
+-- Whether pt paints gilt as computed gold (orn_raster.lua), which needs
+-- the pdf backend.
+local function raster(pt)
+  return pt.gilt == "raster" and pt.backend == "pdf" and not pt.flat_gilt
+end
 
 -- Bounding box {x0, y0, x1, y1} of a list of paths (paint commands).
 function M.bbox(paths)
@@ -35,7 +42,8 @@ function M.bbox(paths)
 end
 
 -- Gild `paths` (a list of closed paths). Options:
---   bevel   kept for callers; the relief sizes its own bevel
+--   bevel   width of the rounded edge, pt, for raster gilt (default from
+--           size); the vector relief sizes its own bevel
 --   key     keyline width, pt (0 for none)
 --   shadow  drop-shadow offset, pt (0 for none)
 --   tone    "shade" for the darker gold of shaded faces
@@ -48,9 +56,15 @@ function M.fill(pt, paths, o)
   end
   local b = M.bbox(paths)
   local size = math.min(b[3] - b[1], b[4] - b[2])
+  local shadow = o.shadow or (o.tone == "shade" and 0 or G.clamp(size * 0.02, 0.15, 0.6))
+  if raster(pt) then
+    local e = o.bevel or math.min(G.clamp(size * 0.03, 0.18, 0.7), size * 0.1)
+    require("flora.orn_raster").add(pt, "fill", paths, { bevel = e, shadow = shadow, tone = o.tone })
+    return
+  end
   Relief.paint(pt, paths, {
     tone = o.tone,
-    shadow = o.shadow or (o.tone == "shade" and 0 or G.clamp(size * 0.02, 0.15, 0.6)),
+    shadow = shadow,
     key = o.key or math.min(0.16, size * 0.04),
   })
 end
@@ -60,6 +74,10 @@ function M.line(pt, paths, w, o)
   o = o or {}
   if pt.flat_gilt then
     pt:stroke(paths, pal.gold, w, 0.95, { many = true })
+    return
+  end
+  if raster(pt) then
+    require("flora.orn_raster").add(pt, "stroke", paths, { width = w, shadow = w * 0.3 })
     return
   end
   -- Fine wire is nearly all bevel; a shallower tilt and no keyline keep
@@ -77,6 +95,10 @@ function M.dots(pt, pts, r, o)
   for i, p in ipairs(pts) do paths[i] = { { "o", p[1], p[2], r } } end
   if pt.flat_gilt then
     pt:fill(paths, pal.gold, 0.95, { many = true })
+    return
+  end
+  if raster(pt) then
+    require("flora.orn_raster").add(pt, "fill", paths, { bevel = r, shadow = r * 0.3, whole = true })
     return
   end
   Relief.paint(pt, paths, { key = math.min(0.1, r * 0.15) })

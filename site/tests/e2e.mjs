@@ -73,8 +73,8 @@ try {
 
   // The canvas renderer (scene.js) draws what pdf.js draws from the same
   // page's PDF, up to antialiasing: few sampled pixels differ visibly.
-  const pixels = (p) => p.evaluate(() => {
-    const c = document.querySelector(".sheet canvas");
+  const pixels = (p, at = ".sheet canvas") => p.evaluate((at) => {
+    const c = document.querySelector(at);
     const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
     // Each sample averages a 3 x 3 block over white paper, so a hairline
     // antialiased half a pixel differently does not count as a difference.
@@ -92,14 +92,9 @@ try {
       }
     }
     return { w: Math.floor(c.width / 3), h: Math.floor(c.height / 3), px: out };
-  });
-  {
-    const viaPdf = await context.newPage();
-    await viaPdf.goto(URL + "?renderer=pdf");
-    await viaPdf.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
-    check(/pdf\.js/.test(await viaPdf.locator(".status").textContent()), "?renderer=pdf did not draw with pdf.js");
-    const [a, b] = [await pixels(page), await pixels(viaPdf)];
-    await viaPdf.close();
+  }, at);
+  // Samples that differ visibly between two pictures, of those inked.
+  const compare = (a, b) => {
     const w = Math.min(a.w, b.w), h = Math.min(a.h, b.h);
     let differ = 0, ink = 0;
     for (let y = 0; y < h; y++) {
@@ -110,9 +105,37 @@ try {
         if (d > 48) differ++;
       }
     }
+    return { differ, ink };
+  };
+  {
+    const viaPdf = await context.newPage();
+    await viaPdf.goto(URL + "?renderer=pdf");
+    await viaPdf.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
+    check(/pdf\.js/.test(await viaPdf.locator(".status").textContent()), "?renderer=pdf did not draw with pdf.js");
+    const [a, b] = [await pixels(page), await pixels(viaPdf)];
+    await viaPdf.close();
+    const { differ, ink } = compare(a, b);
     console.log(`renderers: ${differ} of ${ink} inked samples differ (${((differ / Math.max(1, ink)) * 100).toFixed(2)}%), sizes ${a.w}x${a.h} / ${b.w}x${b.h}`);
     check(Math.abs(a.w - b.w) <= 1 && Math.abs(a.h - b.h) <= 1, `the renderers draw different sizes (${a.w}x${a.h}, ${b.w}x${b.h})`);
     check(ink > 2000 && differ < ink * 0.03, `canvas and pdf.js differ at ${differ} of ${ink} inked samples`);
+
+    // Gold is raster by default (the page above). The vector relief
+    // (?gilt=vector) and the mirror look (?giltenv=mirror) also draw on the
+    // canvas as pdf.js draws them. This page holds little gold, so the
+    // gallery below checks that each one changes it.
+    for (const [q, label] of [["?gilt=vector", "vector gilt"], ["?giltenv=mirror", "mirror gilt"]]) {
+      const [alt, altPdf] = [await context.newPage(), await context.newPage()];
+      await alt.goto(URL + q);
+      await altPdf.goto(URL + q + "&renderer=pdf");
+      for (const p of [alt, altPdf]) await p.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 240000 });
+      console.log(`${label}: ${await alt.locator(".status").textContent()} / pdf.js: ${await altPdf.locator(".status").textContent()}`);
+      const [c, d] = [await pixels(alt), await pixels(altPdf)];
+      await alt.close();
+      await altPdf.close();
+      const r = compare(c, d);
+      console.log(`${label} renderers: ${r.differ} of ${r.ink} inked samples differ`);
+      check(r.ink > 2000 && r.differ < r.ink * 0.03, `with ${label}, canvas and pdf.js differ at ${r.differ} of ${r.ink} inked samples`);
+    }
   }
 
   // Scrolling the controls leaves the page viewer where it is.
@@ -225,6 +248,25 @@ try {
   check(plate.n > 3000, `the gallery shows too little (${plate.n} inked samples)`);
   check(plate.tags >= 36 && plate.names.includes("cul_de_lampe") && plate.names.includes("night"), `the gallery labels ${plate.tags} kinds: ${plate.names.join(", ")}`);
   check(plate.out.length === 0, `gallery labels fall outside the sheet: ${plate.out.join("; ")}`);
+
+  // The vector relief, the mirror look and a changed key of the look
+  // (?giltlook=, as \florasetup's giltlook) each change the gallery's gold.
+  const allKinds = async (p) => {
+    await p.locator("#gallery").scrollIntoViewIfNeeded();
+    await p.locator("#gallery .count", { hasText: /\d+ kinds/ }).waitFor({ timeout: 120000 });
+    await p.locator("#gallery .tabs").getByRole("tab", { name: "All" }).click();
+    await p.locator("#gallery .count", { hasText: `${plate.tags} kinds` }).waitFor({ timeout: 120000 });
+    return pixels(p, ".plate canvas");
+  };
+  const gallery = await pixels(page, ".plate canvas");
+  for (const [q, label] of [["?gilt=vector", "vector gilt"], ["?giltenv=mirror", "mirror gilt"], ["?giltlook=ground=0,sky=0.3", "darker gilt"]]) {
+    const alt = await context.newPage();
+    await alt.goto(URL + q);
+    const { differ, ink } = compare(gallery, await allKinds(alt));
+    await alt.close();
+    console.log(`${label} gallery: ${differ} of ${ink} inked samples differ from the default`);
+    check(differ > ink * 0.02, `${label} drew the same gallery as the default (${differ} of ${ink} samples differ)`);
+  }
 
   // In dark mode the gallery's sheet stays paper, as its ornaments and
   // labels are drawn for it.

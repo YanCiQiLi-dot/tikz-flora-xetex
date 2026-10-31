@@ -30,12 +30,21 @@ export async function meta() {
   return (await post({ kind: "meta" })).meta;
 }
 
+// Ornament gold: computed per pixel by default (lua/flora/orn_raster.lua),
+// the vector relief with ?gilt=vector; ?giltenv=mirror makes raster gold
+// reflect the vector relief's surroundings, and ?giltlook=horizon=0.1,
+// grain=0 changes keys of the look as \florasetup{giltlook={...}} does.
+const query = new URLSearchParams(globalThis.location?.search ?? "");
+const gilt = query.get("gilt") === "vector" ? "vector" : "raster";
+const giltenv = query.get("giltenv") === "mirror" ? "mirror" : "studio";
+const giltlook = query.get("giltlook") ?? "";
+
 export async function render(job) {
-  return post({ kind: "render", ...job });
+  return post({ kind: "render", gilt, giltenv, giltlook, ...job });
 }
 
 export async function gallery(job) {
-  return post({ kind: "gallery", ...job });
+  return post({ kind: "gallery", gilt, giltenv, giltlook, ...job });
 }
 
 // The renderer: "canvas" (default) draws the content stream in the worker

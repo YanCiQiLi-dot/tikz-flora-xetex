@@ -9,10 +9,21 @@ import OPERATORS from "./scene-ops.json";
 const KNOWN = new Set(OPERATORS);
 const BLEND = { Normal: "source-over", Multiply: "multiply", Screen: "screen" };
 
+// Image `im` of a scene (raster gilt: base64 RGBA, rows top down) as a
+// canvas to draw from.
+function bitmap(im) {
+  const bytes = Uint8ClampedArray.from(atob(im.rgba), (ch) => ch.charCodeAt(0));
+  const canvas = new OffscreenCanvas(im.w, im.h);
+  canvas.getContext("2d").putImageData(new ImageData(bytes, im.w, im.h), 0, 0);
+  return canvas;
+}
+
 // Draw `scene` onto 2D context `ctx`, `scale` device pixels per bp, over
 // whatever the context already holds.
 export function paint(ctx, scene, scale) {
   const { content, gs, patterns } = scene;
+  const images = scene.images ?? {};
+  const decoded = {};
   ctx.save();
   // PDF space: bp, y up from the page's lower-left corner.
   ctx.setTransform(scale, 0, 0, -scale, 0, scene.height * scale);
@@ -68,6 +79,21 @@ export function paint(ctx, scene, scale) {
         const p = patterns[name];
         if (!p) throw new Error(`scene: no pattern ${name}`);
         st.fill = gradient(p);
+        break;
+      }
+      case "cm": ctx.transform(nums[0], nums[1], nums[2], nums[3], nums[4], nums[5]); break;
+      case "Do": {
+        const im = images[name];
+        if (!im) throw new Error(`scene: no image ${name}`);
+        decoded[name] ??= bitmap(im);
+        // An image fills the unit square of the current space, its first
+        // row at the top (y = 1).
+        use(st.ca);
+        ctx.save();
+        ctx.transform(1, 0, 0, -1, 0, 1);
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(decoded[name], 0, 0, 1, 1);
+        ctx.restore();
         break;
       }
       case "m": path.moveTo(nums[0], nums[1]); break;

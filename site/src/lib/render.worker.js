@@ -3,16 +3,20 @@
 // paints. Messages:
 //   { id, kind: "meta" }            -> { id, meta }  settings to offer, with
 //                                      each ink's ramp and each group's inks
-//   { id, kind: "render", spec, seed, page, mix, ornaments, palette, spin, px }
+//   { id, kind: "render", spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook }
 //                                   -> { id, bitmap | pdf, ms }
-//   { id, kind: "gallery", palette, spin, base, px, slot }
+//   { id, kind: "gallery", palette, spin, base, px, slot, gilt, giltenv, giltlook }
 //                                   -> { id, bitmap | pdf, cells, slots, w, h }
 //                                      every ornament kind (gallery.lua), or
 //                                      those of one slot, with where to
 //                                      label each and every slot's label
 // With `px` (the picture's width in device pixels) the page's content
 // stream is drawn here on an OffscreenCanvas (scene.js) and returned as an
-// ImageBitmap; without it, as PDF bytes for pdf.js.
+// ImageBitmap; without it, as PDF bytes for pdf.js. `gilt` ("raster" or
+// "vector") picks how ornament gold is painted, `giltenv` ("studio" or
+// "mirror") which look raster gold takes, and `giltlook` ("key=value, ...",
+// as \florasetup's giltlook) changes keys of that look; raster gold is
+// computed at the picture's own resolution (150 dpi for pdf.js).
 import { LuaFactory } from "wasmoon";
 import wasmUrl from "wasmoon/dist/glue.wasm?url";
 import { paint } from "./scene.js";
@@ -123,7 +127,8 @@ onmessage = async (e) => {
       return;
     }
     if (kind === "gallery") {
-      const { palette, spin, base, px, slot } = e.data;
+      const { palette, spin, base, px, slot, gilt, giltenv, giltlook } = e.data;
+      l.global.set("GILTLOOK", giltlook ?? "");
       const pdf = await l.doString(`
         local Gallery = require("flora.gallery")
         local Mix = require("flora.mix")
@@ -133,7 +138,14 @@ onmessage = async (e) => {
         local pal = Mix.resolve(${table(palette)}, 1, ${Number(spin) | 0})
         local Orn = require("flora.ornaments")
         local only = ${slot ? `{ [${JSON.stringify(slot)}] = true }` : "nil"}
-        local pt, cells, w, h = Mix.with_palette(pal, function() return Gallery.sheet(nil, 3, 560, ${Number(base) | 0}, only) end)
+        local _, gw = Gallery.layout(3, 560, only)
+        local canvas = Paint.new({ backend = "pdf", gilt = ${JSON.stringify(gilt ?? "raster")} })
+        canvas.gilt_env = ${JSON.stringify(giltenv ?? "studio")}
+        canvas.gilt_look = require("flora.settings").parse("giltlook={" .. GILTLOOK .. "}").giltlook
+        -- Gallery gold at most 144 dpi: a sheet of forty-odd kinds at a
+        -- retina screen's full resolution takes about ten seconds.
+        canvas.gilt_dpi = ${px ? `math.max(50, math.min(144, ${Number(px)} / gw * 72.27))` : 144}
+        local pt, cells, w, h = Mix.with_palette(pal, function() return Gallery.sheet(canvas, 3, 560, ${Number(base) | 0}, only) end)
         local rows = {}
         for _, c in ipairs(cells) do
           if c.seed == 1 then
@@ -154,9 +166,10 @@ onmessage = async (e) => {
       postMessage({ id, ...picture(pdf, px), cells, slots, w, h }, transfers);
       return;
     }
-    const { spec, seed, page, mix, ornaments, palette, spin, px } = e.data;
+    const { spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook } = e.data;
     const t0 = performance.now();
     l.global.set("SPEC", spec);
+    l.global.set("GILTLOOK", giltlook ?? "");
     l.global.set("SEED", String(seed));
     const pdf = await l.doString(`
       local Serial = require("flora.serial")
@@ -170,6 +183,10 @@ onmessage = async (e) => {
       spec.ornaments = ${table(ornaments)}
       spec.palette = ${table(palette)}
       spec.spin = ${Number(spin) | 0}
+      spec.gilt = ${JSON.stringify(gilt ?? "raster")}
+      spec.gilt_env = ${JSON.stringify(giltenv ?? "studio")}
+      spec.gilt_look = require("flora.settings").parse("giltlook={" .. GILTLOOK .. "}").giltlook
+      spec.gilt_dpi = ${px ? `math.max(50, math.min(600, ${Number(px)} / spec.width * 72.27))` : 150}
       Paint.reset_resources()
       return ${px ? "Pdf.scene" : "Pdf.encode"}(Compose.page(spec), spec.width, spec.height)`);
     const out = picture(pdf, px);

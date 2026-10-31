@@ -14,6 +14,8 @@
 -- Either way each painted object is isolated (q/Q or \pgfscope), so colour,
 -- opacity and blend state never leak.
 
+local Tune = require("flora.tune")
+
 local P = {}
 P.__index = P
 
@@ -37,18 +39,27 @@ P.palette = {
 -- Resources registered in this run, shared by every page: PGF writes its
 -- resource dictionaries once, at the end of the document.
 -- Each list keeps {name, PDF source} so a standalone writer can rebuild them.
-local registered = { gs = {}, patterns = 0, gs_list = {}, pattern_list = {} }
+local registered = { gs = {}, patterns = 0, gs_list = {}, pattern_list = {}, xobjects = {} }
 
 -- Forget registered resources, as a new document would. Tests use it to
 -- compare two renders of one page.
 function P.reset_resources()
-  registered = { gs = {}, patterns = 0, gs_list = {}, pattern_list = {} }
+  registered = { gs = {}, patterns = 0, gs_list = {}, pattern_list = {}, xobjects = {} }
 end
 
--- Every ExtGState and pattern registered since the last reset, as
--- {name, source} pairs, for writing a standalone PDF (tools/preview.lua).
+-- Every ExtGState, pattern and image registered since the last reset, as
+-- {name, source} pairs (images: {name, image}, orn_raster.lua), for
+-- writing a standalone PDF (tools/preview.lua).
 function P.resources()
-  return { gs = registered.gs_list, patterns = registered.pattern_list }
+  return { gs = registered.gs_list, patterns = registered.pattern_list, xobjects = registered.xobjects }
+end
+
+-- Name image `entry` (a table) as XObject resource /flimgN, keep it in
+-- P.resources().xobjects and return the name.
+function P.register_xobject(entry)
+  entry[1] = fmt("flimg%d", #registered.xobjects + 1)
+  registered.xobjects[#registered.xobjects + 1] = entry
+  return entry[1]
 end
 
 -- Write a PDF object; outside LuaTeX (unit tests) objects are only counted.
@@ -68,6 +79,8 @@ function P.new(opts)
     count = 0,       -- painted objects, for diagnostics
     boxes = {},      -- recorded extents of tagged groups
     group = nil,     -- the group currently collecting extents
+    -- Gilt as "raster" computed gold (pdf only) or "vector" relief.
+    gilt = opts and opts.gilt or Tune.gilt or "raster",
   }, P)
 end
 
@@ -123,7 +136,10 @@ function P.mix(a, b, t)
   return { a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t }
 end
 
+-- Any paint flushes raster gilt collected before it (orn_raster.lua), so
+-- the gold keeps its place in the painting order.
 function P:emit(s)
+  if self.gilt_pending then require("flora.orn_raster").flush(self) end
   self.out[#self.out + 1] = s
 end
 
@@ -178,7 +194,7 @@ local OPS = {
 
 -- While a projection is set (P:project), every coordinate passes through
 -- it before it is written or recorded.
-local function projected(cmds, pj)
+function P.projected(cmds, pj)
   local K = 0.5523
   local out = {}
   for _, c in ipairs(cmds) do
@@ -243,7 +259,7 @@ function P:_path(cmds, buf)
   local K = 0.5523
   local ops = OPS[self.backend]
   local pj = self:_pj()
-  if pj then cmds = projected(cmds, pj) end
+  if pj then cmds = P.projected(cmds, pj) end
   for _, c in ipairs(cmds) do
     local op = c[1]
     if op == "m" then

@@ -14,6 +14,12 @@
 --   spin      a number that re-picks the random inks; the shapes stay
 --   ornaments weights per ornament kind, e.g. ornaments={moon=2, night=0}
 --             (ornaments.lua registers the kinds; each slot picks one)
+--   gilt      how ornament gold is painted: vector or raster (tune.lua)
+--   giltdpi   pixels per inch of raster gilt, 50 to 1200
+--   giltenv   which look raster gilt takes: studio or mirror
+--   giltlook  keys of that look changed, e.g. giltlook={horizon=0.1,
+--             grain=0} (tune.lua's gilt_looks; gilt_look.lua lists the
+--             keys and their ranges)
 
 local M = {}
 
@@ -22,6 +28,7 @@ local Tune = require("flora.tune")
 local Inks = require("flora.inks")
 local Mix = require("flora.mix")
 local Orn = require("flora.ornaments")
+local Look = require("flora.gilt_look")
 
 -- Key name -> function(value string) returning the parsed value, or nil
 -- and a message.
@@ -84,6 +91,32 @@ M.define("ornaments", function(v)
     if not Orn.kinds[k] then return nil, "no ornament \"" .. k .. "\" (kinds: " .. known(Orn.kinds) .. ")" end
     if not w then return nil, k .. " needs a weight from 0 to 10" end
     t[k] = w
+  end
+  return t
+end)
+
+M.define("gilt", function(v)
+  if v == "vector" or v == "raster" then return v end
+  return nil, "gilt must be vector or raster"
+end)
+
+M.define("giltdpi", function(v)
+  local n = tonumber(v)
+  if n and n >= 50 and n <= 1200 then return n end
+  return nil, "giltdpi must be a number from 50 to 1200"
+end)
+
+M.define("giltenv", function(v)
+  if v == "studio" or v == "mirror" then return v end
+  return nil, "giltenv must be studio or mirror"
+end)
+
+M.define("giltlook", function(v)
+  local t = {}
+  for _, kv in ipairs(M.parse_list(v)) do
+    local n, msg = Look.check(kv[1], kv[2])
+    if not n then return nil, msg end
+    t[kv[1]] = n
   end
   return t
 end)

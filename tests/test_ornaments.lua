@@ -234,28 +234,56 @@ do
   end
 end
 
--- Gilt is lit from the page's upper left whatever frame it is drawn in:
--- the metal ramp's lit end lies up and to the left of its dark end, in a
--- plain frame and a mirrored one.
+-- Gilt is lit from the page's upper left whatever frame it is drawn in,
+-- in a plain frame and a mirrored one: the vector metal ramp's lit end
+-- lies up and to the left of its dark end, and raster gold is brighter
+-- on its upper-left half.
 do
   local Gild = require("flora.orn_gild")
   for _, fx in ipairs({ 1, -1 }) do
     Paint.reset_resources()
-    local pt = Paint.new({ backend = "pdf" })
+    local pt = Paint.new({ backend = "pdf", gilt = "vector" })
     pt:frame(function(x, y) return 300 + fx * (x - 300), y end)
     Gild.fill(pt, { G.polyline({ { 100, 100 }, { 140, 100 }, { 140, 140 }, { 100, 140 } }, true) })
     local pats = Paint.resources().patterns
     local c = pats[#pats].coords
     H.check(c[1] < c[3] and c[2] > c[4], string.format("flip %d: gilt lit from (%.0f, %.0f) toward (%.0f, %.0f)", fx, c[1], c[2], c[3], c[4]))
+    Paint.reset_resources()
+    pt = Paint.new({ backend = "pdf", gilt = "raster" })
+    pt.gilt_dpi = 150
+    pt:frame(function(x, y) return 300 + fx * (x - 300), y end)
+    pt.gilding = true
+    Gild.fill(pt, { { { "o", 120, 120, 20 } } })
+    pt.gilding = false
+    local im = require("flora.orn_raster").render(pt.gilt_pending, 150)
+    local lit, far = 0, 0
+    for row = 1, im.h do
+      for col = 1, im.w do
+        local k = (row - 1) * im.w + col
+        if im.alpha:byte(k) == 255 then
+          local l = im.rgb:byte(3 * k - 2) + im.rgb:byte(3 * k - 1) + im.rgb:byte(3 * k)
+          if col + row < (im.w + im.h) / 2 - 2 then lit = lit + l elseif col + row > (im.w + im.h) / 2 + 2 then far = far + l end
+        end
+      end
+    end
+    H.check(lit > far * 1.1, string.format("flip %d: raster gilt is not lit from the upper left", fx))
   end
 end
 
--- Gold paints as gilt (a shaded ramp) inside an ornament and flat outside
--- one, and drawing an ornament leaves the painter as it found it.
+-- Gold paints as gilt (vector: a shaded ramp; raster, the default: an
+-- image) inside an ornament and flat outside one, and drawing an ornament
+-- leaves the painter as it found it.
 do
   local square = G.polyline({ { 0, 0 }, { 10, 0 }, { 10, 10 }, { 0, 10 } }, true)
   Paint.reset_resources()
-  local pt = Paint.new({ backend = "pdf" })
+  local ras = Paint.new({ backend = "pdf" })
+  ras.gilt_dpi = 100
+  ras:fill(square, Paint.palette.gold, 0.9)
+  H.check(not ras:body():find(" Do "), "gold outside an ornament was raster gilt")
+  Orn.draw("swelled_rule", ras, Rng.new(1), { 0, 0, 280, 46 })
+  H.check(ras:body():find(" Do ") and not ras.gilt_pending, "a gilt ornament placed no raster gold by default")
+  Paint.reset_resources()
+  local pt = Paint.new({ backend = "pdf", gilt = "vector" })
   pt:fill(square, Paint.palette.gold, 0.9)
   H.check(not pt:body():find("Pattern"), "gold outside an ornament was gilt")
   Orn.draw("swelled_rule", pt, Rng.new(1), { 0, 0, 280, 46 })

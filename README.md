@@ -79,6 +79,10 @@ compile with a message naming the key.
 | `palette` | `{part=ink, ...}` | What paints the `hero`, `blooms`, `leaves`, `leaflets`, `stems`, `sprays`, `ghost`, `cartouche` |
 | `spin` | a whole number | Picks other inks for parts set to `random`; the shapes stay |
 | `ornaments` | `{kind=weight, ...}` | How often each ornament kind is picked for its place; 0 never |
+| `gilt` | `raster`, `vector` | Ornament gold computed per pixel as images (the default), or built of flat-coloured strips |
+| `giltdpi` | 50 to 1200 | Resolution of raster gilt; 600 by default, lower compiles faster |
+| `giltenv` | `studio`, `mirror` | The look of raster gilt: a studio window over dark ground (default), or the vector relief's sky and horizon |
+| `giltlook` | `{key=value, ...}` | Changes keys of that look, e.g. `giltlook={horizon=0.1, grain=0}`: light, horizon, sky, ground, highlight, grain, sparkle, shadow and more (`lua/flora/gilt_look.lua` lists every key and its range) |
 
 Mix kinds: `bloom`, `soft`, `lily`, `ghost`, `umbel`, `cyme`
 (forget-me-nots), `gyps` (baby's breath), `leaves`, `leaflets`, `sprays`,

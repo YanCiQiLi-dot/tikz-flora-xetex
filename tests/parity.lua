@@ -14,4 +14,15 @@ for _, case in ipairs({ { 3, nil, nil }, { 4, "surround", { bee = 1, bird = 1, b
   Paint.reset_resources()
   f:write(Compose.page(s):code(), "\n")
 end
+-- Raster gilt, in both looks: the page and every image it computed,
+-- byte for byte.
+for _, env in ipairs({ "studio", "mirror" }) do
+  Paint.reset_resources()
+  local s = H.page(3, 420)
+  s.layout, s.page, s.gilt, s.gilt_dpi, s.gilt_env = "surround", 1, "raster", 200, env
+  f:write(Compose.page(s):code(), "\n")
+  for _, x in ipairs(Paint.resources().xobjects) do
+    f:write(x[1], " ", x.image.w, "x", x.image.h, "\n", x.image.rgb, x.image.alpha, "\n")
+  end
+end
 f:close()

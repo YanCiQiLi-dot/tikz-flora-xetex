@@ -46,5 +46,14 @@ do
   local pt, _, w, h = Gallery.sheet(nil, 2)
   check("gallery", pt, w, h)
 end
+-- Raster gilt adds images (cm, Do and the image's name).
+do
+  local spec = H.page(3)
+  spec.layout, spec.gilt, spec.gilt_dpi = "surround", "raster", 72
+  Paint.reset_resources()
+  local pt = Compose.page(spec)
+  H.check(pt:body():find(" Do "), "a raster gilt page drew no image")
+  check("raster gilt page", pt, spec.width, spec.height)
+end
 
 H.done("scene ops")

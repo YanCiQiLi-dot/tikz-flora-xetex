@@ -234,8 +234,9 @@ local function plant(spec, pt)
 
   -- Paint back to front.
   if not pt then
-    pt = Paint.new({ backend = os.getenv("FLORA_BACKEND") })
+    pt = Paint.new({ backend = os.getenv("FLORA_BACKEND"), gilt = spec.gilt })
     pt.probe = spec.probe
+    pt.gilt_dpi, pt.gilt_env, pt.gilt_look = spec.gilt_dpi, spec.gilt_env, spec.gilt_look
   end
   local function layer(tag, fn)
     pt:begin_group(tag)
@@ -317,8 +318,9 @@ end
 function C.frames(spec)
   local frames = Frames.of(spec)
   if #frames == 1 and not frames[1].map then return plant(spec) end
-  local pt = Paint.new({ backend = os.getenv("FLORA_BACKEND") })
+  local pt = Paint.new({ backend = os.getenv("FLORA_BACKEND"), gilt = spec.gilt })
   pt.probe = spec.probe
+  pt.gilt_dpi, pt.gilt_env, pt.gilt_look = spec.gilt_dpi, spec.gilt_env, spec.gilt_look
   local cover = 0
   for _, f in ipairs(frames) do
     local m = f.map
