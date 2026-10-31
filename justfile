@@ -51,6 +51,17 @@ test-dist: dist
     grep -q 'painted objects' build/test-dist/tikzflora/example.log
     @echo "dist: example compiles from the zip"
 
+# The browser mixer runs the generator under Lua 5.4 (wasmoon); LuaLaTeX
+# runs Lua 5.3. Runs the Lua tests under 5.4 and checks both draw the same
+# pages byte for byte. Needs Homebrew's lua@5.4.
+LUA54 := env("FLORA_LUA54", "/opt/homebrew/opt/lua@5.4/bin/lua5.4")
+test-lua54:
+    for f in tests/test_*.lua; do {{LUA54}} "$f" || exit 1; done
+    mkdir -p build
+    texlua tests/parity.lua build/parity-53.txt
+    {{LUA54}} tests/parity.lua build/parity-54.txt
+    cmp build/parity-53.txt build/parity-54.txt && echo "lua54: identical to texlua"
+
 # Integration test for the shipout measurer (needs lualatex).
 test-tex:
     mkdir -p build

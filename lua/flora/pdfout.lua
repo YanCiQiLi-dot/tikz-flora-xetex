@@ -7,8 +7,9 @@ local Paint = require("flora.paint")
 local M = {}
 local BP = 72 / 72.27
 
--- Write painter `pt` to `path` on a page `width` x `height` pt (TeX points).
-function M.write(path, pt, width, height)
+-- Painter `pt` as the bytes of a PDF page `width` x `height` pt (TeX
+-- points).
+function M.encode(pt, width, height)
   local res = Paint.resources()
   -- Objects: 1 catalog, 2 page tree, 3 page, 4 content, 5.. patterns.
   local objects = {}
@@ -26,9 +27,8 @@ function M.write(path, pt, width, height)
     width * BP, height * BP, table.concat(gs, " "), table.concat(pats, " "))
   objects[4] = string.format("<< /Length %d >>\nstream\n%s\nendstream", #content, content)
 
-  local fh = assert(io.open(path, "wb"))
-  local pos = 0
-  local function put(s) fh:write(s); pos = pos + #s end
+  local parts, pos = {}, 0
+  local function put(s) parts[#parts + 1] = s; pos = pos + #s end
   put("%PDF-1.5\n")
   local offsets = {}
   for i = 1, #objects do
@@ -39,6 +39,13 @@ function M.write(path, pt, width, height)
   put(string.format("xref\n0 %d\n0000000000 65535 f \n", #objects + 1))
   for i = 1, #objects do put(string.format("%010d 00000 n \n", offsets[i])) end
   put(string.format("trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n", #objects + 1, xref))
+  return table.concat(parts)
+end
+
+-- Write painter `pt` to `path` as a PDF page `width` x `height` pt.
+function M.write(path, pt, width, height)
+  local fh = assert(io.open(path, "wb"))
+  fh:write(M.encode(pt, width, height))
   fh:close()
 end
 
