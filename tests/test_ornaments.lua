@@ -5,6 +5,7 @@ local Settings = require("flora.settings")
 local Orn = require("flora.ornaments")
 local Gallery = require("flora.gallery")
 local Rng = require("flora.rng")
+local G = require("flora.geom")
 
 -- Every kind paints something, and nothing past its box by more than its
 -- reach, for several seeds (the gallery's cells; pendants without a cord,
@@ -179,6 +180,91 @@ do
   spec.probe = function(_, _, _, tag) if tag == "title" then n = n + 1 end end
   page(1, nil, spec)
   H.check(n == 0, "title furniture painted on a page half grown")
+end
+
+-- The title page's two corner pieces are one design mirrored: every point
+-- painted in the left corner has its mirror image in the right one, for
+-- every corner kind (a kind drawing from two streams breaks this). Gilt is
+-- painted flat here: its light falls from the page's upper left, which
+-- rightly differs between the corners.
+do
+  local Title = require("flora.orn_title")
+  local W = 600
+  for _, k in ipairs(Orn.of("corner")) do
+    for seed = 1, 3 do
+      local left, right = {}, {}
+      Paint.reset_resources()
+      local pt = Paint.new({ backend = "pdf" })
+      pt.flat_gilt = true
+      pt.probe = function(x, y)
+        local into = x < W / 2 and left or right
+        into[#into + 1] = { x < W / 2 and x or W - x, y }
+      end
+      local plan = {
+        { slot = "corner", kind = k, box = { 16, 16, 88, 88 }, o = { flip = { 1, 1 } } },
+        { slot = "corner", kind = k, box = { W - 88, 16, W - 16, 88 }, o = { flip = { -1, 1 } } },
+      }
+      Title.paint(pt, { seed = seed, width = W }, plan)
+      -- Each point has a mirror within 0.4pt (float noise can add a
+      -- resample point to a curve, never move a feature), both ways.
+      local function unmatched(from, to)
+        local grid = {}
+        for _, q in ipairs(to) do
+          local key = math.floor(q[1]) .. "," .. math.floor(q[2])
+          grid[key] = grid[key] or {}
+          table.insert(grid[key], q)
+        end
+        local n = 0
+        for _, q in ipairs(from) do
+          local hit = false
+          for gx = math.floor(q[1]) - 1, math.floor(q[1]) + 1 do
+            for gy = math.floor(q[2]) - 1, math.floor(q[2]) + 1 do
+              for _, r in ipairs(grid[gx .. "," .. gy] or {}) do
+                if math.abs(r[1] - q[1]) < 0.4 and math.abs(r[2] - q[2]) < 0.4 then hit = true end
+              end
+            end
+          end
+          if not hit then n = n + 1 end
+        end
+        return n
+      end
+      local missing = unmatched(left, right) + unmatched(right, left)
+      H.check(#left > 0 and missing == 0, string.format("%s (seed %d): %d left-corner points have no mirror on the right", k.name, seed, missing))
+    end
+  end
+end
+
+-- Gilt is lit from the page's upper left whatever frame it is drawn in:
+-- the metal ramp's lit end lies up and to the left of its dark end, in a
+-- plain frame and a mirrored one.
+do
+  local Gild = require("flora.orn_gild")
+  for _, fx in ipairs({ 1, -1 }) do
+    Paint.reset_resources()
+    local pt = Paint.new({ backend = "pdf" })
+    pt:frame(function(x, y) return 300 + fx * (x - 300), y end)
+    Gild.fill(pt, { G.polyline({ { 100, 100 }, { 140, 100 }, { 140, 140 }, { 100, 140 } }, true) })
+    local pats = Paint.resources().patterns
+    local c = pats[#pats].coords
+    H.check(c[1] < c[3] and c[2] > c[4], string.format("flip %d: gilt lit from (%.0f, %.0f) toward (%.0f, %.0f)", fx, c[1], c[2], c[3], c[4]))
+  end
+end
+
+-- Gold paints as gilt (a shaded ramp) inside an ornament and flat outside
+-- one, and drawing an ornament leaves the painter as it found it.
+do
+  local square = G.polyline({ { 0, 0 }, { 10, 0 }, { 10, 10 }, { 0, 10 } }, true)
+  Paint.reset_resources()
+  local pt = Paint.new({ backend = "pdf" })
+  pt:fill(square, Paint.palette.gold, 0.9)
+  H.check(not pt:body():find("Pattern"), "gold outside an ornament was gilt")
+  Orn.draw("swelled_rule", pt, Rng.new(1), { 0, 0, 280, 46 })
+  H.check(pt:body():find("/Pattern cs"), "a gilt ornament painted no metal ramp")
+  H.check(not pt.gilding, "the painter is left gilding after an ornament")
+  pt.out = {}
+  pt:fill(square, Paint.palette.gold, 0.4)
+  pt:fill(square, Paint.palette.copper, 0.9, { blend = "multiply" })
+  H.check(not pt:body():find("Pattern"), "a gold wash or copper ink was gilt")
 end
 
 H.done("ornaments")

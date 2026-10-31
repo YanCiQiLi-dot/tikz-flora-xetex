@@ -22,9 +22,10 @@ test:
     {{PYTHON}} -I tests/test_bake.py
 
 # The ornament gallery: every ornament kind, labelled, for three seeds
-# (tex/gallery.tex), to build/gallery.pdf and .png.
-gallery:
-    just build gallery 1 100
+# (tex/gallery.tex), to build/gallery.pdf and .png. ONLY limits it to some
+# slots or kinds (comma-separated), e.g. `just gallery flourish,fan 6`.
+gallery only="" seeds="3" dpi="100":
+    FLORA_GALLERY={{only}} FLORA_GALLERY_SEEDS={{seeds}} just build gallery 1 {{dpi}}
 
 # "Watch it grow": page PAGE of tex/NAME.tex as its flora grows, written to
 # build/grow-NAME-PAGE.mp4 and .gif (tools/grow.sh; needs ffmpeg).

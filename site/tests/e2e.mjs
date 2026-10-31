@@ -201,10 +201,9 @@ try {
   await grown();
   check(/seed=23/.test(await code()) && /hero=murasaki-shikibu/.test(await code()), `the second colourway did not load: ${await code()}`);
 
-  // The gallery draws every ornament kind, labelled, once it scrolls near.
-  await page.locator("#gallery").scrollIntoViewIfNeeded();
-  await page.locator("#gallery .count", { hasText: /\d+ kinds/ }).waitFor({ timeout: 120000 });
-  const plate = await page.evaluate(() => {
+  // The gallery opens on the flourishes, labelled, once it scrolls near;
+  // the All tab draws every ornament kind.
+  const sample = () => page.evaluate(() => {
     const c = document.querySelector(".plate canvas");
     const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
     let n = 0;
@@ -214,9 +213,25 @@ try {
     const out = tags.filter((t) => { const r = t.getBoundingClientRect(); return r.left < box.left - 1 || r.top < box.top - 1; });
     return { n, tags: tags.length, out: out.map((t) => t.textContent.trim()), names: tags.map((t) => t.querySelector("code").textContent) };
   });
+  await page.locator("#gallery").scrollIntoViewIfNeeded();
+  await page.locator("#gallery .count", { hasText: /\d+ kinds/ }).waitFor({ timeout: 120000 });
+  const flourishes = await sample();
+  check(flourishes.names.includes("copperplate") && flourishes.names.includes("rinceau") && !flourishes.names.includes("night"),
+    `the flourish tab labels: ${flourishes.names.join(", ")}`);
+  check(await page.locator("#gallery .about").textContent() !== "", "the flourish tab does not say what a flourish is");
+  await page.locator("#gallery .tabs").getByRole("tab", { name: "All" }).click();
+  await page.locator("#gallery .count", { hasText: new RegExp(`^(?!${flourishes.tags} kinds)\\d+ kinds`) }).waitFor({ timeout: 120000 });
+  const plate = await sample();
   check(plate.n > 3000, `the gallery shows too little (${plate.n} inked samples)`);
   check(plate.tags >= 36 && plate.names.includes("cul_de_lampe") && plate.names.includes("night"), `the gallery labels ${plate.tags} kinds: ${plate.names.join(", ")}`);
   check(plate.out.length === 0, `gallery labels fall outside the sheet: ${plate.out.join("; ")}`);
+
+  // In dark mode the gallery's sheet stays paper, as its ornaments and
+  // labels are drawn for it.
+  await page.emulateMedia({ colorScheme: "dark" });
+  const sheetBg = await page.evaluate(() => getComputedStyle(document.querySelector(".plate")).backgroundColor);
+  check(sheetBg === "rgb(255, 255, 255)", `the gallery sheet is ${sheetBg} in dark mode`);
+  await page.emulateMedia({ colorScheme: "light" });
 
   // Phones: no sideways scroll, and the page stays in view below the
   // header while the inks are chosen.

@@ -1,7 +1,7 @@
 <script>
   // Every ornament kind the package registers (lua/flora/gallery.lua),
   // drawn by the package's own Lua for three seeds, labelled with the name
-  // that ornaments={...} weighs it by.
+  // that ornaments={...} weighs it by. Tabs narrow the sheet to one slot.
   import { onMount } from "svelte";
   import { gallery, show as picture, px } from "./render.js";
   import COLOURWAYS from "./colourways.json";
@@ -12,7 +12,10 @@
   let base = $state(0);
   let status = $state("");
   let busy = $state(false);
+  let slots = $state([]);
+  let slot = $state("flourish");
   let started = false;
+  const about = $derived(slots.find((s) => s.name === slot));
 
   async function show() {
     if (busy) return;
@@ -20,9 +23,10 @@
     status = "Drawing…";
     try {
       const palette = way < 0 ? {} : COLOURWAYS[way].palette;
-      const out = await gallery({ palette, spin: 0, base, px: px(frame.clientWidth) });
+      const out = await gallery({ palette, spin: 0, base, slot, px: px(frame.clientWidth) });
       await picture(out, canvas, frame.clientWidth);
       sheet = { w: out.w, h: out.h, cells: out.cells };
+      slots = out.slots;
       status = `${out.cells.length} kinds`;
     } catch (e) {
       status = `Something went wrong: ${e.message}`;
@@ -44,6 +48,15 @@
   });
 </script>
 
+<div class="gallery">
+<div class="tabs" role="tablist" aria-label="Places on the page">
+  {#each slots.length ? slots : [{ name: "flourish", label: "Flourish" }] as s}
+    <button type="button" role="tab" aria-selected={slot === s.name} disabled={busy && slot !== s.name}
+      onclick={() => { if (slot !== s.name) { slot = s.name; show(); } }}>{s.label}</button>
+  {/each}
+  <button type="button" role="tab" aria-selected={slot === ""} onclick={() => { if (slot !== "") { slot = ""; show(); } }}>All</button>
+</div>
+{#if about}<p class="about">{about.desc}</p>{/if}
 <div class="bar">
   <label>
     <span>Inks</span>
@@ -56,7 +69,7 @@
   <span class="count" aria-live="polite">{status}</span>
 </div>
 <div class="plate paper" bind:this={frame} class:busy style:aspect-ratio={sheet ? `${sheet.w} / ${sheet.h}` : "600 / 2600"}>
-  <canvas bind:this={canvas} aria-label="Every ornament kind, three seeds each"></canvas>
+  <canvas bind:this={canvas} aria-label={about ? `Every ${about.label.toLowerCase()} kind, three seeds each` : "Every ornament kind, three seeds each"}></canvas>
   {#if sheet}
     {#each sheet.cells as c}
       <span class="tag" style:left={`${(c.x / sheet.w) * 100}%`} style:top={`${(c.y / sheet.h) * 100}%`}>
@@ -65,15 +78,23 @@
     {/each}
   {/if}
 </div>
+</div>
 
 <style>
+  .gallery { min-width: 0; }
+  .tabs { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0 0 .6rem; }
+  .tabs button { border-radius: 999px; }
+  .tabs button[aria-selected="true"] { background: var(--ink, #2b2b2b); color: var(--paper, #fff); border-color: transparent; }
+  .about { margin: 0 0 .8rem; color: var(--muted); max-width: 60ch; }
   .bar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: 0 0 .8rem; }
   .bar label { display: flex; gap: .45rem; align-items: center; }
   .bar span { color: var(--muted); font-size: .9rem; }
   select, button { border: 1px solid var(--control); background: transparent; padding: .35rem .6rem; min-height: 36px; }
   button { cursor: pointer; }
   button:disabled { opacity: .45; cursor: default; }
-  .plate { position: relative; width: 100%; max-width: 720px; overflow: clip; background: var(--paper); }
+  /* The sheet is paper in both themes (app.css .paper): the ornaments and
+     their labels are drawn for it. */
+  .plate { position: relative; width: 100%; max-width: 720px; overflow: clip; }
   .plate canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
   .plate.busy canvas { opacity: .45; transition: opacity .3s; }
   .tag { position: absolute; transform: translateY(-100%); color: #2b2b2b; font-size: clamp(.62rem, 1.6vw, .8rem); white-space: nowrap; padding-bottom: 2px; }

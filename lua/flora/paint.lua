@@ -273,9 +273,25 @@ end
 
 local BLEND = { multiply = "Multiply", normal = "Normal", screen = "Screen" }
 
+-- While `gilding` is set (ornaments.lua sets it round each ornament),
+-- gold and copper fills and gold strokes are gilt rather than flat colour:
+-- painted as burnished metal by orn_gild.lua. Washes (opacity under 0.5)
+-- and blended ink keep their flat colour. A painter with `flat_gilt` set
+-- paints all gilt flat, as before there was any.
+local function gilt(self, rgb, opacity, opts)
+  return self.gilding and not self.flat_gilt and (rgb == P.palette.gold or rgb == P.palette.copper)
+    and (opacity or 1) >= 0.5 and not opts.blend
+end
+
 -- Fill one path, or a list of paths in a single scope (`many = true`).
 function P:fill(cmds, rgb, opacity, opts)
   opts = opts or {}
+  if gilt(self, rgb, opacity, opts) then
+    self.gilding = false
+    require("flora.orn_gild").fill(self, opts.many and cmds or { cmds }, { tone = rgb == P.palette.copper and "shade" or nil })
+    self.gilding = true
+    return
+  end
   local pdf = self.backend == "pdf"
   local buf = { pdf and "q" or "\\pgfscope" }
   if pdf then
@@ -308,6 +324,12 @@ end
 
 function P:stroke(cmds, rgb, width, opacity, opts)
   opts = opts or {}
+  if rgb == P.palette.gold and gilt(self, rgb, opacity, opts) then
+    self.gilding = false
+    require("flora.orn_gild").line(self, opts.many and cmds or { cmds }, width)
+    self.gilding = true
+    return
+  end
   local pdf = self.backend == "pdf"
   local buf = { pdf and "q" or "\\pgfscope" }
   if pdf then

@@ -5,10 +5,11 @@
 //                                      each ink's ramp and each group's inks
 //   { id, kind: "render", spec, seed, page, mix, ornaments, palette, spin, px }
 //                                   -> { id, bitmap | pdf, ms }
-//   { id, kind: "gallery", palette, spin, base, px }
-//                                   -> { id, bitmap | pdf, cells, w, h }
-//                                      every ornament kind (gallery.lua),
-//                                      with where to label each
+//   { id, kind: "gallery", palette, spin, base, px, slot }
+//                                   -> { id, bitmap | pdf, cells, slots, w, h }
+//                                      every ornament kind (gallery.lua), or
+//                                      those of one slot, with where to
+//                                      label each and every slot's label
 // With `px` (the picture's width in device pixels) the page's content
 // stream is drawn here on an OffscreenCanvas (scene.js) and returned as an
 // ImageBitmap; without it, as PDF bytes for pdf.js.
@@ -122,7 +123,7 @@ onmessage = async (e) => {
       return;
     }
     if (kind === "gallery") {
-      const { palette, spin, base, px } = e.data;
+      const { palette, spin, base, px, slot } = e.data;
       const pdf = await l.doString(`
         local Gallery = require("flora.gallery")
         local Mix = require("flora.mix")
@@ -130,7 +131,9 @@ onmessage = async (e) => {
         local Pdf = require("flora.pdfout")
         Paint.reset_resources()
         local pal = Mix.resolve(${table(palette)}, 1, ${Number(spin) | 0})
-        local pt, cells, w, h = Mix.with_palette(pal, function() return Gallery.sheet(nil, 3, 560, ${Number(base) | 0}) end)
+        local Orn = require("flora.ornaments")
+        local only = ${slot ? `{ [${JSON.stringify(slot)}] = true }` : "nil"}
+        local pt, cells, w, h = Mix.with_palette(pal, function() return Gallery.sheet(nil, 3, 560, ${Number(base) | 0}, only) end)
         local rows = {}
         for _, c in ipairs(cells) do
           if c.seed == 1 then
@@ -138,10 +141,17 @@ onmessage = async (e) => {
               c.name, c.label, c.slot, c.box[1], h - c.box[4] - c.lift)
           end
         end
-        GALLERY = string.format('{"w":%.1f,"h":%.1f,"cells":[%s]}', w, h, table.concat(rows, ","))
+        local slots = {}
+        for _, name in ipairs(Orn.slot_order) do
+          local sl = Orn.slots[name]
+          -- The notes for kind authors (o.cord, o.flip) are not for readers.
+          local desc = sl.desc:gsub(";[^;]*o%.%a+[^.]*", ""):gsub(" %([^)]*o%.%a+[^)]*%)", "")
+          slots[#slots + 1] = string.format('{"name":"%s","label":"%s","desc":"%s"}', name, sl.label, desc)
+        end
+        GALLERY = string.format('{"w":%.1f,"h":%.1f,"cells":[%s],"slots":[%s]}', w, h, table.concat(rows, ","), table.concat(slots, ","))
         return ${px ? "Pdf.scene" : "Pdf.encode"}(pt, w, h)`);
-      const { w, h, cells } = JSON.parse(await l.doString("return GALLERY"));
-      postMessage({ id, ...picture(pdf, px), cells, w, h }, transfers);
+      const { w, h, cells, slots } = JSON.parse(await l.doString("return GALLERY"));
+      postMessage({ id, ...picture(pdf, px), cells, slots, w, h }, transfers);
       return;
     }
     const { spec, seed, page, mix, ornaments, palette, spin, px } = e.data;

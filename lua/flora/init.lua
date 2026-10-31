@@ -62,9 +62,17 @@ function M.specimens(seed)
 end
 
 -- The ornament gallery (gallery.lua): every kind for `seeds` seeds, each
--- labelled with its name and the key that weighs it.
+-- labelled with its name and the key that weighs it. FLORA_GALLERY (slot
+-- and kind names, comma-separated) limits the kinds and FLORA_GALLERY_SEEDS
+-- overrides `seeds`.
 function M.gallery(seeds)
-  local pt, cells, w, h = require("flora.gallery").sheet(nil, tonumber(seeds) or 3)
+  local only
+  for name in (os.getenv("FLORA_GALLERY") or ""):gmatch("[%w_]+") do
+    only = only or {}
+    only[name] = true
+  end
+  seeds = tonumber(os.getenv("FLORA_GALLERY_SEEDS")) or tonumber(seeds) or 3
+  local pt, cells, w, h = require("flora.gallery").sheet(nil, seeds, nil, nil, only)
   tex.sprint(string.format(
     "\\pgfpathrectangle{\\pgfpointorigin}{\\pgfqpoint{%.2fpt}{%.2fpt}}\\pgfusepath{use as bounding box}", w, h))
   M.typeset(pt)

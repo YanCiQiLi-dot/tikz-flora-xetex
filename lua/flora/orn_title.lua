@@ -92,7 +92,9 @@ end
 function M.paint(pt, spec, plan)
   local rng = Rng.new(tonumber(spec.seed) or 1)
   for i, p in ipairs(plan) do
-    Orn.draw(p.kind, pt, rng:fork("title " .. p.slot .. i), p.box, p.o)
+    -- The two corner pieces are one design mirrored, so they share a
+    -- stream.
+    Orn.draw(p.kind, pt, rng:fork("title " .. p.slot .. (p.slot == "corner" and "" or i)), p.box, p.o)
   end
 end
 
