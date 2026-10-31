@@ -1,0 +1,167 @@
+<script>
+  import Shell from "../lib/Shell.svelte";
+  import COLOURWAYS from "../lib/colourways.json";
+
+  // The example document's pages, with what each shows.
+  const pages = [
+    [1, "Title crown", "layout=title"],
+    [2, "Contents wreath", "layout=surround"],
+    [3, "Outer margin, into a gap", "layout=split"],
+    [4, "A new mix: lilies, umbels, birds", "mix={…}, palette={leaves=green}"],
+    [5, "Outer margin, filler text", "layout=split"],
+    [6, "Both margins, random inks", "layout=centered, palette={…=random}"],
+    [7, "A short last page", "density=0.6"],
+  ];
+  const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII"];
+  // The rest of the site, as a contents list.
+  const doors = [
+    ["/mixer/", "The mixer", "Choose plants, inks and ornaments; the package grows the page in your browser and writes the settings."],
+    ["/ornaments/", "Ornaments", "Every gilt piece by its place on the page, from cartouches to title corners."],
+    ["/guide/", "The guide", "Install, compile a first page, and every key the package takes."],
+  ];
+</script>
+
+<Shell page="home">
+  <section class="opening">
+    <figure class="frontis rise">
+      <img class="paper" src="/img/page-1.jpg" width="910" height="1287"
+        alt="The title page of the example document, crowned with painted flowers and a gilt flourish">
+    </figure>
+    <div class="titling rise late">
+      <p class="sc rubric">A package for LuaLaTeX</p>
+      <h1>Watercolour margins that grow</h1>
+      <p class="lede">Each page grows its own plant around its text, painted in
+        fountain-pen inks and finished with gilt. Pick the plants and inks;
+        the package does the rest when the document compiles.</p>
+      <p class="actions">
+        <a class="button primary" href="/tikzflora.zip" download>Download the package</a>
+        <a class="button" href="/mixer/">Open the mixer</a>
+      </p>
+    </div>
+  </section>
+
+  <section class="book chapter" aria-labelledby="ways">
+    <header class="wide lead">
+      <p class="sc rubric">Plate I</p>
+      <h2 id="ways">One page, three colourways</h2>
+    </header>
+    <div class="wide ways">
+      {#each COLOURWAYS as c, i}
+        <figure>
+          <img class="paper" src={`/img/colourway-${i}.jpg`} width="910" height="1287" loading="lazy"
+            alt={`The same page of text with its margin grown in ${c.name.toLowerCase()} inks`}>
+          <figcaption class="caption">
+            <span class="sc">{c.name}</span>, seed {c.seed}.
+            <a href={`/mixer/?way=${i}`}>Use these inks</a>
+          </figcaption>
+        </figure>
+      {/each}
+    </div>
+  </section>
+
+  <section class="book chapter" aria-labelledby="grow">
+    <header class="wide lead">
+      <p class="sc rubric">Plate II</p>
+      <h2 id="grow">Watch it grow</h2>
+    </header>
+    <video class="paper growth" src="/media/grow.mp4" poster="/img/page-3.jpg" controls muted playsinline preload="none"
+      width="910" height="1287" aria-label="Page 3 of the example as its margin flora grows from the root">
+      <a href="/media/grow.gif">The animation as a GIF</a>
+    </video>
+    <div class="note side">
+      <p>The plant starts at its root and grows along the stems. Then the
+        leaves unfurl, the blooms open and the gilt arrives.</p>
+      <p class="caption">The repository's <code>just grow</code> renders any page
+        of a document this way.</p>
+    </div>
+  </section>
+
+  <section class="chapter example" aria-labelledby="example">
+    <header class="book"><div class="wide lead">
+      <p class="sc rubric">Plate III</p>
+      <h2 id="example">The example document</h2>
+      <p class="caption">Seven pages of one document, each with the setting that shaped it.</p>
+    </div></header>
+    <ol class="pages">
+      {#each pages as [p, what, how], i}
+        <li>
+          <a href={`/img/page-${p}.jpg`}><img class="paper" src={`/img/page-${p}.jpg`} width="910" height="1287" loading="lazy"
+            alt={`Page ${p} of the example document: ${what.toLowerCase()}`}></a>
+          <p class="caption"><span class="sc">{ROMAN[i]}.</span> {what}<br><code>{how}</code></p>
+        </li>
+      {/each}
+    </ol>
+  </section>
+
+  <section class="book chapter" aria-labelledby="contents">
+    <header class="lead">
+      <p class="sc rubric">Contents</p>
+      <h2 id="contents" class="sr">The rest of the site</h2>
+    </header>
+    <ol class="contents">
+      {#each doors as [href, name, what], i}
+        <li>
+          <a {href}><span class="name">{name}</span><span class="leader" aria-hidden="true"></span><span class="sc rubric num">{ROMAN[i]}</span></a>
+          <p class="caption">{what}</p>
+        </li>
+      {/each}
+    </ol>
+  </section>
+</Shell>
+
+<style>
+  /* The opening is a spread: the title page as frontispiece, the titling
+     facing it. */
+  .opening {
+    display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(2rem, 6vw, 5.5rem); align-items: center;
+    max-width: calc(var(--measure) + var(--gutter) + var(--margin) + 2 * var(--side));
+    margin: 0 auto; padding: clamp(2rem, 6vh, 4.5rem) var(--side) 2rem;
+  }
+  .frontis { margin: 0; }
+  .frontis img { display: block; width: 100%; height: auto; max-height: 78svh; object-fit: contain; object-position: left; box-shadow: 0 1px 2px oklch(30% 0.02 70 / .12), 0 12px 32px -18px oklch(30% 0.02 70 / .35); }
+  .titling { max-width: 30rem; }
+  h1 { font-size: clamp(2.6rem, 5.4vw, 4.4rem); line-height: 1.02; margin: .3rem 0 1.2rem; }
+  .lede { font-size: 1.3rem; line-height: 1.5; }
+  .actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.6rem; }
+  .chapter { padding-top: clamp(4rem, 10vh, 7rem); }
+  .lead { margin-bottom: 1.6rem; }
+  .lead p.sc { margin: 0 0 .2rem; }
+  .lead h2 { margin: 0; }
+  .lead .caption { margin: .5rem 0 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  figure { margin: 0; }
+  .ways { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(1rem, 2.4vw, 2rem); }
+  .ways img, .pages img { display: block; width: 100%; height: auto; box-shadow: 0 0 0 1px var(--rule); }
+  .ways figcaption { margin-top: .6rem; }
+  .growth { grid-column: text; width: 100%; height: auto; max-height: 82svh; object-fit: contain; display: block; box-shadow: 0 0 0 1px var(--rule); }
+  .side { align-self: end; }
+  .side p:first-child { font-size: 1.15rem; }
+  /* The strip starts on the text edge; snapping keeps that inset. */
+  .pages {
+    --inset: max(var(--side), calc((100vw - var(--measure) - var(--gutter) - var(--margin)) / 2));
+    list-style: none; margin: 0; display: flex; gap: clamp(1rem, 2vw, 1.6rem); overflow-x: auto;
+    scroll-snap-type: x proximity; scroll-padding-inline: var(--inset);
+    padding: .2rem var(--inset) 1rem;
+    scrollbar-width: thin; scrollbar-color: var(--rule) transparent;
+  }
+  .pages li { flex: none; width: clamp(200px, 22vw, 290px); scroll-snap-align: start; }
+  .pages .caption { margin: .55rem 0 0; }
+  .pages code { font-size: .7rem; }
+  .contents { list-style: none; padding: 0; margin: 0; }
+  .contents li { margin-bottom: 1.3rem; }
+  .contents a { display: flex; align-items: baseline; gap: .5rem; text-decoration: none; font-family: var(--display); font-size: 1.6rem; }
+  .contents .leader { flex: 1; border-bottom: 1px dotted var(--control); transform: translateY(-.3em); }
+  .contents .num { font-family: var(--body); font-size: 1.1rem; }
+  .contents a:hover .name { color: var(--rubric); }
+  .contents .caption { margin: .15rem 0 0; max-width: 32rem; }
+  @media (max-width: 60rem) {
+    .opening { grid-template-columns: minmax(0, 1fr); }
+    .frontis { order: 1; }
+    .frontis img { max-height: 70svh; object-position: center; }
+    .side { margin-top: 1rem; }
+  }
+  @media (max-width: 40rem) {
+    .ways { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+    .pages li { width: 68vw; }
+  }
+</style>

@@ -45,12 +45,7 @@
     return COLOURWAYS.findIndex((c) => c.seed === seed && same(c.palette));
   });
 
-  onMount(() => {
-    const load = (e) => useColourway(e.detail);
-    window.addEventListener("flora:colourway", load);
-    start();
-    return () => window.removeEventListener("flora:colourway", load);
-  });
+  onMount(start);
 
   async function start() {
     try {
@@ -62,7 +57,10 @@
       // Visitors start on here, so the mixer shows them.
       for (const k of ["bee", "butterfly", "bird", "snail"]) mix[k] = 1;
       palette = { ...Object.fromEntries(m.parts), ...COLOURWAYS[0].palette };
-      grow();
+      // ?way=N opens on colourway N, as its "Use these inks" link asks.
+      const way = Number(new URLSearchParams(location.search).get("way"));
+      if (way > 0 && way < COLOURWAYS.length) useColourway(way);
+      else grow();
     } catch (e) {
       status = `The mixer could not start: ${e.message}`;
     }
@@ -144,12 +142,12 @@
 
 <div class="mixer">
   <div class="controls">
-    <h2>Mixer</h2>
+    <h1>The mixer</h1>
     <p class="note">The package's own Lua, running in your browser on a page
       of the example.</p>
     {#if meta}
       <fieldset class="layouts">
-        <legend>Layout</legend>
+        <legend class="sc">Layout</legend>
         {#each pages as p, i}
           <label class:on={layout === i}>
             <input type="radio" name="layout" value={i} checked={layout === i}
@@ -158,7 +156,7 @@
         {/each}
       </fieldset>
 
-      <h3>Colourway</h3>
+      <h2 class="sc">Colourway</h2>
       <div class="ways" role="group" aria-label="Colourways">
         {#each COLOURWAYS as c, i}
           <button type="button" aria-pressed={current === i} onclick={() => useColourway(i)}>
@@ -177,7 +175,7 @@
       </div>
       <p class="hint">The shapes stay put; only the inks change.</p>
 
-      <h3>Inks</h3>
+      <h2 class="sc">Inks</h2>
       {#each meta.parts as [part]}
         <div class="row">
           <span class="cap">{PART_LABEL[part] ?? part}</span>
@@ -185,7 +183,7 @@
         </div>
       {/each}
 
-      <h3>Shapes</h3>
+      <h2 class="sc">Shapes</h2>
       <label class="row">
         <span>Seed</span>
         <input type="number" min="1" max="99999" bind:value={seed} onchange={changed}>
@@ -223,11 +221,11 @@
             </label>
           {/each}
         {/each}
-        <p class="hint"><a href="#gallery">See every kind in the gallery.</a></p>
+        <p class="hint"><a href="/ornaments/">See every kind on the ornaments page.</a></p>
       </details>
     {/if}
     {#if line}
-      <h3>LaTeX settings</h3>
+      <h2 class="sc">LaTeX settings</h2>
       <pre><code>{line}</code></pre>
       <p class="links">
         <button type="button" onclick={() => copy("line")}>{copied === "line" ? "Copied" : "Copy settings"}</button>
@@ -251,33 +249,31 @@
 
 <style>
   /* The controls scroll on their own; the page stays in view. */
-  .mixer {
-    display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
-    height: calc(100dvh - var(--bar)); border-top: 1px solid var(--rule);
-  }
-  .controls { overflow-y: auto; overscroll-behavior: contain; padding: 1.4rem 1.4rem 3rem; border-right: 1px solid var(--rule); }
-  .note, .hint { color: var(--muted); font-size: .9rem; margin: .2rem 0 .6rem; }
-  h3 { font-size: 1.1rem; margin: 1.4rem 0 .45rem; }
-  .row { display: grid; grid-template-columns: 8rem minmax(0, 1fr) 2.4rem; align-items: center; gap: .6rem; min-height: 36px; font-size: .93rem; }
+  .mixer { display: grid; grid-template-columns: minmax(300px, 410px) minmax(0, 1fr); height: 100%; }
+  .controls { overflow-y: auto; overscroll-behavior: contain; padding: 1.5rem 1.5rem 3rem; border-right: 1px solid var(--rule); font-size: 1.05rem; scrollbar-width: thin; scrollbar-color: var(--rule) transparent; }
+  h1 { font-size: 2rem; margin: 0 0 .3rem; }
+  .note, .hint { color: var(--muted); font-size: .95rem; line-height: 1.45; margin: .2rem 0 .6rem; }
+  h2, legend { font-family: var(--body); font-size: 1.08rem; color: var(--rubric); margin: 1.7rem 0 .5rem; padding: 0; }
+  legend { margin-top: 0; }
+  .row { display: grid; grid-template-columns: 8rem minmax(0, 1fr) 2.4rem; align-items: center; gap: .6rem; min-height: 36px; }
   .row > span { color: var(--muted); }
-  output { font-family: var(--mono); font-size: .8rem; text-align: right; }
-  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  output { font-family: var(--mono); font-size: .75rem; text-align: right; }
+  input[type="range"] { width: 100%; accent-color: var(--rubric); }
   input[type="number"] { grid-column: 2 / 4; width: 100%; padding: .3rem .45rem; border: 1px solid var(--control); background: transparent; }
-  button { border: 1px solid var(--control); background: transparent; padding: .35rem .75rem; cursor: pointer; min-height: 36px; }
+  button { border: 1px solid var(--control); background: transparent; padding: .3rem .75rem; cursor: pointer; min-height: 36px; border-radius: 0; }
   button:hover:not(:disabled) { border-color: var(--ink); }
   button:disabled { opacity: .45; cursor: default; }
   button.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-  fieldset { border: 0; padding: 0; margin: .8rem 0 0; }
-  legend { font-family: var(--display); font-size: 1.1rem; padding: 0; margin-bottom: .45rem; }
+  fieldset { border: 0; padding: 0; margin: 1.4rem 0 0; }
   .layouts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
-  .layouts label { display: flex; align-items: center; justify-content: center; min-height: 36px; border: 1px solid var(--control); cursor: pointer; font-size: .93rem; }
+  .layouts label { display: flex; align-items: center; justify-content: center; min-height: 36px; border: 1px solid var(--control); cursor: pointer; }
   .layouts label.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
   .layouts input { position: absolute; opacity: 0; pointer-events: none; }
-  .layouts label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .layouts label:has(input:focus-visible) { outline: 2px solid var(--rubric); outline-offset: 2px; }
   .ways { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; }
-  .ways button { display: flex; align-items: center; gap: .5rem; text-align: left; font-size: .9rem; }
+  .ways button { display: flex; align-items: center; gap: .5rem; text-align: left; font-size: .98rem; }
   .ways button[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
-  .dots { display: inline-flex; flex: none; width: 2.6rem; height: 1rem; border-radius: 2px; overflow: hidden; }
+  .dots { display: inline-flex; flex: none; width: 2.6rem; height: 1rem; overflow: hidden; }
   .dots i { flex: 1; }
   .dots.original i:nth-child(1) { background: oklab(0.40 -0.01 -0.19); }
   .dots.original i:nth-child(2) { background: oklab(0.55 -0.04 -0.18); }
@@ -286,20 +282,20 @@
   .spin { display: flex; flex-wrap: wrap; gap: .45rem; margin: .7rem 0 0; }
   details { border-top: 1px solid var(--rule); padding: .35rem 0; }
   details:last-of-type { border-bottom: 1px solid var(--rule); }
-  h4 { font-size: .95rem; margin: .8rem 0 .2rem; }
-  summary { cursor: pointer; font-family: var(--display); font-size: 1.05rem; padding: .3rem 0; }
-  pre { white-space: pre-wrap; word-break: break-word; margin: .3rem 0; }
+  h4 { font-family: var(--body); font-style: italic; font-size: 1rem; margin: .8rem 0 .2rem; }
+  summary { cursor: pointer; font-family: var(--display); font-size: 1.15rem; padding: .3rem 0; }
+  pre { white-space: pre-wrap; word-break: break-word; margin: .3rem 0 .6rem; font-size: .7rem; }
   .links { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }
-  .viewer { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.2rem; min-height: 0; overflow: hidden; }
-  .sheet { position: relative; height: min(100%, calc(100dvh - var(--bar) - 4.5rem)); aspect-ratio: 210 / 297; max-width: 100%; }
+  .viewer { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.4rem; min-height: 0; overflow: hidden; }
+  .sheet { position: relative; height: min(100%, calc(100dvh - var(--bar) - 5rem)); aspect-ratio: 210 / 297; max-width: 100%; box-shadow: 0 1px 2px oklch(30% 0.02 70 / .12), 0 14px 36px -20px oklch(30% 0.02 70 / .4); }
   .sheet canvas, .sheet img { position: absolute; inset: 0; width: 100%; height: 100%; }
   .sheet img { mix-blend-mode: multiply; }
   .sheet.busy canvas { opacity: .45; transition: opacity .3s; }
-  .status { color: var(--muted); font-size: .85rem; margin: .5rem 0 0; }
+  .status { color: var(--muted); font-size: .95rem; font-style: italic; margin: .6rem 0 0; }
   /* Phones: the page scrolls as one, with a small page kept in view. */
   @media (max-width: 860px) {
     .mixer { display: flex; flex-direction: column; height: auto; }
-    .viewer { order: -1; position: sticky; top: var(--bar); z-index: 2; height: 36dvh; padding: .5rem; background: var(--paper); border-bottom: 1px solid var(--rule); }
+    .viewer { order: -1; position: sticky; top: 0; z-index: 2; height: 36dvh; padding: .5rem; background: var(--paper); border-bottom: 1px solid var(--rule); }
     .sheet { height: calc(36dvh - 2.6rem); }
     .controls { overflow: visible; border-right: 0; padding-inline: 16px; }
     .row { grid-template-columns: 7rem minmax(0, 1fr) 2.4rem; min-height: 44px; }

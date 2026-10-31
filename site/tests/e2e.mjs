@@ -1,7 +1,9 @@
-// End-to-end check of the built site in headless Chrome: the mixer starts
-// the Lua generator, grows a page onto the canvas, grows it again when a
-// weight changes, offers a \florasetup line that matches the controls, and
-// every linked asset (zip, media, images) is served.
+// End-to-end check of the built site in headless Chrome: every page is
+// served with its own link preview and links only to pages and assets that
+// exist; the mixer starts the Lua generator, grows a page onto the canvas,
+// grows it again when a weight changes and offers a \florasetup line that
+// matches the controls; a colourway on the home page opens in the mixer;
+// the ornaments page draws every kind.
 //
 //   just test-site      (bakes and builds first; needs Google Chrome)
 //   SITE_URL=https://flora.alpacasoft.dev/ node site/tests/e2e.mjs
@@ -14,6 +16,9 @@ import { chromium } from "playwright-core";
 const SITE = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = process.env.SITE_TEST_PORT || "4317";
 const URL = process.env.SITE_URL || `http://127.0.0.1:${PORT}/`;
+const PAGES = { home: "", mixer: "mixer/", ornaments: "ornaments/", guide: "guide/" };
+const MIXER = URL + PAGES.mixer;
+const ORNAMENTS = URL + PAGES.ornaments;
 
 let failures = 0;
 function check(cond, msg) {
@@ -42,9 +47,29 @@ try {
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  await page.goto(URL);
-  check(await page.locator('meta[property="og:image"]').getAttribute("content") === "https://flora.alpacasoft.dev/img/og.jpg",
-    "og:image is not the absolute preview URL");
+
+  // Each page has its own title and link preview, marks itself in the nav,
+  // and links only to things that are served.
+  const titles = new Set();
+  const links = new Set();
+  for (const [name, path] of Object.entries(PAGES)) {
+    await page.goto(URL + path);
+    const og = (k) => page.locator(`meta[property="og:${k}"]`).getAttribute("content");
+    check(await og("image") === "https://flora.alpacasoft.dev/img/og.jpg", `${name}: og:image is not the absolute preview URL`);
+    check(await og("url") === `https://flora.alpacasoft.dev/${path}`, `${name}: og:url is ${await og("url")}`);
+    check(await page.locator('link[rel="canonical"]').getAttribute("href") === await og("url"), `${name}: canonical differs from og:url`);
+    check(!!(await og("description")), `${name}: no og:description`);
+    titles.add(await page.title());
+    const current = await page.locator('[aria-current="page"]').first().getAttribute("href");
+    check(current === `/${path}`, `${name}: the nav marks ${current} as current`);
+    for (const href of await page.locator("a[href^='/']").evaluateAll((as) => as.map((a) => a.getAttribute("href")))) links.add(href.split("#")[0]);
+  }
+  check(titles.size === Object.keys(PAGES).length, `pages share titles: ${[...titles].join(" | ")}`);
+  for (const href of links) {
+    const r = await fetch(new globalThis.URL(href, URL));
+    check(r.ok, `the link ${href} is not served (${r.status})`);
+  }
+  await page.goto(MIXER);
   const code = () => page.locator(".controls pre code").textContent();
   const grown = async () => {
     await page.locator(".status", { hasText: "Growing" }).waitFor({ timeout: 10000 });
@@ -109,7 +134,7 @@ try {
   };
   {
     const viaPdf = await context.newPage();
-    await viaPdf.goto(URL + "?renderer=pdf");
+    await viaPdf.goto(MIXER + "?renderer=pdf");
     await viaPdf.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
     check(/pdf\.js/.test(await viaPdf.locator(".status").textContent()), "?renderer=pdf did not draw with pdf.js");
     const [a, b] = [await pixels(page), await pixels(viaPdf)];
@@ -125,8 +150,8 @@ try {
     // gallery below checks that each one changes it.
     for (const [q, label] of [["?gilt=vector", "vector gilt"], ["?giltenv=mirror", "mirror gilt"]]) {
       const [alt, altPdf] = [await context.newPage(), await context.newPage()];
-      await alt.goto(URL + q);
-      await altPdf.goto(URL + q + "&renderer=pdf");
+      await alt.goto(MIXER + q);
+      await altPdf.goto(MIXER + q + "&renderer=pdf");
       for (const p of [alt, altPdf]) await p.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 240000 });
       console.log(`${label}: ${await alt.locator(".status").textContent()} / pdf.js: ${await altPdf.locator(".status").textContent()}`);
       const [c, d] = [await pixels(alt), await pixels(altPdf)];
@@ -138,10 +163,10 @@ try {
     }
   }
 
-  // Scrolling the controls leaves the page viewer where it is.
+  // The mixer fills the screen, and scrolling the controls leaves the page
+  // viewer where it is.
   const sheetTop = () => page.evaluate(() => document.querySelector(".sheet").getBoundingClientRect().top);
-  await page.evaluate(() => document.querySelector("#mixer").scrollIntoView({ behavior: "instant" }));
-  await page.waitForTimeout(200);
+  check(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1), "the mixer page scrolls as a whole");
   const top0 = await sheetTop();
   const scrollY0 = await page.evaluate(() => window.scrollY);
   await page.locator(".controls").hover();
@@ -218,10 +243,11 @@ try {
   check(doc.includes("\\documentclass") && doc.includes("\\usepackage{tikzflora}") && doc.includes(await code()),
     `the copied document lacks the package or the settings:\n${doc}`);
 
-  // A colourway on the opening loads into the mixer.
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.locator(".ways figure").nth(1).getByRole("button", { name: "Use these inks" }).click();
-  await grown();
+  // A colourway on the home page opens in the mixer.
+  await page.goto(URL);
+  await page.locator(".ways figure").nth(1).getByRole("link", { name: "Use these inks" }).click();
+  await page.waitForURL(/\/mixer\/\?way=1$/);
+  await page.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
   check(/seed=23/.test(await code()) && /hero=murasaki-shikibu/.test(await code()), `the second colourway did not load: ${await code()}`);
 
   // The gallery opens on the flourishes, labelled, once it scrolls near;
@@ -236,7 +262,7 @@ try {
     const out = tags.filter((t) => { const r = t.getBoundingClientRect(); return r.left < box.left - 1 || r.top < box.top - 1; });
     return { n, tags: tags.length, out: out.map((t) => t.textContent.trim()), names: tags.map((t) => t.querySelector("code").textContent) };
   });
-  await page.locator("#gallery").scrollIntoViewIfNeeded();
+  await page.goto(ORNAMENTS);
   await page.locator("#gallery .count", { hasText: /\d+ kinds/ }).waitFor({ timeout: 120000 });
   const flourishes = await sample();
   check(flourishes.names.includes("copperplate") && flourishes.names.includes("rinceau") && !flourishes.names.includes("night"),
@@ -261,7 +287,7 @@ try {
   const gallery = await pixels(page, ".plate canvas");
   for (const [q, label] of [["?gilt=vector", "vector gilt"], ["?giltenv=mirror", "mirror gilt"], ["?giltlook=ground=0,sky=0.3", "darker gilt"]]) {
     const alt = await context.newPage();
-    await alt.goto(URL + q);
+    await alt.goto(ORNAMENTS + q);
     const { differ, ink } = compare(gallery, await allKinds(alt));
     await alt.close();
     console.log(`${label} gallery: ${differ} of ${ink} inked samples differ from the default`);
@@ -275,18 +301,22 @@ try {
   check(sheetBg === "rgb(255, 255, 255)", `the gallery sheet is ${sheetBg} in dark mode`);
   await page.emulateMedia({ colorScheme: "light" });
 
-  // Phones: no sideways scroll, and the page stays in view below the
-  // header while the inks are chosen.
+  // Phones: no page scrolls sideways, and the mixer's page stays in view
+  // while the inks are chosen.
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
   phone.on("pageerror", (e) => errors.push(String(e)));
-  await phone.goto(URL);
+  for (const [name, path] of Object.entries(PAGES)) {
+    await phone.goto(URL + path);
+    const wide = await phone.evaluate(() => document.documentElement.scrollWidth);
+    check(wide <= 390, `the ${name} page scrolls sideways on a phone (${wide}px)`);
+  }
+  await phone.goto(MIXER);
   await phone.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
-  check(await phone.evaluate(() => document.documentElement.scrollWidth) <= 390, "the phone page scrolls sideways");
   const heroRow = phone.locator(".controls .row", { has: phone.locator(".cap", { hasText: /^Main flower$/ }) });
   await heroRow.scrollIntoViewIfNeeded();
   await heroRow.locator("button.current").click();
   const sheet = await phone.evaluate(() => document.querySelector(".sheet").getBoundingClientRect().toJSON());
-  check(sheet.top >= 40 && sheet.bottom <= 844 * 0.5, `the phone page is not kept in view (${JSON.stringify(sheet)})`);
+  check(sheet.top >= 0 && sheet.bottom <= 844 * 0.5, `the phone page is not kept in view (${JSON.stringify(sheet)})`);
   const panelBox = await heroRow.locator("[role=listbox]").boundingBox();
   check(panelBox && panelBox.width >= 300, "the phone picker does not open across the controls");
   await phone.close();

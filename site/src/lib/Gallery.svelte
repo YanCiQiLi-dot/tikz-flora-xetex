@@ -82,25 +82,27 @@
 
 <style>
   .gallery { min-width: 0; }
-  .tabs { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0 0 .6rem; }
-  .tabs button { border-radius: 999px; }
-  .tabs button[aria-selected="true"] { background: var(--ink, #2b2b2b); color: var(--paper, #fff); border-color: transparent; }
-  .about { margin: 0 0 .8rem; color: var(--muted); max-width: 60ch; }
-  .bar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: 0 0 .8rem; }
-  .bar label { display: flex; gap: .45rem; align-items: center; }
-  .bar span { color: var(--muted); font-size: .9rem; }
-  select, button { border: 1px solid var(--control); background: transparent; padding: .35rem .6rem; min-height: 36px; }
-  button { cursor: pointer; }
+  /* The slots read as an index line of small capitals. */
+  .tabs { display: flex; flex-wrap: wrap; gap: .1rem 1.1rem; margin: 0 0 .8rem; padding: .5rem 0; border-block: 1px solid var(--rule); }
+  .tabs button { border: 0; padding: .2rem 0; min-height: 36px; font-variant-caps: all-small-caps; letter-spacing: .07em; font-size: 1.1rem; color: var(--muted); }
+  .tabs button:hover:not(:disabled) { color: var(--ink); }
+  .tabs button[aria-selected="true"] { color: var(--rubric); text-decoration: underline; text-underline-offset: .3em; text-decoration-thickness: 1px; }
+  .about { margin: 0 0 .9rem; font-style: italic; max-width: 60ch; }
+  .bar { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: center; margin: 0 0 1rem; }
+  .bar label { display: flex; gap: .5rem; align-items: center; }
+  .bar span { color: var(--muted); }
+  .count { font-style: italic; }
+  select, .bar button { border: 1px solid var(--control); background: transparent; padding: .3rem .7rem; min-height: 38px; border-radius: 0; }
+  button { cursor: pointer; background: transparent; }
   button:disabled { opacity: .45; cursor: default; }
   /* The sheet is paper in both themes (app.css .paper): the ornaments and
      their labels are drawn for it. */
-  .plate { position: relative; width: 100%; max-width: 720px; overflow: clip; }
+  .plate { position: relative; width: 100%; max-width: 760px; overflow: clip; box-shadow: 0 0 0 1px var(--rule); background: #fff; }
   .plate canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
   .plate.busy canvas { opacity: .45; transition: opacity .3s; }
-  .tag { position: absolute; transform: translateY(-100%); color: #2b2b2b; font-size: clamp(.62rem, 1.6vw, .8rem); white-space: nowrap; padding-bottom: 2px; }
-  .tag code { color: #767676; font-size: .9em; }
+  .tag { position: absolute; transform: translateY(-100%); color: #2b2b2b; font-size: clamp(.66rem, 1.6vw, .86rem); white-space: nowrap; padding-bottom: 2px; }
+  .tag code { color: #6f6a62; font-size: .9em; background: none; padding: 0; }
   @media (max-width: 860px) {
-    .bar { padding-inline: 0; }
     button, select { min-height: 44px; }
     /* Narrow sheets keep only the name to weigh each kind by. */
     .tag .name { display: none; }

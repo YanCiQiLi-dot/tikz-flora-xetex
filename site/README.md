@@ -1,8 +1,18 @@
 # flora.alpacasoft.dev
 
-The tikz-flora site: the example pages, the grow animation, a live mixer
-and the setup guide. It is a Vite and Svelte app served by a Cloudflare
-Worker.
+The tikz-flora site, a Vite and Svelte app served by a Cloudflare Worker.
+It has four pages, each its own HTML entry with its own link preview:
+
+| Page | Entry | Contents |
+|---|---|---|
+| `/` | `index.html`, `src/pages/Home.svelte` | The title page, the colourways, the grow animation, the example document and the contents |
+| `/mixer/` | `mixer/index.html`, `src/lib/Mixer.svelte` | The live mixer, full screen; `?way=N` opens on colourway N |
+| `/ornaments/` | `ornaments/index.html`, `src/lib/Gallery.svelte` | Every ornament kind, by slot |
+| `/guide/` | `guide/index.html`, `src/lib/Guide.svelte` | Setup, settings and credits |
+
+`src/lib/Shell.svelte` gives every page its running head and colophon, and
+`src/app.css` holds the shared type, colours and the book grid. Only the
+mixer and the ornaments page load the generator.
 
 ## Recipes
 
@@ -15,8 +25,8 @@ listed in the root README.
 - `just site-dev`: serve the site with hot reload at
   http://127.0.0.1:5174/.
 - `just test-site`: build the site and drive it in headless Chrome
-  (`tests/e2e.mjs`). The test checks the assets and the Open Graph image,
-  grows a page in the mixer, checks that the controls scroll without
+  (`tests/e2e.mjs`). The test checks the assets, each page's link preview
+  and internal links, grows a page in the mixer, checks that the controls scroll without
   moving the page, and checks the setup line the mixer writes. Set
   `SITE_URL=https://flora.alpacasoft.dev/` and run
   `node site/tests/e2e.mjs` to check the deployed site instead.
@@ -45,8 +55,8 @@ committed.
 ## Colourways
 
 `src/lib/colourways.json` lists the colourways the site opens with: a
-name, a seed and an ink for every palette part. The opening and the mixer
-read it, and `site-bake` renders each one with `tools/preview.lua` on
+name, a seed and an ink for every palette part. The home page and the
+mixer read it, and `site-bake` renders each one with `tools/preview.lua` on
 page 4, grown with the mixer's starting mix (the `fresh, visitors=1`
 settings), so "Use these inks" reproduces the picture exactly.
 

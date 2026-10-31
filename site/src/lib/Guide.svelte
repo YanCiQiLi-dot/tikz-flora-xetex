@@ -53,13 +53,6 @@ Some text.
   ];
 </script>
 
-<h2>Guide</h2>
-<div class="col">
-  <p class="toc">
-    <a href="#g-install">Install</a> · <a href="#g-first">A first page</a> ·
-    <a href="#g-overleaf">Overleaf</a> · <a href="#g-settings">Settings</a> ·
-    <a href="#g-layouts">Layouts</a> · <a href="#g-trouble">Troubleshooting</a>
-  </p>
   <h3 id="g-install">1. Get LuaLaTeX</h3>
   <p>
     tikz-flora needs LuaLaTeX, which comes with every full TeX
@@ -127,7 +120,7 @@ Some text.
     page. A non-blue ink also repaints that part's rims, grain and contours,
     so with every part set only a few pen lines stay navy. With
     <code>random</code>, <code>spin=N</code> picks again and changes only
-    the colours. The <a href="#mixer">mixer</a> shows every ink as a
+    the colours. The <a href="/mixer/">mixer</a> shows every ink as a
     swatch.
   </p>
 
@@ -138,7 +131,7 @@ Some text.
   <p>A title page:</p>
   <pre><code>{title}</code></pre>
 
-  <h3>Watch it grow</h3>
+  <h3 id="g-grow">Watch it grow</h3>
   <p>
     The repository's <code>just grow NAME SEED PAGE</code> renders a page
     of any document in <code>tex/</code> as it grows and writes an MP4 and
@@ -157,18 +150,17 @@ Some text.
     <dt>The flora is cramped</dt>
     <dd>It fills the margins it is given. Widen them with <code>geometry</code> (about 5 cm for a side margin, or 3 cm all round for <code>surround</code>), or lower <code>density</code>.</dd>
   </dl>
-</div>
 
 <style>
   .table { overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; font-size: .95rem; margin: .6rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 1.02rem; line-height: 1.4; margin: .6rem 0 1.2rem; }
   th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
-  th { font-weight: 400; color: var(--muted); }
+  th { font-weight: 400; color: var(--rubric); font-variant-caps: all-small-caps; letter-spacing: .07em; }
   dt { margin-top: .6rem; }
   dd { margin: .1rem 0 0 1.2rem; color: var(--muted); }
   ol { padding-left: 1.3rem; }
-  h3 { font-size: 1.4rem; margin: 2.5rem 0 .65rem; }
-  .toc { color: var(--muted); }
+  h3 { font-size: 1.6rem; margin: 3rem 0 .7rem; }
+  h3:first-child { margin-top: 0; }
   /* Phones: each setting stacks as key, values, effect. */
   @media (max-width: 600px) {
     thead { display: none; }
