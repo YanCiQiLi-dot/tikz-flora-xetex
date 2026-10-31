@@ -1,0 +1,103 @@
+% A worked example of tikzflora: a short multipage document that uses every
+% layout. Compile with LuaLaTeX, twice so the table of contents fills in:
+%
+%   lualatex lorem && lualatex lorem      (or: latexmk lorem)
+%
+% Every \florasetup and \florathispage below is commented with what it
+% does; the full list of keys is in README.md and on
+% https://flora.alpacasoft.dev/guide.
+\documentclass[11pt,twoside]{article}
+% Two-sided pages with a wide outer margin: the flora grows there.
+\usepackage[a4paper,inner=2cm,outer=5.6cm,top=4.2cm,bottom=3.5cm,
+  headheight=14pt,headsep=18pt]{geometry}
+\usepackage{lipsum}
+\usepackage{fancyhdr}
+\usepackage{tikzflora}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\small\textsc{Florilegium Lorem}}
+\fancyfoot[LE,RO]{\small\thepage}
+\renewcommand\headrulewidth{0pt}
+
+% The document's defaults. layout=split puts the flora in the outer margin:
+% on the right of odd pages and the left of even ones. seed picks the
+% garden; change it for a different one, or use seed=random. visitors=0.6
+% invites a few bees, butterflies, birds and snails.
+\florasetup{layout=split, seed=3, visitors=0.6}
+
+\begin{document}
+
+% --- Title page -----------------------------------------------------------
+% A narrower, centred text block leaves room around the title. The title
+% layout crowns the lines inside the floratitle environment.
+\newgeometry{left=3.2cm,right=3.2cm,top=5cm,bottom=4cm}
+\thispagestyle{empty}
+\florathispage{layout=title}
+\begin{floratitle}
+\centering
+{\Huge\scshape Florilegium Lorem\par}
+\vspace{1.2em}
+{\large A specimen in several layouts\par}
+\end{floratitle}
+\vspace{6cm}
+\begin{center}
+\begin{minipage}{0.7\textwidth}
+\small\lipsum[1][1-5]
+\end{minipage}
+\end{center}
+\clearpage
+
+% --- Contents -------------------------------------------------------------
+% surround grows a wreath on all four sides of the text block.
+\thispagestyle{empty}
+\florathispage{layout=surround}
+\tableofcontents
+\clearpage
+\restoregeometry
+
+% --- Body -----------------------------------------------------------------
+% The body uses the document default, layout=split.
+\section{Of gardens in the margin}
+\lipsum[2-6]
+
+\section{Of stems and their habits}
+\lipsum[7-11]
+
+% From here on: twice the lilies and umbels, no ghost blooms, a bird and a
+% butterfly on most pages, and leaves in green inks. mix weights are 1 for
+% the usual amount and 0 for none.
+\florasetup{mix={lily=2, umbel=2, ghost=0, bird=1.5, butterfly=1.5},
+  palette={leaves=green}}
+
+\subsection{The habit of the climbing kind}
+\lipsum[12-14]
+
+% --- A centred page -------------------------------------------------------
+% centered grows one plant in each side margin, on separate seeds. This
+% page alone also paints its blooms in violet inks.
+\clearpage
+\newgeometry{left=4.6cm,right=4.6cm,top=4.2cm,bottom=3.5cm,headheight=14pt,headsep=18pt}
+\florathispage{layout=centered, palette={blooms=violet, hero=violet}}
+\section{Of symmetry, and its refusal}
+\lipsum[15-17]
+\clearpage
+\restoregeometry
+
+% --- Closing --------------------------------------------------------------
+% A short last page: the flora grows into the space below the text, here
+% at a lighter density.
+\florathispage{density=0.6}
+\section{Colophon}
+Set with \textsf{tikzflora}, whose margins are grown afresh on every page.
+
+It would not exist without two sources: the r/LaTeX thread
+\emph{How do you make these flowers in LaTeX?}
+(\texttt{old.reddit.com/r/LaTeX/comments/1xixznw}) and Kevin Raymond's
+\emph{florilegium} (\texttt{github.com/kevinraymond/florilegium}), whose grown
+margins, animation and visitors this package follows. The ink colours are
+Pilot iroshizuku ramps measured by madoromi
+(\texttt{madoromi.moonwit.ch}); the growth follows Wong, Zongker and Salesin,
+\emph{Computer-Generated Floral Ornament} (SIGGRAPH 1998).
+
+\end{document}

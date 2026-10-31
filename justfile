@@ -30,6 +30,27 @@ test:
 grow name="demo" seed="1" page="1" fps="20" secs="8":
     tools/grow.sh {{name}} {{seed}} {{page}} {{fps}} {{secs}}
 
+# The drop-in package: build/tikzflora.zip with the package, its Lua, the
+# worked example and a latexmkrc that selects LuaLaTeX (also on Overleaf).
+dist:
+    rm -rf build/dist && mkdir -p build/dist/tikzflora/lua
+    cp tex/tikzflora.sty tex/tikzflora-boot.lua tex/latexmkrc README.md LICENSE build/dist/tikzflora/
+    cp tex/lorem.tex build/dist/tikzflora/example.tex
+    cp -R lua/flora build/dist/tikzflora/lua/flora
+    rm -f build/tikzflora.zip
+    cd build/dist && zip -qrX ../tikzflora.zip tikzflora
+    @echo "dist: build/tikzflora.zip"
+
+# Compiles the example from the unpacked zip alone, outside the repository
+# and without its TEXINPUTS, as a user would.
+test-dist: dist
+    rm -rf build/test-dist && mkdir -p build/test-dist
+    unzip -q build/tikzflora.zip -d build/test-dist
+    cd build/test-dist/tikzflora && env -u TEXINPUTS -u FLORA_TUNE latexmk -quiet example > latexmk.out 2>&1 || (tail -30 example.log; exit 1)
+    test "$(pdfinfo build/test-dist/tikzflora/example.pdf | awk '/^Pages/ {print $2}')" = 7
+    grep -q 'painted objects' build/test-dist/tikzflora/example.log
+    @echo "dist: example compiles from the zip"
+
 # Integration test for the shipout measurer (needs lualatex).
 test-tex:
     mkdir -p build
