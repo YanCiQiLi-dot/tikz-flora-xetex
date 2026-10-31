@@ -3,6 +3,7 @@ local Compose = require("flora.compose")
 local Paint = require("flora.paint")
 local Settings = require("flora.settings")
 local Tune = require("flora.tune")
+local Mix = require("flora.mix")
 
 local function page(seed, mix, palette)
   local s = H.page(seed)
@@ -91,6 +92,70 @@ do
       "palette={leaves=plaid}", "palette={petals=green}", "visitors=lots" }) do
     H.check(not pcall(Settings.parse, bad), "accepted bad settings \"" .. bad .. "\"")
   end
+end
+
+-- The fixed blues follow the palette: with every part in a red ink, almost
+-- no painted colour is still blue (the default page is over a third blue).
+-- Pen line work in stamens and stem brushwork stays navy by design.
+do
+  local function oklab(r, g, b)
+    local function dec(c) if c <= 0.04045 then return c / 12.92 end return ((c + 0.055) / 1.055) ^ 2.4 end
+    r, g, b = dec(r), dec(g), dec(b)
+    local l = (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) ^ (1 / 3)
+    local m = (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) ^ (1 / 3)
+    local s = (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) ^ (1 / 3)
+    return 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+      0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+  end
+  local function blue_share(palette)
+    local n, blue = 0, 0
+    for r, g, b in page(1, nil, palette):code():gmatch("([%d.]+) ([%d.]+) ([%d.]+) [rR][gG]") do
+      local A, B = oklab(tonumber(r), tonumber(g), tonumber(b))
+      local h = math.deg(math.atan(B, A)) % 360
+      n = n + 1
+      if math.sqrt(A * A + B * B) > 0.06 and h > 215 and h < 300 then blue = blue + 1 end
+    end
+    return blue / n
+  end
+  local red = {}
+  for part in pairs(Tune.color.palette) do red[part] = "momiji" end
+  local base, all = blue_share(nil), blue_share(red)
+  H.check(base > 0.25, string.format("the default page is only %.2f blue; the measure is broken", base))
+  H.check(all < 0.012, string.format("%.3f of the colours stay blue with every part in momiji", all))
+  -- Batched shapes share one colour operator, so check the florets and the
+  -- cartouche directly: in a red ink none of their colours is blue.
+  local Flower = require("flora.flower")
+  local Ornament = require("flora.ornament")
+  local Rng = require("flora.rng")
+  local function blues(palette, draw)
+    local pt = Paint.new({ backend = "pdf" })
+    Mix.with_palette(palette, function() draw(pt) end)
+    local k = 0
+    for r, g, b in pt:code():gmatch("([%d.]+) ([%d.]+) ([%d.]+) [rR][gG]") do
+      local A, B = oklab(tonumber(r), tonumber(g), tonumber(b))
+      local h = math.deg(math.atan(B, A)) % 360
+      if math.sqrt(A * A + B * B) > 0.06 and h > 215 and h < 300 then k = k + 1 end
+    end
+    return k
+  end
+  local florets = function(pt)
+    Flower.florets(pt, { { 10, 10, 2, 0, 1 }, { 20, 10, 2, 0, 2 }, { 30, 10, 2, 0, 3 }, { 40, 10, 2, 0, 2, true } })
+  end
+  local panel = function(pt) Ornament.panel(pt, Rng.new(5), 0, 0, 40, 60) end
+  H.check(blues(nil, florets) > 0 and blues(nil, panel) > 0, "the default florets or cartouche are not blue")
+  H.check(blues({ sprays = "momiji" }, florets) == 0, "florets stay blue with sprays=momiji")
+  H.check(blues({ cartouche = "momiji" }, panel) == 0, "the cartouche stays blue with cartouche=momiji")
+  -- Each of the parts that recolour fixed blues changes the page on its own.
+  for _, part in ipairs({ "sprays", "ghost", "cartouche" }) do
+    local changed = false
+    for seed = 1, 4 do
+      if page(seed, nil, { [part] = "momiji" }):code() ~= page(seed):code() then changed = true break end
+    end
+    H.check(changed, "palette " .. part .. "=momiji changed nothing")
+  end
+  local p = Settings.parse("palette={sprays=warm, ghost=random, cartouche=yu-yake}")
+  H.check(p.palette.sprays == "warm" and p.palette.ghost == "random" and p.palette.cartouche == "yu-yake",
+    "new palette parts lost")
 end
 
 H.done("mix")

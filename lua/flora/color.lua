@@ -119,7 +119,33 @@ function C.ink_rgb(name, L, share)
 end
 
 -- Which tune.color.palette part a look paints by default.
-local PART = { leaf = "leaves", hero = "hero", vivid = "blooms", fan = "blooms", soft = "blooms" }
+local PART = { leaf = "leaves", hero = "hero", vivid = "blooms", fan = "blooms", soft = "blooms", ghost = "ghost" }
+
+function C.part_of(look)
+  return PART[look]
+end
+
+-- The one ink that recolours part `part`'s fixed pigments (rim pools,
+-- florets, the cartouche), without spending randomness: the named ink, or
+-- the first ink of a group. nil for "look" and for the blue group, whose
+-- inks the fixed blue pigments already match.
+function C.part_ink(part)
+  local choice = part and Tune.color.palette and Tune.color.palette[part]
+  if not choice or choice == "look" or choice == "blue" then return nil end
+  if Inks.ramps[choice] then return choice end
+  local g = Inks.groups[choice]
+  return g and g[1] or nil
+end
+
+local BLUE = {}
+for _, n in ipairs(Inks.groups.blue) do BLUE[n] = true end
+
+-- `rgb` repainted in ink `ink` at the same lightness, or `rgb` itself when
+-- there is no ink or the ink is one of the blues.
+function C.recolor(rgb, ink)
+  if not ink or BLUE[ink] then return rgb end
+  return C.ink_rgb(ink, C.lightness(rgb), 1)
+end
 
 -- A base-to-tip ramp for one shape of look `look` ("vivid", "soft",
 -- "ghost" or "leaf"). Lightness falls from base to tip along t^curve;
@@ -152,7 +178,7 @@ function C.ramp(rng, look, part)
       stops[#stops + 1] = { t, C.ink_rgb(ink, L, grey) }
     end
     local ch, ih = C.ink_at(ink, tip_l)
-    return stops, { h = ih, L = tip_l, share = math.min(1, ch * grey / math.max(1e-6, C.max_chroma(tip_l, ih))) }
+    return stops, { h = ih, L = tip_l, share = math.min(1, ch * grey / math.max(1e-6, C.max_chroma(tip_l, ih))), ink = ink }
   end
   for i = 0, n - 1 do
     local t = i / (n - 1)

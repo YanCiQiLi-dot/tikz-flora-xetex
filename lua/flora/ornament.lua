@@ -4,6 +4,7 @@
 local G = require("flora.geom")
 local W = require("flora.wash")
 local Paint = require("flora.paint")
+local Color = require("flora.color")
 local pal = Paint.palette
 
 local O = {}
@@ -300,13 +301,14 @@ end
 
 -- Clouds as flattened puffs, each built from many faint shrinking layers so
 -- its edge dissolves into the sky; a faint shadow sits under each bank's
--- belly and the tops catch a paler light.
+-- belly and the tops catch a paler light. `sky` and `deep` are the sky's
+-- dilute and pooled colours.
 local CLOUD_LAYERS = 6
-local function clouds(pt, puffs)
+local function clouds(pt, puffs, sky, deep)
   local shadow = {}
   for _, p in ipairs(puffs) do shadow[#shadow + 1] = ellipse(p[1], p[2] - p[3] * 0.35, p[3] * 1.5, p[3] * 0.6) end
-  pt:fill(shadow, pal.deep, 0.1, { many = true })
-  local tint = Paint.mix(pal.white, pal.sky, 0.25)
+  pt:fill(shadow, deep, 0.1, { many = true })
+  local tint = Paint.mix(pal.white, sky, 0.25)
   for k = 1, CLOUD_LAYERS do
     local sc = 1.5 - k / CLOUD_LAYERS
     local layer = {}
@@ -354,23 +356,27 @@ end
 -- The star cartouche filling the box (x, y, w, h): a square frame in a dark
 -- hairline with a pale silver band, round a field with notched corners.
 function O.panel(pt, rng, x, y, w, h)
+  -- palette.cartouche repaints the sky in its ink; the gilt stays gold.
+  local tint = Color.part_ink("cartouche")
+  local blue, deep, sky, ink = Color.recolor(pal.blue, tint), Color.recolor(pal.deep, tint),
+    Color.recolor(pal.sky, tint), Color.recolor(pal.ink, tint)
   local band = G.clamp(w * 0.065, 1.6, 3)
   local x0, y0, x1, y1 = x + band, y + band, x + w - band, y + h - band
   local c = math.min(w, h) * 0.09
   local frame = G.polyline({ { x, y }, { x + w, y }, { x + w, y + h }, { x, y + h } }, true)
-  pt:fill(frame, Paint.mix(pal.blue, pal.paper, 0.86), 1)
+  pt:fill(frame, Paint.mix(blue, pal.paper, 0.86), 1)
   local body = notched(x0, y0, x1, y1, c, 6)
   W.wash(pt, body, {
-    rng = rng:fork("sky"), size = math.min(w, h), pigment = pal.blue, pool = pal.deep,
+    rng = rng:fork("sky"), size = math.min(w, h), pigment = pal.blue, pool = pal.deep, ink = tint,
     light = { (x0 + x1) / 2, (y0 + y1) / 2 }, strength = 1, rings = 10, lift = 0.022, grain = 0.04,
     outline = 0, lost = 0, lifts = 0,
   })
   local puffs = cloud_puffs(rng:fork("clouds"), x0, y0, x1, y1)
   pt:clip_begin(G.polyline(body, true))
   starfield(pt, rng:fork("stars"), puffs, x0, y0, x1, y1)
-  clouds(pt, puffs)
+  clouds(pt, puffs, sky, deep)
   pt:clip_end()
-  pt:stroke(G.polyline(body, true), Paint.mix(pal.deep, pal.paper, 0.35), 0.35, 0.8)
+  pt:stroke(G.polyline(body, true), Paint.mix(deep, pal.paper, 0.35), 0.35, 0.8)
   -- A pale curl in each notch, and the frame's dark hairline.
   local curls = {}
   for _, q in ipairs({ { x0, y0, 0 }, { x1, y0, pi / 2 }, { x1, y1, pi }, { x0, y1, 3 * pi / 2 } }) do
@@ -379,7 +385,7 @@ function O.panel(pt, rng, x, y, w, h)
     curls[#curls + 1] = G.polyline(pts)
   end
   pt:stroke(curls, pal.white, 0.35, 0.9, { many = true })
-  pt:stroke(frame, Paint.mix(pal.ink, pal.paper, 0.25), 0.45, 0.9)
+  pt:stroke(frame, Paint.mix(ink, pal.paper, 0.25), 0.45, 0.9)
   lit_star(pt, (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) * 0.47, (y1 - y0) * 0.47)
 end
 

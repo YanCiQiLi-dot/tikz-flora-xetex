@@ -293,6 +293,8 @@ end
 --   o.fade_scale  multiplier on how far a lost edge fades in (default 1)
 --   o.part      tune.color.palette part whose ink paints the ramp
 --               (default: the look's own part)
+--   o.ink       an ink that recolours the fixed blue pigment, pool, grain
+--               and contour (default: o.part's ink, if any)
 --   o.simple    for small shapes: no brushwork, glazes or back-runs, and a
 --               lost-edge fade of 3 layers instead of 7
 --   o.inner     function(pt) called while clipped, for veins and the like
@@ -304,8 +306,14 @@ function W.wash(pt, poly, o)
   local rng = o.rng
   local size = o.size
   local s = o.strength or 1
-  local pig = o.pigment or pal.blue
-  local pool = o.pool or pal.deep
+  -- A part painted in a non-blue ink takes that ink for its fixed blue
+  -- pigments too, so its bleed and pooled rim are not ultramarine.
+  local part = o.part or (o.ramp and Color.part_of(o.ramp))
+  local tint = o.ink or Color.part_ink(part)
+  local pig = Color.recolor(o.pigment or pal.blue, tint)
+  local pool = Color.recolor(o.pool or pal.deep, tint)
+  local line = Color.recolor(pal.ink, tint)
+  local grain = Color.recolor(pal.deep, tint)
   local light = o.light or G.centroid(poly)
   local body = G.smooth(poly, true)
   local cfg = Tune.wash
@@ -339,6 +347,11 @@ function W.wash(pt, poly, o)
     -- deep ultramarine within one shape.
     pt:clip_begin(body)
     local info = ramp_fill(pt, rng, o.ramp, o.axis[1], o.axis[2], size * 1.5, o.part)
+    -- An ink group picks one ink per shape; the rim pools in that ink.
+    if info.ink then
+      pool, line = Color.recolor(o.pool or pal.deep, info.ink), Color.recolor(pal.ink, info.ink)
+      grain = Color.recolor(pal.deep, info.ink)
+    end
     -- Broken brushwork along the growth direction, then the glazes over it.
     local k = G.clamp(size / 30, 0.3, 1.3)
     local nd = math.floor(rng:range(cfg.brush_bands[1], cfg.brush_bands[2]) * k + 0.5)
@@ -401,7 +414,7 @@ function W.wash(pt, poly, o)
 
   if (o.grain or 0) > 0 then
     W.grain(pt, rng, poly, o.grain, { scale = o.grain_scale or 1, dark_op = 0.30 * s + 0.08,
-      clump = cfg.grain_clump, mottle = cfg.grain_mottle })
+      clump = cfg.grain_clump, mottle = cfg.grain_mottle, dark_rgb = grain })
   end
 
   -- Lost edges: the wash fades into the paper through faint, uneven layers
@@ -429,9 +442,9 @@ function W.wash(pt, poly, o)
 
   if (o.outline or 0) > 0 then
     if found then
-      pt:fill(bands(found, (o.outline_w or 0.28) / 2, 0.25), pal.ink, o.outline, { many = true, blend = "multiply" })
+      pt:fill(bands(found, (o.outline_w or 0.28) / 2, 0.25), line, o.outline, { many = true, blend = "multiply" })
     else
-      pt:stroke(body, pal.ink, o.outline_w or 0.28, o.outline, MULT)
+      pt:stroke(body, line, o.outline_w or 0.28, o.outline, MULT)
     end
   end
 end

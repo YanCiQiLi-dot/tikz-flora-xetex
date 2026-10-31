@@ -95,7 +95,8 @@ local T = {
     -- What paints each part: "look" (the gradients below), an ink group
     -- (blue, blue-grey, teal, green, violet, warm, earth, gold) or one ink
     -- by name (lua/flora/inks.lua). Inks keep the look's lightness.
-    palette = { hero = "look", blooms = "look", leaves = "blue", leaflets = "blue", stems = "chiku-rin" },
+    palette = { hero = "look", blooms = "look", leaves = "blue", leaflets = "blue", stems = "chiku-rin",
+      sprays = "look", ghost = "look", cartouche = "look" },
     looks = {
       vivid = { base_l = { 0.80, 0.90 }, tip_l = { 0.2, 0.32 }, chroma = { 0.65, 1.00 }, curve = { 0.4, 1.3 } },
       hero  = { base_l = { 0.74, 1 }, tip_l = { 0.36, 0.48 }, chroma = { 0.81, 1 }, curve = { 0.35, 0.75 } },
@@ -232,10 +233,13 @@ T._doc = {
   ["color.grey_share"] = { "Grey saturation", "How much colour a grey-blue leaf keeps (1 = as saturated as the rest)." },
   ["color.palette"] = { "Palettes", "What paints each part: its look (the gradients below), a group of fountain pen inks, or one ink. An ink keeps the look's lightness but takes its colour from the ink's measured wash, dense to pale." },
   ["color.palette.hero"] = { "Hero", "Palette for the hero bloom." },
-  ["color.palette.blooms"] = { "Blooms", "Palette for the other blooms, except the ghost bloom." },
+  ["color.palette.blooms"] = { "Blooms", "Palette for the other blooms." },
   ["color.palette.leaves"] = { "Leaves", "Palette for the large leaves; each leaf picks one ink of a group." },
   ["color.palette.leaflets"] = { "Leaflets", "Palette for the small leaflets along the stems." },
   ["color.palette.stems"] = { "Stems", "Palette for the painted main stem and long shoots." },
+  ["color.palette.sprays"] = { "Sprays", "Palette for the forget-me-nots, baby's breath and umbel florets, and the sprays' line work." },
+  ["color.palette.ghost"] = { "Ghost bloom", "Palette for the pale ghost bloom." },
+  ["color.palette.cartouche"] = { "Cartouche", "Palette for the sky inside the star cartouche; its gilt stays gold." },
   ["color.looks"] = { "Looks", "Gradient ranges for each kind of shape: vivid blooms, soft blooms, ghost blooms and leaves." },
   ["color.looks.hero"] = { "Hero bloom", "The hero bloom's own gradients, separate from other vivid blooms." },
   ["color.looks.vivid"] = { "Vivid blooms", "The hero bloom, the lily and most small flowers." },

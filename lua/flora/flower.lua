@@ -3,6 +3,7 @@
 local G = require("flora.geom")
 local W = require("flora.wash")
 local Paint = require("flora.paint")
+local Color = require("flora.color")
 local Tune = require("flora.tune")
 local pal = Paint.palette
 
@@ -286,6 +287,8 @@ function F.tilted(pt, rng, cx, cy, R, facing, tilt, o)
   o = o or {}
   local n = o.petals or 5
   local look = LOOKS[o.look or "vivid"]
+  -- The calyx and sepals take the bloom's ink when it is not a blue.
+  local calyx = Color.recolor(pal.deep, Color.part_ink(Color.part_of(look.ramp)))
   local cup = o.cup or 0.6
   local ct, st = cos(tilt), sin(tilt)
   local cf, sf = cos(facing - pi / 2), sin(facing - pi / 2)
@@ -303,7 +306,7 @@ function F.tilted(pt, rng, cx, cy, R, facing, tilt, o)
   local stem_at = tube[#tube]
   pt:fill(G.smooth(G.ribbon(G.spline_points({ tube[#tube], tube[5], tube[1] }, 4), function(t)
     return R * (0.035 + 0.07 * t ^ 1.5)
-  end), true), pal.deep, 0.92, { blend = "multiply" })
+  end), true), calyx, 0.92, { blend = "multiply" })
   local sepals = {}
   for k = 1, 3 do
     local b = rng:range(0, 2 * pi)
@@ -311,7 +314,7 @@ function F.tilted(pt, rng, cx, cy, R, facing, tilt, o)
     local p1 = project(R * 0.28 * cos(b), R * 0.28 * sin(b), -R * 0.2)
     sepals[#sepals + 1] = { p0[1], p0[2], G.angle(p0, p1), G.dist(p0, p1) * 1.1 + R * 0.08 }
   end
-  require("flora.leaf").leaflets(pt, rng:fork("sepals"), sepals, pal.deep, 0.9)
+  require("flora.leaf").leaflets(pt, rng:fork("sepals"), sepals, calyx, 0.9)
   local a0 = o.rot or rng:range(0, 2 * pi)
   local petals = {}
   for i = 1, n do
@@ -365,8 +368,11 @@ function F.florets(pt, items)
       specks[#specks + 1] = { { "o", x, y, 0.12 * r } }
     end
   end
-  local cols = { pal.deep, pal.blue, pal.sky }
-  if #halos > 0 then pt:fill(halos, pal.sky, 0.14, { many = true, blend = "multiply" }) end
+  -- palette.sprays repaints the florets in its ink at the same depths.
+  local tint = Color.part_ink("sprays")
+  local deep, blue, sky = Color.recolor(pal.deep, tint), Color.recolor(pal.blue, tint), Color.recolor(pal.sky, tint)
+  local cols = { deep, blue, sky }
+  if #halos > 0 then pt:fill(halos, sky, 0.14, { many = true, blend = "multiply" }) end
   for i = 1, 3 do
     if #tints[i] > 0 then
       pt:fill(tints[i], cols[i], 0.88, { many = true, blend = "multiply" })
@@ -376,7 +382,7 @@ function F.florets(pt, items)
     end
   end
   if #soft_eyes > 0 then pt:fill(soft_eyes, pal.white, 0.6, { many = true }) end
-  if #rims > 0 then pt:stroke(rims, Paint.mix(pal.ink, pal.blue, 0.5), 0.14, 0.45, { many = true, blend = "multiply" }) end
+  if #rims > 0 then pt:stroke(rims, Paint.mix(Color.recolor(pal.ink, tint), blue, 0.5), 0.14, 0.45, { many = true, blend = "multiply" }) end
   if #eyes > 0 then pt:fill(eyes, pal.white, 0.85, { many = true }) end
   if #specks > 0 then pt:fill(specks, pal.copper, 0.85, { many = true }) end
 end

@@ -6,6 +6,7 @@ local W = require("flora.wash")
 local Brush = require("flora.brush")
 local Tune = require("flora.tune")
 local Paint = require("flora.paint")
+local Color = require("flora.color")
 local pal = Paint.palette
 
 local L = {}
@@ -137,7 +138,7 @@ local function veins(pt, rng, spine, edge, size, o)
     end
   end
   broken({ mid }, size * 0.03, 0.08, 0.5, 0.75)
-  W.hairlines(pt, { G.transform(mid, size * 0.012, -size * 0.004, 0) }, pal.ink, size * 0.006, 0.35, { blend = "multiply", head = 0.02 })
+  W.hairlines(pt, { G.transform(mid, size * 0.012, -size * 0.004, 0) }, Color.recolor(pal.ink, Color.part_ink("leaves")), size * 0.006, 0.35, { blend = "multiply", head = 0.02 })
 
   local lats, forks = {}, {}
   if o.striate then
@@ -189,7 +190,7 @@ local function veins(pt, rng, spine, edge, size, o)
       hatch[#hatch + 1] = { m, q }
     end
   end
-  W.hairlines(pt, hatch, pal.ink, size * 0.007, 0.32, { blend = "multiply", head = 0.01 })
+  W.hairlines(pt, hatch, Color.recolor(pal.ink, Color.part_ink("leaves")), size * 0.007, 0.32, { blend = "multiply", head = 0.01 })
 end
 
 -- Options for a large leaf of length up to `len` heading `ang`, drawn from
@@ -368,7 +369,7 @@ function L.attach(pt, poly, spine, size, at)
   if #at.seg >= 2 then
     local function band(k) return G.smooth(G.ribbon(at.seg, function() return at.w * k / 2 end), true) end
     if at.f < -L.FRONT then
-      pt:fill(band(2.6), pal.deep, 0.14, MULT)
+      pt:fill(band(2.6), Color.recolor(pal.deep, Color.part_ink("leaves")), 0.14, MULT)
       pt:fill(band(1), tone, 0.6)
     else
       pt:fill(band(1), tone, G.clamp(0.45 - 0.35 * at.f, 0.15, 0.45), MULT)

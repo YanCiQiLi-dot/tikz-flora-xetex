@@ -5,6 +5,7 @@
 local G = require("flora.geom")
 local F = require("flora.flower")
 local Paint = require("flora.paint")
+local Color = require("flora.color")
 local Dist = require("flora.dist")
 local Tune = require("flora.tune")
 local pal = Paint.palette
@@ -110,7 +111,9 @@ function Batch:paint(pt, ink)
     pt.clock = clock
     return
   end
-  ink = ink or pal.ink
+  -- palette.sprays recolours the sprays' line work, buds and stars.
+  local tint = Color.part_ink("sprays")
+  ink = Color.recolor(ink or pal.ink, tint)
   if #self.ribbons > 0 then
     pt:fill(self.ribbons, ink, 0.92, { many = true, blend = "multiply" })
   end
@@ -120,7 +123,7 @@ function Batch:paint(pt, ink)
       pt:stroke(self.lines[i], ink, widths[i], 0.85, { many = true, blend = "multiply" })
     end
   end
-  for _, b in ipairs(self.buds) do F.bud(pt, b[1], b[2], b[3], b[4]) end
+  for _, b in ipairs(self.buds) do F.bud(pt, b[1], b[2], b[3], b[4], tint and Color.recolor(pal.deep, tint)) end
   if #self.florets > 0 then F.florets(pt, self.florets) end
   if #self.stars > 0 then
     local paths = {}
@@ -132,7 +135,7 @@ function Batch:paint(pt, ink)
         { "l", x, y - r }, { "l", x - k, y - k }, { "l", x - r, y }, { "l", x - k, y + k }, { "z" },
       }
     end
-    pt:fill(paths, pal.deep, 0.85, { many = true, blend = "multiply" })
+    pt:fill(paths, Color.recolor(pal.deep, tint), 0.85, { many = true, blend = "multiply" })
   end
 end
 
