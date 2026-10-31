@@ -62,6 +62,38 @@ test-lua54:
     {{LUA54}} tests/parity.lua build/parity-54.txt
     cmp build/parity-53.txt build/parity-54.txt && echo "lua54: identical to texlua"
 
+# Assets for the site (site/) made from the example, tex/lorem.tex: the
+# zip, each layout's measured layout and text page for the mixer, page
+# renders, the grow animation and the link-preview image.
+site-bake seed="3":
+    just dist
+    rm -rf site/public/bake site/public/img site/public/media build/site-bake
+    mkdir -p site/public/bake site/public/img site/public/media build/site-bake
+    cp build/tikzflora.zip site/public/
+    for _ in 1 2; do FLORA_SPEC_DIR=build/site-bake lualatex -interaction=nonstopmode -halt-on-error -output-directory=build/site-bake -jobname=base "\def\florseed{ {{seed}} }\def\florapages{0}\input{tex/lorem.tex}" > build/site-bake/base.out || (tail -20 build/site-bake/base.log; exit 1); done
+    for p in 1 2 3 4 6; do cp build/site-bake/spec-$p.lua site/public/bake/; pdftocairo -png -singlefile -r 110 -f $p -l $p build/site-bake/base.pdf site/public/bake/text-$p; done
+    printf '%s\n' '[{"layout":"left","page":4,"label":"Left"},{"layout":"right","page":3,"label":"Right"},{"layout":"centered","page":6,"label":"Centred"},{"layout":"title","page":1,"label":"Title"},{"layout":"surround","page":2,"label":"Surround"}]' > site/public/bake/manifest.json
+    just build lorem {{seed}} >/dev/null; just build lorem {{seed}} 110 >/dev/null
+    pdftocairo -jpeg -jpegopt quality=86 -r 110 build/lorem.pdf site/public/img/page
+    just grow lorem {{seed}} 3 20 8
+    cp build/grow-lorem-3.mp4 site/public/media/grow.mp4
+    cp build/grow-lorem-3.gif site/public/media/grow.gif
+    magick -size 1200x630 xc:'#f4f1ea' \( site/public/img/page-1.jpg -resize x560 \) -geometry +12+35 -composite \( site/public/img/page-2.jpg -resize x560 \) -geometry +402+35 -composite \( site/public/img/page-3.jpg -resize x560 \) -geometry +792+35 -composite -quality 86 site/public/img/og.jpg
+
+# The site with hot reload at http://127.0.0.1:5174/ (run site-bake first).
+site-dev:
+    cd site && npm ci --no-audit --no-fund --silent && npx vite --port 5174 --host 127.0.0.1
+
+# Drives the built site in headless Chrome (site/tests/e2e.mjs).
+test-site:
+    cd site && npm ci --no-audit --no-fund --silent && npm run build --silent
+    node site/tests/e2e.mjs
+
+# Builds and publishes the site at https://flora.alpacasoft.dev (Cloudflare
+# Workers; wrangler creates the DNS record for the custom domain).
+site-deploy: site-bake
+    cd site && npm ci --no-audit --no-fund --silent && npm run build --silent && npx wrangler deploy
+
 # Integration test for the shipout measurer (needs lualatex).
 test-tex:
     mkdir -p build

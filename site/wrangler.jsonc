@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tikz-flora",
+  // Static assets with a small Worker for video byte ranges (worker.js).
+  // The custom_domain route makes wrangler create the DNS record and the
+  // certificate for flora.alpacasoft.dev itself.
+  "main": "worker.js",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "dist",
+    "run_worker_first": ["/media/*"]
+  },
+  "routes": [{ "pattern": "flora.alpacasoft.dev", "custom_domain": true }]
+}

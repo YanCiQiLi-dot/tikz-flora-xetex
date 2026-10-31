@@ -1,0 +1,22 @@
+{
+  "name": "tikz-flora-site",
+  "private": true,
+  "type": "module",
+  "description": "flora.alpacasoft.dev: the guide and live mixer for tikz-flora",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "pdfjs-dist": "6.4.299",
+    "svelte": "5.57.3",
+    "wasmoon": "1.16.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "playwright-core": "1.64.1",
+    "vite": "8.3.5",
+    "wrangler": "4.95.0"
+  }
+}
