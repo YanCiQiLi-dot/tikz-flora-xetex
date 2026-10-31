@@ -71,6 +71,13 @@ local T = {
     leaflet_spacing = { 40, 72 }, -- pt between small leaflets along the stems, picked per gap
     leaflet_size = 17.5,    -- length of those leaflets, pt
   },
+  -- How much of each kind of growth a page gets (mix.lua): 1 is the usual
+  -- amount, 0 none. \florasetup{mix={...}} overrides these per document.
+  mix = {
+    bloom = 1, soft = 1, lily = 1, ghost = 1, umbel = 1, cyme = 1, gyps = 1,
+    leaves = 1, leaflets = 1, sprays = 1, curls = 1, density = 1,
+    bee = 0, butterfly = 0, bird = 0, snail = 0,
+  },
   -- Size distributions (dist.lua): a smooth curve through control points
   -- {x, weight}, x running 0-1 across the range, so each kind of element
   -- comes in a mix of sizes.
@@ -193,6 +200,23 @@ T._doc = {
   ["compose.curls"] = { "Curls", "How often tendrils and loop flourishes sprout from the stems (1 = default)." },
   ["compose.leaflet_size"] = { "Leaflet size", "Length of the small leaflets along the stems, in pt." },
   ["compose.leaflet_spacing"] = { "Leaflet spacing", "Distance between neighbouring leaflets along the stems, in pt, picked per gap. Larger is sparser." },
+  mix = { "Mix", "How much of each kind of growth a page gets: 1 is the usual amount, 0 none, 2 about twice as much." },
+  ["mix.bloom"] = { "Small blooms", "Five-petalled blooms in the holes." },
+  ["mix.soft"] = { "Soft blooms", "Pale, wide-petalled blooms." },
+  ["mix.lily"] = { "Lilies", "Lilies seen from the side." },
+  ["mix.ghost"] = { "Ghost blooms", "Faint blooms behind the stems." },
+  ["mix.umbel"] = { "Umbels", "Domed clusters of florets on fine rays." },
+  ["mix.cyme"] = { "Forget-me-nots", "Curled sprays of small florets." },
+  ["mix.gyps"] = { "Baby's breath", "Clouds of tiny florets on hairline stems." },
+  ["mix.leaves"] = { "Leaves", "Large leaves along the stems." },
+  ["mix.leaflets"] = { "Leaflets", "Small leaflets along the stems." },
+  ["mix.sprays"] = { "Sprays", "Fine sprays filling the gaps." },
+  ["mix.curls"] = { "Curls", "Tendrils and loop flourishes." },
+  ["mix.density"] = { "Density", "How full the border grows overall. Below 1 is airier." },
+  ["mix.bee"] = { "Bees", "Bees on dotted flight paths." },
+  ["mix.butterfly"] = { "Butterflies", "Butterflies in open spaces." },
+  ["mix.bird"] = { "Birds", "A songbird perched on its own twig." },
+  ["mix.snail"] = { "Snails", "A snail climbing the main stem." },
   sizes = { "Sizes", "How sizes are mixed for each kind of element, as curves: higher points are sizes that occur more often." },
   ["sizes.gyps"] = { "Baby's breath", "Share of its gap a baby's-breath spray fills: small sprigs to full clouds." },
   ["sizes.leaf"] = { "Leaves", "Length of large leaves, as a multiple of the longest leaf (Leaf length)." },

@@ -17,6 +17,7 @@ local Tune = require("flora.tune")
 local Plant = require("flora.plant")
 local Brush = require("flora.brush")
 local Frames = require("flora.frames")
+local Mix = require("flora.mix")
 local pal = Paint.palette
 
 local C = {}
@@ -33,7 +34,7 @@ local function plant(spec, pt)
   local mw = m.x1 - m.x0
   local top = spec.header_y or spec.text.y1
 
-  local cfg = Tune.compose
+  local cfg = Mix.cfg(Tune.compose, spec.mix)
   local R = G.clamp(mw * cfg.hero, 28, 80)
   -- As in the reference, the hero's heart sits just below the running-head
   -- rule, so the bloom fills the top corner of the page up to the paper's
@@ -53,7 +54,7 @@ local function plant(spec, pt)
   end
 
   local gest = Layout.gesture(rng:fork("gesture"), m, hero)
-  local dens = gest.density
+  local dens = Mix.density(gest.density, spec.mix)
   -- The cartouche's place, at the reference's size, is kept clear before
   -- the plant grows, so the stems bend around it as the reference's do.
   local ylo, span = m.y0, hero[2] - m.y0
@@ -102,7 +103,7 @@ local function plant(spec, pt)
   local back, blooms, leaves, leaflet_items = {}, {}, {}, {}
   local ghost
   local ctx = {
-    cfg = cfg, mw = mw, dens = dens, ylo = ylo, span = span, strands = strands, stems = stems,
+    cfg = cfg, mix = spec.mix, mw = mw, dens = dens, ylo = ylo, span = span, strands = strands, stems = stems,
     stem_batch = stem_batch, sprays = spray_batch, blooms = blooms, back = back,
     leaves = leaves, leaflets = leaflet_items,
   }
@@ -113,7 +114,8 @@ local function plant(spec, pt)
   ctx.counts = {}
   do
     local gr = rng:fork("ghost")
-    if gr:chance(0.85) then
+    local gw = Mix.weight(spec.mix, "ghost")
+    if gw > 0 and gr:chance(0.85 * math.min(1, gw)) then
       for _ = 1, 8 do
         local r = mw * gr:range(0.23, 0.28)
         local x = m.x0 + mw * gr:range(0.35, 0.5)
@@ -198,7 +200,7 @@ local function plant(spec, pt)
   -- Blooms and sprays on branches to the largest holes, then details.
   Grow.holes(g, grow_rng:fork("holes"), ctx)
   Grow.details(g, grow_rng:fork("details"), ctx)
-  for _, s in ipairs(strands) do
+  for _, s in ipairs(cfg.no_leaflets and {} or strands) do
     for _, it in ipairs(S.leaflet_items(rng, s.pts, cfg.leaflet_spacing, cfg.leaflet_size)) do
       if g:room(it[1], it[2]) >= it[4] * 0.3 and rng:next() < dens(it[1], it[2]) then
         leaflet_items[#leaflet_items + 1] = it
@@ -256,6 +258,9 @@ local function plant(spec, pt)
   pt.coverage = g:coverage()
   pt.panel = panel
   pt.ghost = ghost
+  -- Motifs placed by kind (grow.lua), and the large leaves, for tests.
+  pt.counts = ctx.counts
+  pt.counts.leaves = #leaves
   return pt
 end
 
@@ -265,6 +270,11 @@ end
 -- coordinates (tests use it to check nothing lands on text); on_frame(f),
 -- when given, is told each frame before its plant is painted.
 function C.page(spec)
+  return Mix.with_palette(spec.palette, function() return C.frames(spec) end)
+end
+
+-- C.page, after the page's palette is in place.
+function C.frames(spec)
   local frames = Frames.of(spec)
   if #frames == 1 and not frames[1].map then return plant(spec) end
   local pt = Paint.new({ backend = os.getenv("FLORA_BACKEND") })

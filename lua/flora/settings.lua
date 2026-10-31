@@ -1,14 +1,22 @@
 -- Document settings from \florasetup and \florathispage: a key=value list,
 -- parsed and checked here so mistakes are reported with the key's name.
 --
---   layout   left, right, centered, split, title or surround (frames.lua)
---   seed     a number, or random
---
--- Other keys are registered by the modules they steer (M.define).
+--   layout    left, right, centered, split, title or surround (frames.lua)
+--   seed      a number, or random
+--   mix       weights per kind of growth, e.g. mix={lily=2, umbel=0}
+--             (mix.lua lists the kinds)
+--   density   how full the border grows (mix.density); below 1 is airier
+--   visitors  the weight of every visitor at once (bee, butterfly, bird,
+--             snail); mix={bee=0} after it still turns one off
+--   palette   what paints each part, e.g. palette={leaves=green,
+--             hero=kon-peki}: look, an ink group or one ink (inks.lua)
 
 local M = {}
 
 local Frames = require("flora.frames")
+local Tune = require("flora.tune")
+local Inks = require("flora.inks")
+local Mix = require("flora.mix")
 
 -- Key name -> function(value string) returning the parsed value, or nil
 -- and a message.
@@ -26,6 +34,57 @@ end)
 M.define("seed", function(v)
   if v == "random" or tonumber(v) then return v end
   return nil, "seed must be a number or random"
+end)
+
+local function weight(v)
+  local n = tonumber(v)
+  if n and n >= 0 and n <= 10 then return n end
+end
+
+local function known(t)
+  local out = {}
+  for k in pairs(t) do out[#out + 1] = k end
+  table.sort(out)
+  return table.concat(out, ", ")
+end
+
+M.define("density", function(v)
+  local n = weight(v)
+  if n then return n end
+  return nil, "density must be a number from 0 to 10"
+end)
+
+-- A shorthand for every visitor's weight.
+M.define("visitors", function(v)
+  local n = weight(v)
+  if n then return n end
+  return nil, "visitors must be a number from 0 to 10"
+end)
+
+M.define("mix", function(v)
+  local t = {}
+  for _, kv in ipairs(M.parse_list(v)) do
+    local k, w = kv[1], weight(kv[2])
+    if Tune.mix[k] == nil then return nil, "no kind \"" .. k .. "\" (kinds: " .. known(Tune.mix) .. ")" end
+    if not w then return nil, k .. " needs a weight from 0 to 10" end
+    t[k] = w
+  end
+  return t
+end)
+
+M.define("palette", function(v)
+  local t = {}
+  for _, kv in ipairs(M.parse_list(v)) do
+    local part, ink = kv[1], kv[2]
+    if Tune.color.palette[part] == nil then
+      return nil, "no part \"" .. part .. "\" (parts: " .. known(Tune.color.palette) .. ")"
+    end
+    if not (ink == "look" or Inks.groups[ink] or Inks.ramps[ink]) then
+      return nil, "\"" .. tostring(ink) .. "\" is not look, an ink group or an ink name"
+    end
+    t[part] = ink
+  end
+  return t
 end)
 
 local function trim(s)
@@ -78,7 +137,15 @@ function M.parse(s)
     if v == nil then error(string.format("key \"%s\" needs a value", k)) end
     local val, msg = parse(v)
     if val == nil then error(string.format("%s: %s (got \"%s\")", k, msg, v)) end
-    t[k] = val
+    if k == "density" then
+      t.mix = M.merge({ mix = t.mix }, { mix = { density = val } }).mix
+    elseif k == "visitors" then
+      local m = {}
+      for _, name in ipairs(Mix.visitors) do m[name] = val end
+      t.mix = M.merge({ mix = t.mix }, { mix = m }).mix
+    else
+      t[k] = M.merge({ [k] = t[k] }, { [k] = val })[k]
+    end
   end
   return t
 end

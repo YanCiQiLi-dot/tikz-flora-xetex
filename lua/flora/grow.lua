@@ -15,6 +15,7 @@ local Fill = require("flora.fill")
 local Plant = require("flora.plant")
 local Tune = require("flora.tune")
 local Dist = require("flora.dist")
+local Mix = require("flora.mix")
 
 local Grow = {}
 local pi, min, max, floor = math.pi, math.min, math.max, math.floor
@@ -193,7 +194,7 @@ function Grow.tips(g, rng, strands, ctx)
       local p, a = st.tip[1], st.tip[2]
       local r = rng:fork("tip" .. k)
       local len = min(110, ctx.mw * 0.7) * cfg.leaf_size * Dist.sample(r, Tune.sizes.leaf)
-      local paint = len >= 20 and Grow.leaf(g, r, p, a, len, cfg.leaf_overlap, { pts = st.pts, t = 1, width = st.width })
+      local paint = len >= 20 and cfg.leaves > 0 and Grow.leaf(g, r, p, a, len, cfg.leaf_overlap, { pts = st.pts, t = 1, width = st.width })
       if paint then
         ctx.leaves[#ctx.leaves + 1] = paint
       else
@@ -253,9 +254,9 @@ end
 -- The motifs a hole may take: weight, cap (nil: limited only by the spray
 -- cap), and the radius range it comes in. Feature sizes scale with the
 -- margin width and tune.compose.features.
-local function motifs(mw, cfg, rng)
+local function motifs(mw, cfg, rng, mix)
   local kr = rng:range(cfg.features[1], cfg.features[2])
-  return {
+  local all = {
     { kind = "bloom", w = 3, cap = cfg.small_blooms, rmin = 9, rmax = mw * 0.13 * kr },
     { kind = "soft", w = 1.5, cap = 2, rmin = 10, rmax = mw * 0.12 * kr },
     { kind = "lily", w = 1.2, cap = 1, rmin = 16, rmax = mw * 0.21 * kr },
@@ -264,6 +265,10 @@ local function motifs(mw, cfg, rng)
     { kind = "cyme", w = 3, rmin = 7, rmax = 22, spray = true },
     { kind = "gyps", w = 4, rmin = 5, rmax = 30, spray = true },
   }
+  -- Each motif's weight and cap follow the page's mix (mix.lua).
+  local out = {}
+  for _, m in ipairs(all) do out[#out + 1] = Mix.motif(m, mix) end
+  return out
 end
 
 -- A bloom on a stalk grown from stem point s (distance sd) to centre c.
@@ -285,7 +290,7 @@ function Grow.holes(g, rng, ctx)
   local cfg = ctx.cfg
   local reach = reach_map(g)
   for _, st in ipairs(ctx.stems) do reach.add(st) end
-  local kinds = motifs(ctx.mw, cfg, rng:fork("motifs"))
+  local kinds = motifs(ctx.mw, cfg, rng:fork("motifs"), ctx.mix)
   local counts, sprays, rejected = ctx.counts or {}, 0, {}
   local f, nx, c = g.f, g.nx, g.c
   local function floor_at(x, y)
