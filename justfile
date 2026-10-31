@@ -25,6 +25,11 @@ test:
     {{PYTHON}} -I tests/test_bake.py
     {{PYTHON}} -I tests/test_stemcompare.py
 
+# "Watch it grow": page PAGE of tex/NAME.tex as its flora grows, written to
+# build/grow-NAME-PAGE.mp4 and .gif (tools/grow.sh; needs ffmpeg).
+grow name="demo" seed="1" page="1" fps="20" secs="8":
+    tools/grow.sh {{name}} {{seed}} {{page}} {{fps}} {{secs}}
+
 # Integration test for the shipout measurer (needs lualatex).
 test-tex:
     mkdir -p build

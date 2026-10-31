@@ -252,8 +252,9 @@ function V.place(g, rng, ctx, strands)
   if not any then return end
   ctx.visitors = ctx.visitors or {}
   local placed = {}
-  local function add(kind, fn)
+  local function add(kind, fn, x, y)
     ctx.visitors[#ctx.visitors + 1] = fn
+    if ctx.pos then ctx.pos[fn] = { x, y } end
     placed[kind] = (placed[kind] or 0) + 1
   end
   local main = strands[1]
@@ -275,7 +276,7 @@ function V.place(g, rng, ctx, strands)
         local c = G.polar(p, a + side * pi / 2, L * 0.4)
         g:disc(c[1], c[2], L * 0.55, 1)
         local fr = r:fork("paint")
-        add("snail", function(pt) V.snail(pt, fr, p[1], p[2], a, side, L) end)
+        add("snail", function(pt) V.snail(pt, fr, p[1], p[2], a, side, L) end, p[1], p[2])
         break
       end
     end
@@ -305,7 +306,7 @@ function V.place(g, rng, ctx, strands)
           g:disc(body[1], body[2], L * 0.5, 1)
           local dir = math.cos(out) >= 0 and 1 or -1
           local fr = r:fork("paint")
-          add("bird", function(pt) V.bird(pt, fr, tip[1], tip[2], dir, L) end)
+          add("bird", function(pt) V.bird(pt, fr, tip[1], tip[2], dir, L) end, tip[1], tip[2])
           break
         end
       end
@@ -327,7 +328,7 @@ function V.place(g, rng, ctx, strands)
         local ang = pi / 2 + r:range(-0.7, 0.7)
         local open = r:range(0.7, 1)
         g:disc(x, y, S * 0.55, 1)
-        add(kind, function(pt) V.butterfly(pt, fr, x, y, ang, S, open) end)
+        add(kind, function(pt) V.butterfly(pt, fr, x, y, ang, S, open) end, x, y)
       else
         local L = r:range(16, 20)
         local ang = r:range(0, 2 * pi)
@@ -337,7 +338,7 @@ function V.place(g, rng, ctx, strands)
         add(kind, function(pt)
           V.paint_trail(pt, trail)
           V.bee(pt, fr, x, y, ang, L)
-        end)
+        end, x, y)
       end
     end
   end

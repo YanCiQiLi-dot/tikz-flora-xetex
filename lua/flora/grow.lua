@@ -168,6 +168,7 @@ function Grow.node_leaves(g, rng, strands, ctx)
         { pts = pts, t = d / total, width = st.width })
       if paint then
         ctx.leaves[#ctx.leaves + 1] = paint
+        if ctx.pos then ctx.pos[paint] = p end
       else
         local q = G.polar(p, ang, 7)
         local room = g:room(q[1], q[2])
@@ -197,6 +198,7 @@ function Grow.tips(g, rng, strands, ctx)
       local paint = len >= 20 and cfg.leaves > 0 and Grow.leaf(g, r, p, a, len, cfg.leaf_overlap, { pts = st.pts, t = 1, width = st.width })
       if paint then
         ctx.leaves[#ctx.leaves + 1] = paint
+        if ctx.pos then ctx.pos[paint] = p end
       else
         local tmp = S.batch()
         S.cyme(tmp, r, p, a, r:range(14, 22), r:chance(0.5) and 1 or -1)
@@ -362,13 +364,16 @@ function Grow.holes(g, rng, ctx)
             ctx.blooms[#ctx.blooms + 1] = function(pt)
               F.tilted(pt, fr, x, y, r, facing, 1.0, { kind = "lance", petals = 6, width = 0.36 })
             end
+            if ctx.pos then ctx.pos[ctx.blooms[#ctx.blooms]] = { x, y } end
           elseif pick.kind == "ghost" then
             ctx.back[#ctx.back + 1] = function(pt)
               F.bloom(pt, fr, x, y, r, { kind = "ghost", look = "ghost", width = 0.55 })
             end
+            if ctx.pos then ctx.pos[ctx.back[#ctx.back]] = { x, y } end
           else
             local style = pick.kind == "soft" and "soft" or F.pick_style(fr, { "fan", "round" })
             ctx.blooms[#ctx.blooms + 1] = function(pt) F.bloom(pt, fr, x, y, r * 0.8, { style = style }) end
+            if ctx.pos then ctx.pos[ctx.blooms[#ctx.blooms]] = { x, y } end
           end
         end
       end

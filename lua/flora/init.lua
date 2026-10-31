@@ -98,6 +98,7 @@ function M.page(a)
     header_y = a.header_y and pt_of(a.header_y),
     seed = M.seed(set.seed or a.seed, a.page),
     lines = lines, layout = set.layout, page = a.page, mix = set.mix, palette = set.palette,
+    doc_seed = tostring(set.seed or a.seed),
   }
   if marks and marks["title-start"] and lines then
     spec.title = require("flora.frames").between(lines, marks["title-start"], marks["title-end"] or 0)

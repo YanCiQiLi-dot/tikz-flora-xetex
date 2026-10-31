@@ -82,7 +82,34 @@ function Batch:merge(other)
   append(self.stars, other.stars)
 end
 
+-- Only the items already born on a growth clock (clock.lua), when one is
+-- set on the painter: each pops in when the front reaches its first point.
+function Batch:born(clock)
+  local b = S.batch()
+  local function first(c)
+    local op = c[1]
+    return op and clock:born(op[2], op[3])
+  end
+  for _, c in ipairs(self.ribbons) do if first(c) then b.ribbons[#b.ribbons + 1] = c end end
+  for i = 1, 3 do
+    for _, c in ipairs(self.lines[i]) do if first(c) then b.lines[i][#b.lines[i] + 1] = c end end
+  end
+  for _, name in ipairs({ "florets", "buds", "stars" }) do
+    for _, it in ipairs(self[name]) do
+      if clock:born(it[1], it[2]) then b[name][#b[name] + 1] = it end
+    end
+  end
+  return b
+end
+
 function Batch:paint(pt, ink)
+  if pt.clock then
+    local clock = pt.clock
+    pt.clock = nil
+    self:born(clock):paint(pt, ink)
+    pt.clock = clock
+    return
+  end
   ink = ink or pal.ink
   if #self.ribbons > 0 then
     pt:fill(self.ribbons, ink, 0.92, { many = true, blend = "multiply" })

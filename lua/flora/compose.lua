@@ -19,6 +19,7 @@ local Brush = require("flora.brush")
 local Frames = require("flora.frames")
 local Mix = require("flora.mix")
 local Visitor = require("flora.visitor")
+local Clock = require("flora.clock")
 local pal = Paint.palette
 
 local C = {}
@@ -104,7 +105,7 @@ local function plant(spec, pt)
   local back, blooms, leaves, leaflet_items = {}, {}, {}, {}
   local ghost
   local ctx = {
-    cfg = cfg, mix = spec.mix, mw = mw, dens = dens, ylo = ylo, span = span, strands = strands, stems = stems,
+    cfg = cfg, mix = spec.mix, pos = spec.grow and setmetatable({}, { __mode = "k" }), mw = mw, dens = dens, ylo = ylo, span = span, strands = strands, stems = stems,
     stem_batch = stem_batch, sprays = spray_batch, blooms = blooms, back = back,
     leaves = leaves, leaflets = leaflet_items,
   }
@@ -132,6 +133,7 @@ local function plant(spec, pt)
           g:disc(x, y, r, 0.8)
           local fr = gr:fork("bloom")
           back[#back + 1] = function(pt) F.bloom(pt, fr, x, y, r, { kind = "ghost", look = "ghost", width = 0.55 }) end
+          if ctx.pos then ctx.pos[back[#back]] = { x, y } end
           ctx.counts.ghost = 1
           ghost = { x, y, r }
           break
@@ -233,36 +235,57 @@ local function plant(spec, pt)
     fn()
     pt:end_group()
   end
+  -- A "watch it grow" frame (spec.grow below 1) paints only what the growth
+  -- front has reached (clock.lua); otherwise every element paints in full.
+  local clock = spec.grow and spec.grow < 1 and Clock.new(g, stems, spec.grow) or nil
+  pt.clock = clock
+  local function draw(f, dur, delay)
+    if clock then clock:draw(pt, f, ctx.pos[f], dur, delay) else f(pt) end
+  end
   layer("back", function()
-    for _, f in ipairs(back) do f(pt) end
+    for _, f in ipairs(back) do draw(f, 0.1) end
   end)
   -- Bottom to top, as in the reference: stems and sprays, then leaflets,
   -- then leaves, then blooms. Each leaf knocks out what lies under it.
   layer("stems", function()
     local sr = rng:fork("stem paint")
-    for _, s in ipairs(painted) do Brush.stem(pt, sr, s.pts, s.width, Tune.plant) end
+    for _, s in ipairs(painted) do
+      if clock then
+        clock:stem(pt, s, Tune.plant.root_width, function(p) Brush.stem(p, sr, s.pts, s.width, Tune.plant) end)
+      else
+        Brush.stem(pt, sr, s.pts, s.width, Tune.plant)
+      end
+    end
     stem_batch:paint(pt)
   end)
   -- Fine sprays are pen work in a diluted ink, lighter than the stems.
   layer("sprays", function() spray_batch:paint(pt, Paint.mix(pal.ink, pal.sky, 0.4)) end)
-  layer("leaflets", function() L.leaflets(pt, rng:fork("leaflets"), leaflet_items) end)
+  layer("leaflets", function()
+    if clock then
+      clock:leaflets(pt, rng:fork("leaflets"), leaflet_items, L.leaflets)
+    else
+      L.leaflets(pt, rng:fork("leaflets"), leaflet_items)
+    end
+  end)
   layer("leaves", function()
-    for _, f in ipairs(leaves) do f(pt) end
+    for _, f in ipairs(leaves) do draw(f, 0.06) end
   end)
   layer("blooms", function()
-    for _, f in ipairs(blooms) do f(pt) end
-    F.hero(pt, rng:fork("hero"), hero)
+    for _, f in ipairs(blooms) do draw(f, 0.1, 10) end
+    local hf = function(p) F.hero(p, rng:fork("hero"), hero) end
+    if clock then clock:draw(pt, hf, hero, 0.15) else hf(pt) end
   end)
   if ctx.visitors then
     layer("visitors", function()
-      for _, f in ipairs(ctx.visitors) do f(pt) end
+      for _, f in ipairs(ctx.visitors) do draw(f, 0.08, clock and clock.reach * 0.25) end
     end)
   end
   layer("ornaments", function()
-    for _, f in ipairs(orn) do f(pt) end
-    O.sparkles(pt, sparkles)
-    O.compass(pt, midfoot[1], midfoot[2], 7, { hair = 0.9, ring = 0 })
+    for _, f in ipairs(orn) do draw(f, 0.15) end
+    O.sparkles(pt, clock and clock:sparkles(sparkles) or sparkles)
+    draw(function(p) O.compass(p, midfoot[1], midfoot[2], 7, { hair = 0.9, ring = 0 }) end, 0.15)
   end)
+  pt.clock = nil
   pt.coverage = g:coverage()
   pt.panel = panel
   pt.ghost = ghost
