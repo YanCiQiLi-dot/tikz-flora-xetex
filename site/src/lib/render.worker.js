@@ -2,7 +2,7 @@
 // in WebAssembly. `just test-lua54` checks it paints exactly what LuaLaTeX
 // paints. Messages:
 //   { id, kind: "meta" }            -> { id, meta }  settings to offer
-//   { id, kind: "render", spec, seed, page, mix, palette }
+//   { id, kind: "render", spec, seed, page, mix, palette, spin }
 //                                   -> { id, pdf: Uint8Array, ms }
 import { LuaFactory } from "wasmoon";
 import wasmUrl from "wasmoon/dist/glue.wasm?url";
@@ -70,7 +70,7 @@ onmessage = async (e) => {
       postMessage({ id, meta: JSON.parse(await l.doString(META)) });
       return;
     }
-    const { spec, seed, page, mix, palette } = e.data;
+    const { spec, seed, page, mix, palette, spin } = e.data;
     const t0 = performance.now();
     l.global.set("SPEC", spec);
     l.global.set("SEED", String(seed));
@@ -84,6 +84,7 @@ onmessage = async (e) => {
       spec.seed = Init.seed(SEED, ${Number(page) | 0})
       spec.mix = ${table(mix)}
       spec.palette = ${table(palette)}
+      spec.spin = ${Number(spin) | 0}
       Paint.reset_resources()
       return Pdf.encode(Compose.page(spec), spec.width, spec.height)`);
     const bytes = new TextEncoder().encode(pdf);

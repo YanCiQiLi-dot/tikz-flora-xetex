@@ -4,6 +4,8 @@
 // every linked asset (zip, media, images) is served.
 //
 //   just test-site      (bakes and builds first; needs Google Chrome)
+//   SITE_URL=https://flora.alpacasoft.dev/ node site/tests/e2e.mjs
+//                       (checks a deployed site instead of a local preview)
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +13,7 @@ import { chromium } from "playwright-core";
 
 const SITE = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = process.env.SITE_TEST_PORT || "4317";
-const URL = `http://127.0.0.1:${PORT}/`;
+const URL = process.env.SITE_URL || `http://127.0.0.1:${PORT}/`;
 
 let failures = 0;
 function check(cond, msg) {
@@ -21,7 +23,7 @@ function check(cond, msg) {
   }
 }
 
-const server = spawn("npx", ["vite", "preview", "--port", PORT, "--strictPort", "--host", "127.0.0.1"], {
+const server = process.env.SITE_URL ? null : spawn("npx", ["vite", "preview", "--port", PORT, "--strictPort", "--host", "127.0.0.1"], {
   cwd: SITE, stdio: ["ignore", "ignore", "pipe"],
 });
 let browser;
@@ -56,22 +58,44 @@ try {
 
   // Turning everything but the stems off grows a sparser page, and the
   // line follows the controls.
-  const before = await page.locator(".out code").textContent();
+  const before = await page.locator(".controls pre code").textContent();
+
+  // Scrolling the controls leaves the page viewer where it is.
+  const sheetTop = () => page.evaluate(() => document.querySelector(".sheet").getBoundingClientRect().top);
+  await page.evaluate(() => document.querySelector("#mixer").scrollIntoView({ behavior: "instant" }));
+  await page.waitForTimeout(200);
+  const top0 = await sheetTop();
+  const scrollY0 = await page.evaluate(() => window.scrollY);
+  await page.locator(".controls").hover();
+  await page.mouse.wheel(0, 600);
+  await page.waitForTimeout(300);
+  const scrolled = await page.evaluate(() => document.querySelector(".controls").scrollTop);
+  check(scrolled > 100, `the controls did not scroll (${scrolled})`);
+  check(Math.abs((await sheetTop()) - top0) < 1 && (await page.evaluate(() => window.scrollY)) === scrollY0,
+    `scrolling the controls moved the page viewer (top ${top0} -> ${await sheetTop()}, scrollY ${scrollY0} -> ${await page.evaluate(() => window.scrollY)})`);
   for (const name of ["Leaves", "Baby's breath", "Forget-me-nots", "Sprays"]) {
-    const slider = page.locator(".row.slider", { hasText: name }).locator("input");
+    const slider = page.locator(".controls .row", { hasText: name }).locator('input[type="range"]');
     await slider.fill("0");
   }
   await page.locator(".status", { hasText: "Growing" }).waitFor({ timeout: 10000 });
   await page.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
   const second = await inked();
   check(second < first * 0.85, `zero weights did not thin the page (${first} -> ${second})`);
-  const line = await page.locator(".out code").textContent();
+  const line = await page.locator(".controls pre code").textContent();
   check(line !== before && /leaves=0/.test(line) && /gyps=0/.test(line), `setup line does not follow the controls: ${line}`);
   check(line.startsWith("\\florasetup{layout=left, seed="), `setup line has the wrong head: ${line}`);
+
+  // Spinning colours keeps the shapes: the inked area barely changes, the
+  // line names random inks and a spin.
+  await page.getByRole("button", { name: "Spin colours" }).click();
+  await page.locator(".status", { hasText: "Growing" }).waitFor({ timeout: 10000 });
+  await page.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
+  const spun = await page.locator(".controls pre code").textContent();
+  check(/hero=random/.test(spun) && /spin=1/.test(spun), `spin is not in the setup line: ${spun}`);
   check(errors.length === 0, "page errors: " + errors.join("; "));
 } finally {
   if (browser) await browser.close();
-  server.kill();
+  server?.kill();
 }
 if (failures) {
   console.error(`site: ${failures} failure(s)`);

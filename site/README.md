@@ -17,7 +17,9 @@ listed in the root README.
 - `just test-site`: build the site and drive it in headless Chrome
   (`tests/e2e.mjs`). The test checks the assets and the Open Graph image,
   grows a page in the mixer, checks that the controls scroll without
-  moving the page, and checks the setup line the mixer writes.
+  moving the page, and checks the setup line the mixer writes. Set
+  `SITE_URL=https://flora.alpacasoft.dev/` and run
+  `node site/tests/e2e.mjs` to check the deployed site instead.
 - `just site-deploy`: bake, build and publish with `npx wrangler deploy`.
   It needs a `wrangler login` to the Cloudflare account that holds
   `alpacasoft.dev`. Wrangler creates the DNS record for the custom domain

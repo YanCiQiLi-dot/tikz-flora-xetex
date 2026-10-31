@@ -1,41 +1,40 @@
-/* Colour tokens: an ink-and-paper palette, with a dark variant. The page
-   previews stay paper-white in both, as printed pages are. */
+/* Paper and ink. Page renders stay paper-white in both themes, as printed
+   pages are. */
 :root {
-  --paper: #f4f1ea;
-  --sheet: #fffdf8;
-  --ink: #15264a;
-  --muted: #56617c;
-  --blue: #2350b8;
-  --gold: #9c7a45;
-  --rule: #d9d4c7;
-  --code-bg: #ebe7dc;
+  --paper: #f5f2eb;
+  --ink: #1b2440;
+  --muted: #5d6680;
+  --blue: #2a4fa8;
+  --rule: #dcd6c8;
+  --code-bg: #ece8de;
   --display: "IM Fell English", "Iowan Old Style", Georgia, serif;
   --body: "STIX Two Text", "Iowan Old Style", Georgia, serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --bar: 48px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #0f1424; --sheet: #161d31; --ink: #e5e9f4; --muted: #9ea8c2;
-    --blue: #93b2f3; --gold: #d6b47c; --rule: #2a3350; --code-bg: #1b2440;
+    --paper: #12161f; --ink: #e3e6ee; --muted: #9aa2b6; --blue: #9db5ee;
+    --rule: #2b3242; --code-bg: #1c2230;
     color-scheme: dark;
   }
 }
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; scroll-padding-top: var(--bar); }
 body {
   margin: 0; background: var(--paper); color: var(--ink);
-  font-family: var(--body); font-size: 1.08rem; line-height: 1.6;
+  font-family: var(--body); font-size: 1.05rem; line-height: 1.6;
 }
 a { color: var(--blue); }
-h1, h2, h3 { font-family: var(--display); font-weight: 400; line-height: 1.1; text-wrap: balance; }
-h2 { font-size: 2rem; margin: 0 0 .6rem; }
-h3 { font-size: 1.35rem; margin: 1.6rem 0 .4rem; }
-code, pre { font-family: var(--mono); font-size: .86em; }
-code { background: var(--code-bg); padding: .08em .3em; border-radius: 3px; }
-pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
+h1, h2, h3 { font-family: var(--display); font-weight: 400; line-height: 1.15; }
+h2 { font-size: 1.7rem; margin: 0 0 .8rem; }
+h3 { font-size: 1.2rem; margin: 1.8rem 0 .4rem; }
+code, pre { font-family: var(--mono); font-size: .85em; }
+code { background: var(--code-bg); padding: .05em .3em; border-radius: 2px; }
+pre { background: var(--code-bg); padding: .8rem 1rem; overflow-x: auto; line-height: 1.45; }
 pre code { background: none; padding: 0; }
-.wrap { max-width: 1120px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left)); }
-.col { max-width: 70ch; }
-.eyebrow { font-family: var(--mono); font-size: .74rem; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 max(16px, env(safe-area-inset-left)); }
+.col { max-width: 66ch; }
 button, select, input { font: inherit; color: inherit; }
+.paper { background: #fff; }

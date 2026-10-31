@@ -75,6 +75,8 @@ site-bake seed="3":
     printf '%s\n' '[{"layout":"left","page":4,"label":"Left"},{"layout":"right","page":3,"label":"Right"},{"layout":"centered","page":6,"label":"Centred"},{"layout":"title","page":1,"label":"Title"},{"layout":"surround","page":2,"label":"Surround"}]' > site/public/bake/manifest.json
     just build lorem {{seed}} >/dev/null; just build lorem {{seed}} 110 >/dev/null
     pdftocairo -jpeg -jpegopt quality=86 -r 110 build/lorem.pdf site/public/img/page
+    texlua tools/preview.lua build/site-bake/spec-4.lua doc 4 build/site-bake/flora-4.pdf
+    pdftocairo -png -transp -singlefile -r 90 build/site-bake/flora-4.pdf site/public/img/flora-margin
     just grow lorem {{seed}} 3 20 8
     cp build/grow-lorem-3.mp4 site/public/media/grow.mp4
     cp build/grow-lorem-3.gif site/public/media/grow.gif

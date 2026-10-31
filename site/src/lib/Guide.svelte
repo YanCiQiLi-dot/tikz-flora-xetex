@@ -39,6 +39,7 @@ Some text.
     ["density", "0 to 10", "Fuller above 1, airier below."],
     ["visitors", "0 to 10", "The weight of every visitor at once: bees, butterflies, birds and snails."],
     ["palette", "{part=ink, …}", "What paints the hero, blooms, leaves, leaflets and stems."],
+    ["spin", "a whole number", "Picks the random inks again. The shapes stay where they are."],
   ];
   const kinds = "bloom, soft, lily, ghost, umbel, cyme (forget-me-nots), gyps (baby's breath), leaves, leaflets, sprays, curls, density, bee, butterfly, bird, snail";
   const layouts = [
@@ -114,9 +115,11 @@ Some text.
   <p>Mix kinds: {kinds}. Visitors are off unless you give them weight.</p>
   <p>
     Palette values are <code>look</code> (the default gradients), an ink
-    group (blue, blue-grey, teal, green, violet, warm, earth, gold) or one
-    Pilot iroshizuku ink by name, such as <code>kon-peki</code>. The
-    <a href="#mixer">mixer</a> lists every ink.
+    group (blue, blue-grey, teal, green, violet, warm, earth, gold), one
+    Pilot iroshizuku ink by name, such as <code>kon-peki</code>, or
+    <code>random</code> for one ink picked per page. With
+    <code>random</code>, <code>spin=N</code> picks again and changes only
+    the colours. The <a href="#mixer">mixer</a> lists every ink.
   </p>
 
   <h3>5. Layouts</h3>
@@ -151,7 +154,7 @@ Some text.
   .table { overflow-x: auto; }
   table { border-collapse: collapse; width: 100%; font-size: .95rem; margin: .6rem 0; }
   th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
-  th { font-family: var(--mono); font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); font-weight: 400; }
+  th { font-weight: 400; color: var(--muted); }
   dt { margin-top: .6rem; }
   dd { margin: .1rem 0 0 1.2rem; color: var(--muted); }
   ol { padding-left: 1.3rem; }
