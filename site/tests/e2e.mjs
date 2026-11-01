@@ -94,7 +94,7 @@ try {
   const first = await inked();
   check(first.n > 2000, `the first page shows too little flora (${first.n} inked samples)`);
   check(first.blue < 0.1, `the first colourway is ${(first.blue * 100).toFixed(0)}% blue`);
-  check(/seed=11/.test(await code()) && /hero=yu-yake/.test(await code()), `the mixer does not start on the first colourway: ${await code()}`);
+  check(/seed=11,/.test(await code()) && /colourway=ember\}$/.test(await code()), `the mixer does not start on the first colourway: ${await code()}`);
 
   // The canvas renderer (scene.js) draws what pdf.js draws from the same
   // page's PDF, up to antialiasing: few sampled pixels differ visibly.
@@ -243,12 +243,20 @@ try {
   check(doc.includes("\\documentclass") && doc.includes("\\usepackage{tikzflora}") && doc.includes(await code()),
     `the copied document lacks the package or the settings:\n${doc}`);
 
-  // A colourway on the home page opens in the mixer.
+  // The home page shows the four seasons; one opens in the mixer, which
+  // names it in the setup line, and one changed ink follows it there.
   await page.goto(URL);
+  check(await page.locator(".ways figure").count() === 4, "the home plate does not show four seasons");
   await page.locator(".ways figure").nth(1).getByRole("link", { name: "Use these inks" }).click();
-  await page.waitForURL(/\/mixer\/\?way=1$/);
+  await page.waitForURL(/\/mixer\/\?way=summer$/);
   await page.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
-  check(/seed=23/.test(await code()) && /hero=murasaki-shikibu/.test(await code()), `the second colourway did not load: ${await code()}`);
+  check(/seed=83,/.test(await code()) && /colourway=summer\}$/.test(await code()), `summer did not load: ${await code()}`);
+  check(await page.getByRole("button", { name: "Summer" }).getAttribute("aria-pressed") === "true", "the Summer button is not marked");
+  const heroPick = page.locator(".controls .row", { has: page.locator(".cap", { hasText: /^Main flower$/ }) });
+  await heroPick.locator("button.current").click();
+  await heroPick.locator(".inks [role=option]", { hasText: "momiji" }).click();
+  await grown();
+  check(/colourway=summer, palette=\{hero=momiji\}/.test(await code()), `a changed ink is not written after the colourway: ${await code()}`);
 
   // The gallery opens on the flourishes, labelled, once it scrolls near;
   // the All tab draws every ornament kind.

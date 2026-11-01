@@ -11,6 +11,9 @@
 --   palette   what paints each part, e.g. palette={leaves=green,
 --             hero=kon-peki}: look, an ink group, one ink (inks.lua), or
 --             random for one ink picked per page
+--   colourway a whole palette at once: original, spring, summer, autumn
+--             (or fall), winter, ember, plum or rose (inks.lua); a
+--             palette={...} after it changes single parts
 --   spin      a number that re-picks the random inks; the shapes stay
 --   ornaments weights per ornament kind, e.g. ornaments={moon=2, night=0}
 --             (ornaments.lua registers the kinds; each slot picks one)
@@ -136,6 +139,15 @@ M.define("palette", function(v)
   return t
 end)
 
+M.define("colourway", function(v)
+  v = Inks.colourway_alias[v] or v
+  local src = v == "original" and Tune.color.palette or Inks.colourways[v]
+  if not src then return nil, "colourway must be one of " .. table.concat(Inks.colourway_order, ", ") end
+  local t = {}
+  for part in pairs(Tune.color.palette) do t[part] = src[part] or Tune.color.palette[part] end
+  return t
+end)
+
 M.define("spin", function(v)
   local n = tonumber(v)
   if n and n == math.floor(n) and n >= 0 then return n end
@@ -194,6 +206,8 @@ function M.parse(s)
     if val == nil then error(string.format("%s: %s (got \"%s\")", k, msg, v)) end
     if k == "density" then
       t.mix = M.merge({ mix = t.mix }, { mix = { density = val } }).mix
+    elseif k == "colourway" then
+      t.palette = M.merge({ palette = t.palette }, { palette = val }).palette
     elseif k == "visitors" then
       local m = {}
       for _, name in ipairs(Mix.visitors) do m[name] = val end

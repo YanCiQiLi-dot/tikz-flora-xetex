@@ -13,6 +13,8 @@
     [7, "A short last page", "density=0.6"],
   ];
   const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII"];
+  // The plate shows the four seasons, each with its baked page.
+  const SEASONS = COLOURWAYS.map((c, i) => ({ ...c, i })).filter((c) => c.season);
   // The rest of the site, as a contents list.
   const doors = [
     ["/mixer/", "The mixer", "Choose plants, inks and ornaments; the package grows the page in your browser and writes the settings."],
@@ -43,16 +45,16 @@
   <section class="book chapter" aria-labelledby="ways">
     <header class="wide lead">
       <p class="sc rubric">Plate I</p>
-      <h2 id="ways">One page, three colourways</h2>
+      <h2 id="ways">One page through the seasons</h2>
     </header>
     <div class="wide ways">
-      {#each COLOURWAYS as c, i}
+      {#each SEASONS as c}
         <figure>
-          <img class="paper" src={`/img/colourway-${i}.jpg`} width="910" height="1287" loading="lazy"
+          <img class="paper" src={`/img/colourway-${c.i}.jpg`} width="910" height="1287" loading="lazy"
             alt={`The same page of text with its margin grown in ${c.name.toLowerCase()} inks`}>
           <figcaption class="caption">
-            <span class="sc">{c.name}</span>, seed {c.seed}.
-            <a href={`/mixer/?way=${i}`}>Use these inks</a>
+            <span class="line"><span class="sc">{c.name}</span> <a href={`/mixer/?way=${c.key}`}>Use these inks</a></span>
+            <code>colourway={c.key}</code>
           </figcaption>
         </figure>
       {/each}
@@ -130,9 +132,11 @@
   .lead .caption { margin: .5rem 0 0; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   figure { margin: 0; }
-  .ways { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(1rem, 2.4vw, 2rem); }
+  .ways { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(1rem, 2vw, 1.6rem); }
+  .ways code { font-size: .68rem; }
   .ways img, .pages img { display: block; width: 100%; height: auto; box-shadow: 0 0 0 1px var(--rule); }
   .ways figcaption { margin-top: .6rem; }
+  .ways .line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 .6rem; }
   .growth { grid-column: text; width: 100%; height: auto; max-height: 82svh; object-fit: contain; display: block; box-shadow: 0 0 0 1px var(--rule); }
   .side { align-self: end; }
   .side p:first-child { font-size: 1.15rem; }
@@ -155,6 +159,7 @@
   .contents a:hover .name { color: var(--rubric); }
   .contents .caption { margin: .15rem 0 0; max-width: 32rem; }
   @media (max-width: 60rem) {
+    .ways { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .opening { grid-template-columns: minmax(0, 1fr); }
     .frontis { order: 1; }
     .frontis img { max-height: 70svh; object-position: center; }

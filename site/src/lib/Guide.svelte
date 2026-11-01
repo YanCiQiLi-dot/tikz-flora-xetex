@@ -39,6 +39,7 @@ Some text.
     ["density", "0 to 10", "Fuller above 1, airier below."],
     ["visitors", "0 to 10", "The weight of every visitor at once: bees, butterflies, birds and snails."],
     ["palette", "{part=ink, …}", "What paints each part: hero (the main flower), blooms, leaves, leaflets, stems, sprays, ghost (the pale bloom) and cartouche."],
+    ["colourway", "spring, summer, autumn (or fall), winter, ember, plum, rose, original", "A whole palette at once, chosen to suit its name. A palette after it changes single parts: colourway=winter, palette={hero=momiji}."],
     ["spin", "a whole number", "Picks the random inks again. The shapes stay where they are."],
     ["ornaments", "{kind=weight, …}", "How often each ornament kind is picked for its place on the page: the cartouche, header mark, pendant, gilt, and on title pages the crest, flourish, tailpiece and corners. 0 never. The gallery shows every kind with its name."],
   ];

@@ -9,8 +9,16 @@ export function setupLine({ layout, seed, mix, ornaments = {}, palette, spin }, 
   const ornDefaults = Object.fromEntries((meta.ornaments ?? []).flatMap((s) => s.kinds.map(([k, , d]) => [k, d])));
   const orn = Object.entries(ornaments).filter(([k, v]) => v !== ornDefaults[k]);
   if (orn.length) parts.push(`ornaments={${orn.map(([k, v]) => `${k}=${v}`).join(", ")}}`);
+  // The palette as the colourway it is closest to, when naming one saves
+  // writing parts out, and the parts that differ from it.
   const partDefaults = Object.fromEntries(meta.parts);
-  const pal = Object.entries(palette).filter(([k, v]) => v !== partDefaults[k]);
+  const differ = (base) => Object.entries(palette).filter(([k, v]) => v !== base[k]);
+  let way = null, pal = differ(partDefaults);
+  for (const [name, inks] of Object.entries(meta.colourways ?? {})) {
+    const d = differ({ ...partDefaults, ...inks });
+    if (d.length + 1 < pal.length + (way ? 1 : 0)) [way, pal] = [name, d];
+  }
+  if (way) parts.push(`colourway=${way}`);
   if (pal.length) parts.push(`palette={${pal.map(([k, v]) => `${k}=${v}`).join(", ")}}`);
   if (spin && Object.values(palette).includes("random")) parts.push(`spin=${spin}`);
   return `\\florasetup{${parts.join(", ")}}`;

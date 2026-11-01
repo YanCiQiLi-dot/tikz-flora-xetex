@@ -3,7 +3,7 @@
   // drawn by the package's own Lua for three seeds, labelled with the name
   // that ornaments={...} weighs it by. Tabs narrow the sheet to one slot.
   import { onMount } from "svelte";
-  import { gallery, show as picture, px } from "./render.js";
+  import { gallery, meta, show as picture, px } from "./render.js";
   import COLOURWAYS from "./colourways.json";
 
   let canvas, frame;
@@ -22,7 +22,7 @@
     busy = true;
     status = "Drawing…";
     try {
-      const palette = way < 0 ? {} : COLOURWAYS[way].palette;
+      const palette = way < 0 ? {} : (await meta()).colourways[COLOURWAYS[way].key];
       const out = await gallery({ palette, spin: 0, base, slot, px: px(frame.clientWidth) });
       await picture(out, canvas, frame.clientWidth);
       sheet = { w: out.w, h: out.h, cells: out.cells };

@@ -2,7 +2,8 @@
 // in WebAssembly. `just test-lua54` checks it paints exactly what LuaLaTeX
 // paints. Messages:
 //   { id, kind: "meta" }            -> { id, meta }  settings to offer, with
-//                                      each ink's ramp and each group's inks
+//                                      each ink's ramp, each group's inks and
+//                                      each colourway's palette
 //   { id, kind: "render", spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook }
 //                                   -> { id, bitmap | pdf, ms }
 //   { id, kind: "gallery", palette, spin, base, px, slot, gilt, giltenv, giltlook }
@@ -85,6 +86,17 @@ for _, n in ipairs(Inks.order) do
   end
   ramps[#ramps + 1] = q(n) .. ":[" .. table.concat(stops, ",") .. "]"
 end
+local ways = {}
+for _, name in ipairs(Inks.colourway_order) do
+  local cw = Inks.colourways[name]
+  if cw then
+    local ps = {}
+    for _, p in ipairs({ "hero", "blooms", "leaves", "leaflets", "stems", "sprays", "ghost", "cartouche" }) do
+      ps[#ps + 1] = q(p) .. ":" .. q(cw[p])
+    end
+    ways[#ways + 1] = q(name) .. ":{" .. table.concat(ps, ",") .. "}"
+  end
+end
 local slots = {}
 for _, slot in ipairs(Orn.slot_order) do
   local ks = {}
@@ -95,7 +107,8 @@ for _, slot in ipairs(Orn.slot_order) do
 end
 return "{\\"kinds\\":[" .. table.concat(kinds, ",") .. "],\\"ornaments\\":[" .. table.concat(slots, ",") .. "],\\"parts\\":[" .. table.concat(parts, ",")
   .. "],\\"groups\\":[" .. table.concat(groups, ",") .. "],\\"inks\\":[" .. table.concat(inks, ",")
-  .. "],\\"ramps\\":{" .. table.concat(ramps, ",") .. "},\\"groupInks\\":{" .. table.concat(members, ",") .. "}}"
+  .. "],\\"ramps\\":{" .. table.concat(ramps, ",") .. "},\\"groupInks\\":{" .. table.concat(members, ",")
+  .. "},\\"colourways\\":{" .. table.concat(ways, ",") .. "}}"
 `;
 
 // The transferable objects of the last picture() call.

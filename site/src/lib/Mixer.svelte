@@ -42,7 +42,7 @@
     if (!meta) return null;
     const same = (p) => meta.parts.every(([k, d]) => (palette[k] ?? d) === (p[k] ?? d));
     if (same(Object.fromEntries(meta.parts))) return -1;
-    return COLOURWAYS.findIndex((c) => c.seed === seed && same(c.palette));
+    return COLOURWAYS.findIndex((c) => c.seed === seed && same(meta.colourways[c.key]));
   });
 
   onMount(start);
@@ -56,10 +56,11 @@
       ornaments = Object.fromEntries(m.ornaments.flatMap((s) => s.kinds.map(([k, , d]) => [k, d])));
       // Visitors start on here, so the mixer shows them.
       for (const k of ["bee", "butterfly", "bird", "snail"]) mix[k] = 1;
-      palette = { ...Object.fromEntries(m.parts), ...COLOURWAYS[0].palette };
-      // ?way=N opens on colourway N, as its "Use these inks" link asks.
-      const way = Number(new URLSearchParams(location.search).get("way"));
-      if (way > 0 && way < COLOURWAYS.length) useColourway(way);
+      palette = { ...Object.fromEntries(m.parts), ...m.colourways[COLOURWAYS[0].key] };
+      // ?way=spring opens on that colourway, as its "Use these inks" link
+      // asks.
+      const way = COLOURWAYS.findIndex((c) => c.key === new URLSearchParams(location.search).get("way"));
+      if (way > 0) useColourway(way);
       else grow();
     } catch (e) {
       status = `The mixer could not start: ${e.message}`;
@@ -102,7 +103,7 @@
     if (i < 0) {
       palette = defaults;
     } else {
-      palette = { ...defaults, ...COLOURWAYS[i].palette };
+      palette = { ...defaults, ...meta.colourways[COLOURWAYS[i].key] };
       seed = COLOURWAYS[i].seed;
       layout = Math.max(0, pages.findIndex((p) => p.layout === "left"));
     }
@@ -136,7 +137,7 @@
   }
 
   // A colourway shown by the inks of its main parts.
-  const swatches = (c) => ["hero", "blooms", "leaves", "sprays"].map((k) => c.palette[k]);
+  const swatches = (c) => ["hero", "blooms", "leaves", "sprays"].map((k) => meta.colourways[c.key][k]);
   const swatch = (ink) => (meta?.ramps[ink] ? face(meta.ramps[ink]) : meta?.groupInks[ink] ? face(meta.ramps[meta.groupInks[ink][0]]) : "transparent");
 </script>
 

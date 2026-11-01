@@ -77,6 +77,7 @@ compile with a message naming the key.
 | `density` | 0 to 10 | Fuller (above 1) or airier (below 1) |
 | `visitors` | 0 to 10 | The weight of every visitor at once |
 | `palette` | `{part=ink, ...}` | What paints the `hero`, `blooms`, `leaves`, `leaflets`, `stems`, `sprays`, `ghost`, `cartouche` |
+| `colourway` | `spring`, `summer`, `autumn` (or `fall`), `winter`, `ember`, `plum`, `rose`, `original` | A whole palette at once; a `palette` after it changes single parts |
 | `spin` | a whole number | Picks other inks for parts set to `random`; the shapes stay |
 | `ornaments` | `{kind=weight, ...}` | How often each ornament kind is picked for its place; 0 never |
 | `gilt` | `raster`, `vector` | Ornament gold computed per pixel as images (the default), or built of flat-coloured strips |

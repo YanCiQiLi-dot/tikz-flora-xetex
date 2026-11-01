@@ -89,8 +89,43 @@ do
   H.check(p.palette.leaves == "green" and p.palette.hero == "kon-peki", "palette settings lost")
   H.check(Settings.parse("palette={leaves=random}, spin=3").spin == 3, "spin lost")
   for _, bad in ipairs({ "spin=1.5", "mix={rose=1}", "mix={lily=-1}", "mix={lily=many}", "density=11",
-      "palette={leaves=plaid}", "palette={petals=green}", "visitors=lots" }) do
+      "palette={leaves=plaid}", "palette={petals=green}", "visitors=lots", "colourway=plaid" }) do
     H.check(not pcall(Settings.parse, bad), "accepted bad settings \"" .. bad .. "\"")
+  end
+end
+
+-- A colourway sets every part at once, in order with palette={...}: a
+-- palette after it changes one part, a colourway after a palette replaces
+-- it. Every colourway names a real ink or group for every part, and no two
+-- are the same.
+do
+  local Inks = require("flora.inks")
+  local w = Settings.parse("colourway=winter, palette={hero=momiji}").palette
+  H.check(w.hero == "momiji" and w.blooms == "fuyu-gaki" and w.cartouche == "shin-kai", "palette after a colourway lost a part")
+  local o = Settings.parse("palette={hero=momiji}, colourway=winter").palette
+  H.check(o.hero == "tsuki-yo", "a colourway after a palette left its hero")
+  local fall, autumn = Settings.parse("colourway=fall").palette, Settings.parse("colourway=autumn").palette
+  local orig = Settings.parse("palette={leaves=teal}, colourway=original").palette
+  local seen = {}
+  for _, name in ipairs(Inks.colourway_order) do
+    local pal = Settings.parse("colourway=" .. name).palette
+    local parts = {}
+    for part, def in pairs(Tune.color.palette) do
+      local ink = pal[part]
+      if name == "original" then H.check(ink == def and orig[part] == def, "original is not tune.lua's palette at " .. part) end
+      H.check(ink == "look" or Inks.groups[ink] or Inks.ramps[ink], name .. " paints " .. part .. " with unknown ink " .. tostring(ink))
+      if name == "autumn" then H.check(fall[part] == ink, "fall is not autumn at " .. part) end
+      parts[#parts + 1] = part .. "=" .. tostring(ink)
+    end
+    table.sort(parts)
+    local key = table.concat(parts, ",")
+    H.check(not seen[key], name .. " repeats " .. tostring(seen[key]))
+    seen[key] = name
+  end
+  for name in pairs(Inks.colourways) do
+    local listed = false
+    for _, n in ipairs(Inks.colourway_order) do listed = listed or n == name end
+    H.check(listed, "colourway " .. name .. " is missing from colourway_order")
   end
 end
 

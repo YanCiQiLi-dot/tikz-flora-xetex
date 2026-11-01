@@ -79,8 +79,8 @@ site-bake seed="3" CW="site/src/lib/colourways.json":
     pdftocairo -jpeg -jpegopt quality=86 -r 110 build/lorem.pdf site/public/img/page
     # Page 4 in each colourway of site/src/lib/colourways.json, grown as the
     # mixer grows it, and the first colourway's flora alone beside the guide.
-    for i in 0 1 2; do s=$(jq -r ".[$i].seed" $CW) && p=$(jq -r ".[$i].palette | to_entries | map(\"\(.key)=\(.value)\") | join(\", \")" $CW) && texlua tools/preview.lua build/site-bake/spec-4.lua $s 4 build/site-bake/cw-$i.pdf - "fresh, visitors=1, palette={$p}" && pdftocairo -png -singlefile -r 110 build/site-bake/cw-$i.pdf build/site-bake/cw-$i && magick build/site-bake/cw-$i.png site/public/bake/text-4.png -compose multiply -composite -quality 86 site/public/img/colourway-$i.jpg || exit 1; done
-    p=$(jq -r ".[0].palette | to_entries | map(\"\(.key)=\(.value)\") | join(\", \")" $CW) && texlua tools/preview.lua build/site-bake/spec-4.lua $(jq -r ".[0].seed" $CW) 4 build/site-bake/flora-4.pdf - "fresh, noheader, visitors=1, palette={$p}"
+    for i in $(seq 0 $(($(jq length $CW) - 1))); do s=$(jq -r ".[$i].seed" $CW) && w=$(jq -r ".[$i].key" $CW) && texlua tools/preview.lua build/site-bake/spec-4.lua $s 4 build/site-bake/cw-$i.pdf - "fresh, visitors=1, colourway=$w" && pdftocairo -png -singlefile -r 110 build/site-bake/cw-$i.pdf build/site-bake/cw-$i && magick build/site-bake/cw-$i.png site/public/bake/text-4.png -compose multiply -composite -quality 86 site/public/img/colourway-$i.jpg || exit 1; done
+    texlua tools/preview.lua build/site-bake/spec-4.lua $(jq -r ".[0].seed" $CW) 4 build/site-bake/flora-4.pdf - "fresh, noheader, visitors=1, colourway=$(jq -r ".[0].key" $CW)"
     pdftocairo -png -transp -singlefile -r 90 build/site-bake/flora-4.pdf build/site-bake/flora-4
     magick build/site-bake/flora-4.png -gravity west -crop 36%x100%+0+0 +repage site/public/img/flora-margin.png
     just grow lorem {{seed}} 3 20 8
