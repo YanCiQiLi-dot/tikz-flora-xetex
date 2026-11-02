@@ -53,6 +53,36 @@ function M.mark(name)
   require("flora.measure").mark(name)
 end
 
+-- \floraletters: the lettering of box register `reg` (letters.lua),
+-- typeset in its place as a picture of the box's width, its height and
+-- depth grown to hold the shadow and any arch.
+function M.letters(reg, opts)
+  local Letters = require("flora.letters")
+  local o, err = Letters.options(opts)
+  if not o then
+    report("floraletters: " .. err)
+    o = Letters.options("")
+  end
+  local box = tex.box[reg]
+  local pt = require("flora.paint").new({ backend = os.getenv("FLORA_BACKEND") })
+  local ext = box and Letters.paint(pt, box, o)
+  if not ext then
+    texio.write_nl("term and log", "tikzflora: \\floraletters needs an OpenType or TrueType font; the text is set as usual")
+    tex.sprint(string.format("\\box%d", reg))
+    return
+  end
+  local SP = 65536
+  local w = box.width / SP
+  local h, d = math.max(box.height / SP, ext[4]), math.max(box.depth / SP, -ext[2])
+  -- The mark makes the measurer (measure.lua) take the box as ink, so
+  -- the flora keeps clear of the lettering as it does of text.
+  tex.sprint(string.format("\\hbox to %.3fpt{\\directlua{flora.mark('ink')}\\begin{pgfpicture}\\pgfsetbaseline{0pt}"
+    .. "\\pgfpathrectangle{\\pgfqpoint{0pt}{%.3fpt}}{\\pgfqpoint{%.3fpt}{%.3fpt}}\\pgfusepath{use as bounding box}",
+    w, -d, w, h + d))
+  M.typeset(pt)
+  tex.sprint("\\end{pgfpicture}\\hss}")
+end
+
 function M.specimens(seed)
   local spec = require("flora.specimen")
   tex.sprint(string.format(

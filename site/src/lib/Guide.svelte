@@ -28,12 +28,16 @@ Some text.
 \clearpage
 \restoregeometry`;
 
+  const letters = String.raw`{\fontsize{46}{52}\selectfont\floraletters{FLORA'S}\par}
+{\fontsize{30}{36}\selectfont
+  \floraletters[style=engraved, arch=24]{DICTIONARY}\par}`;
+
   const texmf = String.raw`kpsewhich -var-value TEXMFHOME
 # then copy tikzflora.sty, tikzflora-boot.lua and lua/ into
 #   <TEXMFHOME>/tex/lualatex/tikzflora/`;
 
   const keys = [
-    ["layout", "left, right, centered, split, title, surround", "Where the flora grows."],
+    ["layout", "left, right, centered, split, title, surround, flank, wreath, bouquet, scrollwork", "Where the flora grows."],
     ["seed", "a number, or random", "Which garden. Each page varies it, so pages differ."],
     ["mix", "{kind=weight, …}", "How much of each kind: 1 the usual amount, 0 none, 2 about twice as much."],
     ["density", "0 to 10", "Fuller above 1, airier below."],
@@ -51,6 +55,10 @@ Some text.
     ["split", "The outer margin of a two-sided document: on the right of odd pages and the left of even ones."],
     ["title", "A crown over a title. Wrap the title in the floratitle environment; without it the first block of lines on the page is crowned."],
     ["surround", "A wreath round the text block, for title pages and contents."],
+    ["flank", "A title page: a plant up each side of its contents, their roots meeting at the foot round a crest."],
+    ["wreath", "A title page: an open oval garland round the title, tied at its foot."],
+    ["bouquet", "A title page: one upright bouquet tied with a bow, behind the title, each title line on a ribbon."],
+    ["scrollwork", "A title page: an oval gilt scroll frame round the title, with a crest at its head and the flora twined over it."],
   ];
 </script>
 
@@ -131,6 +139,33 @@ Some text.
   </dl>
   <p>A title page:</p>
   <pre><code>{title}</code></pre>
+
+  <p>
+    The last four are for title pages, after engraved and hand-coloured
+    flower books. Each frames the lines in <code>floratitle</code>. The
+    oval of <code>wreath</code> and <code>scrollwork</code> spans the
+    page and keeps to the room between the title and the nearest lines
+    above and below it. <code>titles.tex</code> in the zip has a page in
+    each.
+  </p>
+
+  <h3 id="g-letters">6. Lettering</h3>
+  <p>
+    <code>\floraletters</code> draws a line of display capitals as an
+    engraver lettered them, from the font's own outlines, in the font and
+    size in force:
+  </p>
+  <pre><code>{letters}</code></pre>
+  <dl>
+    <dt><code>style</code></dt><dd><code>outline</code>, the letter drawn round; <code>shaded</code>, outlined with a hatched shadow (the default); or <code>engraved</code>, the face ruled with fine lines over a solid shadow.</dd>
+    <dt><code>arch</code></dt><dd>The degrees the baseline bends through: positive arches the middle up, negative sags it.</dd>
+    <dt><code>ink</code></dt><dd>An iroshizuku ink by name for the line work, or <code>black</code> (the default).</dd>
+  </dl>
+  <p>
+    It needs an OpenType or TrueType font, as LuaLaTeX's default and any
+    <code>fontspec</code> font are. The flora keeps clear of it as it does
+    of text.
+  </p>
 
   <h3 id="g-grow">Watch it grow</h3>
   <p>

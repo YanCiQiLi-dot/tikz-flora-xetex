@@ -33,25 +33,30 @@ grow name="lorem" seed="1" page="1" fps="20" secs="8":
     tools/grow.sh {{name}} {{seed}} {{page}} {{fps}} {{secs}}
 
 # The drop-in package: build/tikzflora.zip with the package, its Lua, the
-# worked example and a latexmkrc that selects LuaLaTeX (also on Overleaf).
+# worked example, the title pages and a latexmkrc that selects LuaLaTeX
+# (also on Overleaf).
 dist:
     rm -rf build/dist && mkdir -p build/dist/tikzflora/lua
     cp tex/tikzflora.sty tex/tikzflora-boot.lua tex/latexmkrc README.md LICENSE build/dist/tikzflora/
     cp tex/lorem.tex build/dist/tikzflora/example.tex
+    cp tex/titles.tex build/dist/tikzflora/titles.tex
     cp -R lua/flora build/dist/tikzflora/lua/flora
     rm -f build/tikzflora.zip
     cd build/dist && zip -qrX ../tikzflora.zip tikzflora
     @echo "dist: build/tikzflora.zip"
 
-# Compiles the example from the unpacked zip alone, outside the repository
-# and without its TEXINPUTS, as a user would.
+# Compiles the example and the title pages from the unpacked zip alone,
+# outside the repository and without its TEXINPUTS, as a user would.
 test-dist: dist
     rm -rf build/test-dist && mkdir -p build/test-dist
     unzip -q build/tikzflora.zip -d build/test-dist
     cd build/test-dist/tikzflora && env -u TEXINPUTS -u FLORA_TUNE latexmk -quiet example > latexmk.out 2>&1 || (tail -30 example.log; exit 1)
     test "$(pdfinfo build/test-dist/tikzflora/example.pdf | awk '/^Pages/ {print $2}')" = 7
     grep -q 'painted objects' build/test-dist/tikzflora/example.log
-    @echo "dist: example compiles from the zip"
+    cd build/test-dist/tikzflora && env -u TEXINPUTS -u FLORA_TUNE latexmk -quiet titles > latexmk-titles.out 2>&1 || (tail -30 titles.log; exit 1)
+    test "$(pdfinfo build/test-dist/tikzflora/titles.pdf | awk '/^Pages/ {print $2}')" = 4
+    ! grep -q 'floraletters needs' build/test-dist/tikzflora/titles.log
+    @echo "dist: example and title pages compile from the zip"
 
 # The browser mixer runs the generator under Lua 5.4 (wasmoon); LuaLaTeX
 # runs Lua 5.3. Runs the Lua tests under 5.4 and checks both draw the same
@@ -74,9 +79,15 @@ site-bake seed="3" CW="site/src/lib/colourways.json":
     cp build/tikzflora.zip site/public/
     for _ in 1 2; do FLORA_SPEC_DIR=build/site-bake lualatex -interaction=nonstopmode -halt-on-error -output-directory=build/site-bake -jobname=base "\def\florseed{ {{seed}} }\def\florapages{0}\input{tex/lorem.tex}" > build/site-bake/base.out || (tail -20 build/site-bake/base.log; exit 1); done
     for p in 1 2 3 4 6; do cp build/site-bake/spec-$p.lua site/public/bake/; pdftocairo -png -singlefile -r 110 -f $p -l $p build/site-bake/base.pdf site/public/bake/text-$p; done
-    printf '%s\n' '[{"layout":"left","page":4,"label":"Left"},{"layout":"right","page":3,"label":"Right"},{"layout":"centered","page":6,"label":"Centred"},{"layout":"title","page":1,"label":"Title"},{"layout":"surround","page":2,"label":"Surround"}]' > site/public/bake/manifest.json
+    # The title pages of tex/titles.tex, as mixer pages 11 to 14.
+    mkdir -p build/site-bake/titles
+    FLORA_SPEC_DIR=build/site-bake/titles lualatex -interaction=nonstopmode -halt-on-error -output-directory=build/site-bake/titles -jobname=base "\def\florapages{0}\input{tex/titles.tex}" > build/site-bake/titles/base.out || (tail -20 build/site-bake/titles/base.log; exit 1)
+    for p in 1 2 3 4; do cp build/site-bake/titles/spec-$p.lua site/public/bake/spec-1$p.lua; pdftocairo -png -singlefile -r 110 -f $p -l $p build/site-bake/titles/base.pdf site/public/bake/text-1$p; done
+    printf '%s\n' '[{"layout":"left","page":4,"label":"Left"},{"layout":"right","page":3,"label":"Right"},{"layout":"centered","page":6,"label":"Centred"},{"layout":"title","page":1,"label":"Title"},{"layout":"surround","page":2,"label":"Surround"},{"layout":"flank","page":11,"label":"Flank"},{"layout":"wreath","page":12,"label":"Wreath"},{"layout":"bouquet","page":13,"label":"Bouquet"},{"layout":"scrollwork","page":14,"label":"Scrollwork"}]' > site/public/bake/manifest.json
     just build lorem {{seed}} >/dev/null; just build lorem {{seed}} 110 >/dev/null
     pdftocairo -jpeg -jpegopt quality=86 -r 110 build/lorem.pdf site/public/img/page
+    just build titles {{seed}} 110 >/dev/null
+    pdftocairo -jpeg -jpegopt quality=86 -r 110 build/titles.pdf site/public/img/title
     # Page 4 in each colourway of site/src/lib/colourways.json, grown as the
     # mixer grows it, and the first colourway's flora alone beside the guide.
     for i in $(seq 0 $(($(jq length $CW) - 1))); do s=$(jq -r ".[$i].seed" $CW) && w=$(jq -r ".[$i].key" $CW) && texlua tools/preview.lua build/site-bake/spec-4.lua $s 4 build/site-bake/cw-$i.pdf - "fresh, visitors=1, colourway=$w" && pdftocairo -png -singlefile -r 110 build/site-bake/cw-$i.pdf build/site-bake/cw-$i && magick build/site-bake/cw-$i.png site/public/bake/text-4.png -compose multiply -composite -quality 86 site/public/img/colourway-$i.jpg || exit 1; done
@@ -102,11 +113,14 @@ test-site:
 site-deploy: site-bake
     cd site && npm ci --no-audit --no-fund --silent && npm run build --silent && npx wrangler deploy
 
-# Integration test for the shipout measurer (needs lualatex).
+# Integration tests for the shipout measurer and \floraletters (need
+# lualatex).
 test-tex:
     mkdir -p build
     lualatex -interaction=nonstopmode -halt-on-error -output-directory=build tests/measure.tex > build/measure.out || (grep -A3 '^!' build/measure.log; exit 1)
     grep -q 'measure: ok' build/measure.log && echo "measure: ok"
+    lualatex -interaction=nonstopmode -halt-on-error -output-directory=build tests/letters.tex > build/letters.out || (grep -A3 '^!' build/letters.log; exit 1)
+    grep -q 'letters: ok' build/letters.log && echo "letters: ok"
 
 # The component tuner for lua/flora/tune.lua at http://127.0.0.1:8766/:
 # builds the Svelte app in tuner/ and serves it with the render API.

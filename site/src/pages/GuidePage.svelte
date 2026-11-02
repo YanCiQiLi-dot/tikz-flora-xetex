@@ -4,7 +4,7 @@
 
   const CONTENTS = [
     ["g-install", "Install"], ["g-first", "A first page"], ["g-overleaf", "On Overleaf"],
-    ["g-settings", "Settings"], ["g-layouts", "Layouts"], ["g-grow", "Watch it grow"],
+    ["g-settings", "Settings"], ["g-layouts", "Layouts"], ["g-letters", "Lettering"], ["g-grow", "Watch it grow"],
     ["g-trouble", "Troubleshooting"], ["credits", "Credits"],
   ];
 </script>

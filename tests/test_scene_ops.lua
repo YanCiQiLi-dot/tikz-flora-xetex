@@ -41,6 +41,13 @@ for _, layout in ipairs({ "left", "right", "centered", "surround" }) do
     check(layout .. " page, seed " .. seed, Compose.page(spec), spec.width, spec.height)
   end
 end
+-- The title layouts add clipped hatching, curved frames and gilt bands.
+for _, layout in ipairs({ "flank", "wreath", "bouquet", "scrollwork" }) do
+  local spec = H.page(1, 420)
+  spec.layout, spec.page = layout, 1
+  Paint.reset_resources()
+  check(layout .. " page", Compose.page(spec), spec.width, spec.height)
+end
 do
   Paint.reset_resources()
   local pt, _, w, h = Gallery.sheet(nil, 2)

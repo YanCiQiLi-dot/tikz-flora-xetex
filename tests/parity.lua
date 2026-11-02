@@ -5,7 +5,10 @@ local H = dofile("tests/helper.lua")
 local Compose = require("flora.compose")
 local Paint = require("flora.paint")
 local f = assert(io.open(arg[1], "wb"))
-for _, case in ipairs({ { 3, nil, nil }, { 4, "surround", { bee = 1, bird = 1, butterfly = 1, snail = 1 } } }) do
+-- The wreath's curved frames and the bouquet's ribbons run through math
+-- the other layouts do not (oval.lua's table and Newton steps).
+local cases = { { 3, nil, nil }, { 4, "surround", { bee = 1, bird = 1, butterfly = 1, snail = 1 } }, { 5, "wreath", nil }, { 6, "bouquet", nil } }
+for _, case in ipairs(cases) do
   Paint.reset_resources()
   local s = H.page(case[1], 420)
   s.layout, s.mix, s.page = case[2], case[3], 1

@@ -15,6 +15,13 @@
   const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII"];
   // The plate shows the four seasons, each with its baked page.
   const SEASONS = COLOURWAYS.map((c, i) => ({ ...c, i })).filter((c) => c.season);
+  // The title pages of tex/titles.tex, one per title layout.
+  const TITLES = [
+    ["flank", "Flank", "Plants up both sides, meeting round a crest at the foot."],
+    ["wreath", "Wreath", "An open oval garland, tied at its foot."],
+    ["bouquet", "Bouquet", "A tied bouquet, the title on ribbons through it."],
+    ["scrollwork", "Scrollwork", "A gilt scroll frame with the flora twined over it."],
+  ];
   // The rest of the site, as a contents list.
   const doors = [
     ["/mixer/", "The mixer", "Choose plants, inks and ornaments; the package grows the page in your browser and writes the settings."],
@@ -61,9 +68,30 @@
     </div>
   </section>
 
-  <section class="book chapter" aria-labelledby="grow">
+  <section class="book chapter" aria-labelledby="titles">
     <header class="wide lead">
       <p class="sc rubric">Plate II</p>
+      <h2 id="titles">Four title pages</h2>
+      <p class="caption">After engraved flower books of the nineteenth century,
+        lettered with <code>\floraletters</code>.</p>
+    </header>
+    <div class="wide titles">
+      {#each TITLES as [key, name, what], i}
+        <figure>
+          <img class="paper" src={`/img/title-${i + 1}.jpg`} width="910" height="1287" loading="lazy"
+            alt={`A title page in the ${name.toLowerCase()} layout: ${what.toLowerCase()}`}>
+          <figcaption class="caption">
+            <span class="line"><span class="sc">{name}</span> <a href={`/mixer/?layout=${key}`}>Try it</a></span>
+            <code>layout={key}</code>
+          </figcaption>
+        </figure>
+      {/each}
+    </div>
+  </section>
+
+  <section class="book chapter" aria-labelledby="grow">
+    <header class="wide lead">
+      <p class="sc rubric">Plate III</p>
       <h2 id="grow">Watch it grow</h2>
     </header>
     <video class="paper growth" src="/media/grow.mp4" poster="/img/page-3.jpg" controls muted playsinline preload="none"
@@ -80,7 +108,7 @@
 
   <section class="chapter example" aria-labelledby="example">
     <header class="book"><div class="wide lead">
-      <p class="sc rubric">Plate III</p>
+      <p class="sc rubric">Plate IV</p>
       <h2 id="example">The example document</h2>
       <p class="caption">Seven pages of one document, each with the setting that shaped it.</p>
     </div></header>
@@ -132,11 +160,11 @@
   .lead .caption { margin: .5rem 0 0; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   figure { margin: 0; }
-  .ways { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(1rem, 2vw, 1.6rem); }
-  .ways code { font-size: .68rem; }
-  .ways img, .pages img { display: block; width: 100%; height: auto; box-shadow: 0 0 0 1px var(--rule); }
-  .ways figcaption { margin-top: .6rem; }
-  .ways .line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 .6rem; }
+  .ways, .titles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(1rem, 2vw, 1.6rem); }
+  .ways code, .titles code { font-size: .68rem; }
+  .ways img, .titles img, .pages img { display: block; width: 100%; height: auto; box-shadow: 0 0 0 1px var(--rule); }
+  .ways figcaption, .titles figcaption { margin-top: .6rem; }
+  .ways .line, .titles .line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 .6rem; }
   .growth { grid-column: text; width: 100%; height: auto; max-height: 82svh; object-fit: contain; display: block; box-shadow: 0 0 0 1px var(--rule); }
   .side { align-self: end; }
   .side p:first-child { font-size: 1.15rem; }
@@ -159,14 +187,14 @@
   .contents a:hover .name { color: var(--rubric); }
   .contents .caption { margin: .15rem 0 0; max-width: 32rem; }
   @media (max-width: 60rem) {
-    .ways { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ways, .titles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .opening { grid-template-columns: minmax(0, 1fr); }
     .frontis { order: 1; }
     .frontis img { max-height: 70svh; object-position: center; }
     .side { margin-top: 1rem; }
   }
   @media (max-width: 40rem) {
-    .ways { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+    .ways, .titles { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
     .pages li { width: 68vw; }
   }
 </style>

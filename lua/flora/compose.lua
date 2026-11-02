@@ -68,7 +68,9 @@ local function plant(spec, pt)
     { m.x0, py - ph / 2 - 3, m.x0 + pw + 5, py + ph / 2 + 3 })
   local excursion = not spec.frame_only and Layout.excursion(rng:fork("excursion"), spec, root)
   if excursion then strands[#strands + 1] = excursion end
-  local runners = Layout.runners(rng:fork("runners"), m, strands[1].pts[1], W, edge)
+  -- A bare frame (a curved one: frames.lua) has no outer corner, so no
+  -- corner runner, star panel or foot compass.
+  local runners = spec.bare and {} or Layout.runners(rng:fork("runners"), m, strands[1].pts[1], W, edge, g)
   Plant.fork(strands[1], 0.005, 0.8)
   local stems = {}
   local stem_batch, spray_batch = S.batch(), S.batch()
@@ -82,7 +84,7 @@ local function plant(spec, pt)
   local orn, panel = {}, nil
   -- Each slot's kind is drawn by weight (ornaments.lua) from a stream of
   -- its own; a slot whose kinds all weigh 0 is left empty.
-  local cartouche = Orn.pick(rng:fork("choose cartouche"), "cartouche", spec.ornaments)
+  local cartouche = not spec.bare and Orn.pick(rng:fork("choose cartouche"), "cartouche", spec.ornaments)
   if cartouche then
     -- The star cartouche sits in a quiet stretch, where the stems hug the
     -- outer edge and bend around it.
@@ -187,11 +189,12 @@ local function plant(spec, pt)
   end
 
   -- A dotted gilt chain runs down the outer edge wherever the foliage
-  -- leaves it clear, from below the hero to the foot.
+  -- leaves it clear, from below the hero to the foot. A gathered plant's
+  -- outer edge is its bouquet's middle, where no chain belongs.
   local px = m.x0 + 2.5
   local runs, run = {}, nil
   local _, hero_rh = F.tilt(0, 0, R, Tune.hero.tilt)
-  for y = hero[2] - hero_rh - 6, m.y0 + 6, -2 do
+  for y = hero[2] - hero_rh - 6, spec.gather and math.huge or m.y0 + 6, -2 do
     if g:free(px, y) and g:free(px - 1.5, y) and g:free(px + 1.5, y) then
       if run then run[2] = y else run = { y, y } end
     else
@@ -291,7 +294,9 @@ local function plant(spec, pt)
   layer("ornaments", function()
     for _, f in ipairs(orn) do draw(f, 0.15) end
     O.sparkles(pt, clock and clock:sparkles(sparkles) or sparkles)
-    draw(function(p) O.compass(p, midfoot[1], midfoot[2], 7, { hair = 0.9, ring = 0 }) end, 0.15)
+    if not spec.bare then
+      draw(function(p) O.compass(p, midfoot[1], midfoot[2], 7, { hair = 0.9, ring = 0 }) end, 0.15)
+    end
   end)
   pt.clock = nil
   pt.coverage = g:coverage()
@@ -317,15 +322,20 @@ end
 -- C.page, after the page's palette is in place.
 function C.frames(spec)
   local frames = Frames.of(spec)
-  if #frames == 1 and not frames[1].map then return plant(spec) end
+  if #frames == 1 and not frames[1].fn then return plant(spec) end
   local pt = Paint.new({ backend = os.getenv("FLORA_BACKEND"), gilt = spec.gilt })
   pt.probe = spec.probe
   pt.gilt_dpi, pt.gilt_env, pt.gilt_look = spec.gilt_dpi, spec.gilt_env, spec.gilt_look
   local cover = 0
+  -- What a layout paints under its plants (the scrollwork's band).
+  if frames.before then
+    pt:begin_group("under")
+    frames.before(pt)
+    pt:end_group()
+  end
   for _, f in ipairs(frames) do
-    local m = f.map
     if spec.on_frame then spec.on_frame(f) end
-    pt:frame(function(x, y) return Frames.apply(m, x, y) end)
+    pt:frame(f.fn)
     plant(f.spec, pt)
     cover = cover + pt.coverage / #frames
   end
@@ -335,6 +345,13 @@ function C.frames(spec)
   if frames.title and (spec.grow or 1) >= 0.9 then
     pt:begin_group("title")
     Title.paint(pt, spec, frames.title)
+    pt:end_group()
+  end
+  -- What a layout paints over its plants (the bouquet's ribbons, the
+  -- scrollwork's head and foot).
+  if frames.after then
+    pt:begin_group("over")
+    frames.after(pt)
     pt:end_group()
   end
   pt.title = frames.title

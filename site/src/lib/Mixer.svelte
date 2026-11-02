@@ -58,10 +58,14 @@
       for (const k of ["bee", "butterfly", "bird", "snail"]) mix[k] = 1;
       palette = { ...Object.fromEntries(m.parts), ...m.colourways[COLOURWAYS[0].key] };
       // ?way=spring opens on that colourway, as its "Use these inks" link
-      // asks.
-      const way = COLOURWAYS.findIndex((c) => c.key === new URLSearchParams(location.search).get("way"));
+      // asks, and ?layout=wreath on that layout's page.
+      const params = new URLSearchParams(location.search);
+      const way = COLOURWAYS.findIndex((c) => c.key === params.get("way"));
+      const lay = pages.findIndex((p) => p.layout === params.get("layout"));
+      // A colourway regrows after its pause, on whatever layout is set by then.
       if (way > 0) useColourway(way);
-      else grow();
+      if (lay >= 0) layout = lay;
+      if (way <= 0) grow();
     } catch (e) {
       status = `The mixer could not start: ${e.message}`;
     }
@@ -211,7 +215,8 @@
       <details class="ornaments">
         <summary>Ornaments</summary>
         <p class="hint">Each place on the page picks one kind by these weights; 0 never.
-          The crest, flourish, tailpiece and corners appear on the title layout.</p>
+          The crest, flourish, tailpiece and corners appear on the title layout;
+          flank takes a crest at its foot, and scrollwork a crest and a tailpiece.</p>
         {#each meta.ornaments as s}
           <h4 title={s.desc}>{s.label}</h4>
           {#each s.kinds as [k, name]}

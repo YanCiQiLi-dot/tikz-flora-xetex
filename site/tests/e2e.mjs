@@ -38,7 +38,8 @@ try {
     await new Promise((r) => setTimeout(r, 150));
   }
   for (const path of ["tikzflora.zip", "media/grow.mp4", "media/grow.gif", "img/og.jpg", "img/page-1.jpg", "bake/manifest.json",
-    "img/colourway-0.jpg", "img/colourway-1.jpg", "img/colourway-2.jpg", "img/flora-margin.png"]) {
+    "img/colourway-0.jpg", "img/colourway-1.jpg", "img/colourway-2.jpg", "img/flora-margin.png",
+    "img/title-1.jpg", "img/title-4.jpg", "bake/spec-12.lua", "bake/text-14.png"]) {
     const r = await fetch(URL + path);
     check(r.ok, `${path} is not served (${r.status})`);
   }
@@ -257,6 +258,22 @@ try {
   await heroPick.locator(".inks [role=option]", { hasText: "momiji" }).click();
   await grown();
   check(/colourway=summer, palette=\{hero=momiji\}/.test(await code()), `a changed ink is not written after the colourway: ${await code()}`);
+
+  // The home page shows the four title pages; one opens its layout in the
+  // mixer, which grows it and writes a lettered title page for it.
+  await page.goto(URL);
+  check(await page.locator(".titles figure").count() === 4, "the home page does not show four title pages");
+  await page.locator(".titles figure").nth(1).getByRole("link", { name: "Try it" }).click();
+  await page.waitForURL(/\/mixer\/\?layout=wreath$/);
+  await page.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
+  check((await code()).startsWith("\\florasetup{layout=wreath, seed="), `the wreath did not load: ${await code()}`);
+  check(await page.getByRole("radio", { name: "Wreath" }).isChecked(), "the Wreath layout is not chosen");
+  const wreath = await inked();
+  check(wreath.n > original.n * 0.3, `the wreath page is nearly bare (${wreath.n} inked samples)`);
+  await page.getByRole("button", { name: "Copy complete document" }).click();
+  const titleDoc = await page.evaluate(() => navigator.clipboard.readText());
+  check(titleDoc.includes("\\begin{floratitle}") && titleDoc.includes("\\floraletters") && titleDoc.includes("\\floraoff"),
+    `the wreath's document is not a lettered title page:\n${titleDoc}`);
 
   // The gallery opens on the flourishes, labelled, once it scrolls near;
   // the All tab draws every ornament kind.

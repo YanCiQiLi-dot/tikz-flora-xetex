@@ -1,7 +1,8 @@
 -- Document settings from \florasetup and \florathispage: a key=value list,
 -- parsed and checked here so mistakes are reported with the key's name.
 --
---   layout    left, right, centered, split, title or surround (frames.lua)
+--   layout    left, right, centered, split, title, surround, flank,
+--             wreath, bouquet or scrollwork (frames.lua)
 --   seed      a number, or random
 --   mix       weights per kind of growth, e.g. mix={lily=2, umbel=0}
 --             (mix.lua lists the kinds)
@@ -43,7 +44,7 @@ end
 
 M.define("layout", function(v)
   if Frames.layouts[v] then return v end
-  return nil, "layout must be one of left, right, centered, split, title, surround"
+  return nil, "layout must be one of " .. table.concat(Frames.order, ", ")
 end)
 
 M.define("seed", function(v)

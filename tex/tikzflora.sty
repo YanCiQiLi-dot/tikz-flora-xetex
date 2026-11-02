@@ -42,6 +42,17 @@
   {\par\directlua{flora.mark("title-start")}}
   {\par\directlua{flora.mark("title-end")}}
 
+% Engraved display capitals for title pages, drawn from the font's own
+% outlines (an OpenType or TrueType font, as LuaLaTeX's default is):
+%   {\Huge\floraletters[style=engraved, arch=30]{DICTIONARY}}
+% style is outline, shaded (the default) or engraved; arch bends the
+% baseline through that many degrees (negative sags it); ink names an
+% iroshizuku ink for the line work. See lua/flora/letters.lua.
+\newsavebox\flora@letters
+\newcommand\floraletters[2][]{%
+  \leavevmode\sbox\flora@letters{#2}%
+  \directlua{flora.letters(\number\flora@letters, "\luaescapestring{\detokenize{#1}}")}}
+
 % Draw the specimen sheet inside the current tikzpicture.
 \newcommand\florasheet[1]{\directlua{flora.specimens(#1)}}
 % Draw the ornament gallery inside the current tikzpicture: every ornament

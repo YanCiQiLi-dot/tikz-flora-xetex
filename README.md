@@ -71,7 +71,7 @@ compile with a message naming the key.
 
 | Key | Values | Effect |
 |---|---|---|
-| `layout` | `left`, `right`, `centered`, `split`, `title`, `surround` | Where the flora grows (below) |
+| `layout` | `left`, `right`, `centered`, `split`, `title`, `surround`, `flank`, `wreath`, `bouquet`, `scrollwork` | Where the flora grows (below) |
 | `seed` | a number, or `random` | Which garden; each page varies it |
 | `mix` | `{kind=weight, ...}` | How much of each kind: 1 usual, 0 none, 2 about double |
 | `density` | 0 to 10 | Fuller (above 1) or airier (below 1) |
@@ -106,7 +106,9 @@ Ornaments fill places on the page: the `cartouche` panel, the `header`
 mark on the running-head rule, the `pendant` in the foot's corner, the
 larger `gilt` in the foliage's gaps, and on title pages a `crest` where the
 crown meets, a `flourish` under the title, a `tailpiece` under the last
-line and a piece in each foot `corner`. Each place picks one kind by
+line and a piece in each foot `corner`. The `flank` layout's foot piece is
+a `crest`, and the `scrollwork` frame takes a `crest` at its head and a
+`tailpiece` at its foot. Each place picks one kind by
 weight, so `ornaments={moon=3, night=0}` favours the crescent moon
 cartouche and drops the night sky; setting every kind of a place to 0
 leaves it empty. `just gallery` (or `\floragallery` in a `tikzpicture`)
@@ -145,17 +147,57 @@ holds it to its box.
   of lines is crowned.
 - `surround`: a wreath round the text block, for title pages and contents.
 
+Four more layouts are for title pages, after engraved and hand-coloured
+flower books of the nineteenth century. Each frames the lines in
+`floratitle` (or the first block of lines without it):
+
+- `flank`: a plant up each side of the page's contents, their roots
+  meeting at the foot round a crest.
+- `wreath`: an open oval garland round the title, tied at its foot.
+- `bouquet`: one upright bouquet tied with a bow, behind the title, with
+  each title line on a ribbon.
+- `scrollwork`: an oval gilt scroll frame round the title, with a crest at
+  its head, scrolls at its foot and the flora twined over it.
+
+The oval of `wreath` and `scrollwork` spans the page's width and keeps to
+the room between the title and the nearest lines above and below it.
+
 The flora fills whatever margins the page has, so give it room with
 `geometry` (about 5 cm for a side margin, or 3 cm all round for
 `surround`).
+
+### Lettering
+
+`\floraletters` draws a line of display capitals as an engraver lettered
+them, from the font's own outlines, in the font and size in force:
+
+```latex
+{\fontsize{46}{52}\selectfont\floraletters{FLORA'S}\par}
+{\fontsize{30}{36}\selectfont\floraletters[style=engraved, arch=24]{DICTIONARY}\par}
+```
+
+- `style`: `outline` (the letter drawn round), `shaded` (outlined, with a
+  hatched shadow; the default) or `engraved` (the face ruled with fine
+  lines over a solid shadow).
+- `arch`: the degrees the baseline bends through. Positive arches the
+  middle up, negative sags it; 0 (the default) keeps it straight.
+- `ink`: an iroshizuku ink by name for the line work, or `black` (the
+  default).
+
+It needs an OpenType or TrueType font, as LuaLaTeX's default Latin Modern
+and any `fontspec` font are; with another font the text is set as usual,
+with a warning in the log. The flora keeps clear of the lettering as it
+does of text.
 
 It also grows into gaps in the text. A gap between lines taller than about
 three lines (40 pt), such as a `\vspace` left for a figure, opens across
 the text's full width and the flora reaches into it. The space below a
 short last page fills the same way.
 
-`tex/lorem.tex` (`example.tex` in the zip) uses each of these, with a
-comment at every setting.
+`tex/lorem.tex` (`example.tex` in the zip) uses the first six layouts,
+with a comment at every setting; `tex/titles.tex` (`titles.tex` in the
+zip) has a title page in each of the other four, lettered with
+`\floraletters`.
 
 ## Working on tikz-flora
 

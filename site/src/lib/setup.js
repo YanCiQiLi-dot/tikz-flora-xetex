@@ -32,14 +32,38 @@ const GEOMETRY = {
   centered: "a4paper,left=4.6cm,right=4.6cm,top=3.5cm,bottom=3.5cm",
   title: "a4paper,margin=3.2cm,top=5cm",
   surround: "a4paper,margin=3.2cm",
+  flank: "a4paper,margin=2.5cm",
+  wreath: "a4paper,margin=2.5cm",
+  bouquet: "a4paper,margin=2.5cm",
+  scrollwork: "a4paper,margin=2.5cm",
 };
+
+// The title-page layouts after engraved title pages: a whole title page,
+// lettered with \floraletters, with the text on the next page.
+const TITLE_PAGES = new Set(["flank", "wreath", "bouquet", "scrollwork"]);
 
 // A whole document that compiles with LuaLaTeX beside the unzipped
 // package and shows the mixer's settings on its first page.
 export function documentFor(line, layout) {
-  const body = layout === "title"
-    ? "\\begin{floratitle}\n\\centering\n{\\Huge\\scshape Florilegium\\par}\n\\end{floratitle}\n"
-    : "\\section{A first garden}\n";
+  const body = TITLE_PAGES.has(layout)
+    ? [
+      "\\thispagestyle{empty}",
+      "\\vspace*{\\fill}",
+      "\\begin{floratitle}",
+      "\\centering",
+      "{\\fontsize{40}{46}\\selectfont\\floraletters[style=engraved, arch=20]{FLORILEGIUM}\\par}",
+      "\\vspace{1em}",
+      "{\\large\\itshape Of leaves, after Vitruvius and Asa Gray\\par}",
+      "\\end{floratitle}",
+      "\\vspace*{\\fill}",
+      "\\clearpage",
+      "\\floraoff",
+      "\\section{A first garden}",
+      "",
+    ].join("\n")
+    : layout === "title"
+      ? "\\begin{floratitle}\n\\centering\n{\\Huge\\scshape Florilegium\\par}\n\\end{floratitle}\n"
+      : "\\section{A first garden}\n";
   return [
     "% Save as main.tex beside tikzflora.sty and lua/, then run: lualatex main",
     "\\documentclass[11pt]{article}",
