@@ -39,22 +39,29 @@ const gilt = query.get("gilt") === "vector" ? "vector" : "raster";
 const giltenv = query.get("giltenv") === "mirror" ? "mirror" : "studio";
 const giltlook = query.get("giltlook") ?? "";
 
+// The renderer: "webgl" (default) draws the content stream in the worker
+// with flora's WebGL2 renderer (draw.js), falling back to its 2D canvas
+// renderer where WebGL2 is missing; "canvas2d" asks for the 2D canvas, and
+// "pdf" draws a PDF with pdf.js, for comparison (?renderer=canvas2d|pdf).
+export const renderer = ({ pdf: "pdf", canvas2d: "canvas2d" })[query.get("renderer")] ?? "webgl";
+
 export async function render(job) {
-  return post({ kind: "render", gilt, giltenv, giltlook, ...job });
+  return post({ kind: "render", gilt, giltenv, giltlook, draw: renderer, ...job });
 }
 
 export async function gallery(job) {
-  return post({ kind: "gallery", gilt, giltenv, giltlook, ...job });
+  return post({ kind: "gallery", gilt, giltenv, giltlook, draw: renderer, ...job });
 }
-
-// The renderer: "canvas" (default) draws the content stream in the worker
-// (scene.js); "pdf" draws a PDF with pdf.js, for comparison (?renderer=pdf).
-export const renderer = new URLSearchParams(globalThis.location?.search ?? "").get("renderer") === "pdf" ? "pdf" : "canvas";
 
 // The picture's width in device pixels for `width` CSS pixels, when the
 // worker draws it; undefined when pdf.js does.
 export function px(width) {
-  return renderer === "canvas" ? Math.round(width * (window.devicePixelRatio || 1)) : undefined;
+  return renderer === "pdf" ? undefined : Math.round(width * (window.devicePixelRatio || 1));
+}
+
+// The renderer that drew a worker's output `out`, for status lines.
+export function drawnBy(out) {
+  return out.renderer === "webgl" ? "WebGL" : out.renderer === "canvas2d" ? "2D canvas" : "pdf.js";
 }
 
 // Show a worker's output on `canvas` at `width` CSS pixels: its bitmap, or

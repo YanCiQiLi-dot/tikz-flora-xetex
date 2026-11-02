@@ -92,13 +92,16 @@ const CACHE = "flora-garden";
 // Gardens kept besides the one just grown: enough for a few window sizes.
 const KEEP = 4;
 
-// A garden grower. grow(o) resolves to { bitmap, cached, ms, at }:
+// A garden grower. grow(o) resolves to { bitmap, cached, ms, at }, plus
+// `renderer` and `drawMs` (draw.js) when it grew afresh:
 //   o.mode       "margins" or "band" (lua/flora/garden.lua)
 //   o.width, o.height  CSS px; o.x0, o.x1 the content column (margins)
 //   o.dpr        device pixels per CSS px (default 1)
 //   o.settings   \florasetup keys over the garden's own, e.g. "backdrop=dark"
 //   o.date, o.timeZone  the clock (default: now, the visitor's zone)
 //   o.cache      false to skip the Cache Storage copy (default true)
+//   o.renderer   "webgl" (default, the 2D canvas where WebGL2 is missing) or
+//                "canvas2d"
 // The colourway follows the season unless o.settings names its own.
 export function createGarden({ worker } = {}) {
   const post = client(worker ?? (() => new Worker(new URL("./render.worker.js", import.meta.url), { type: "module" })));
@@ -120,7 +123,7 @@ export function createGarden({ worker } = {}) {
         if (hit) return { bitmap: await createImageBitmap(await hit.blob()), cached: true, ms: 0, at };
       } catch { /* no cache in this context: grow it */ }
     }
-    const out = await post({ kind: "garden", garden, px, png: useCache });
+    const out = await post({ kind: "garden", garden, px, png: useCache, draw: o.renderer });
     if (useCache && out.png) {
       try {
         const cache = await caches.open(CACHE);
@@ -129,7 +132,7 @@ export function createGarden({ worker } = {}) {
         for (const req of keys.slice(0, Math.max(0, keys.length - 1 - KEEP))) if (req.url !== key) await cache.delete(req);
       } catch { /* storage full or denied: the garden still shows */ }
     }
-    return { bitmap: out.bitmap, cached: false, ms: out.ms, at };
+    return { bitmap: out.bitmap, cached: false, ms: out.ms, at, renderer: out.renderer, drawMs: out.drawMs };
   }
   return { grow };
 }

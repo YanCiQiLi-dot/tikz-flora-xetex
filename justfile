@@ -123,6 +123,19 @@ site-bake seed="3" CW="site/src/lib/colourways.json":
 site-dev:
     cd site && npm ci --no-audit --no-fund --silent && npx vite --port 5174 --host 127.0.0.1
 
+# Compares flora's WebGL2 and 2D canvas renderers on one garden at
+# http://127.0.0.1:5175/tools/renderers.html (site/tools/renderers.js):
+# grow time, each renderer's median draw time and a map of where their
+# pictures differ. The form sets the garden; its URL reproduces a run.
+renderers:
+    cd site && npm ci --no-audit --no-fund --silent && npx vite --port 5175 --host 127.0.0.1
+
+# The same bench in headless Chrome, printed as a table; ARGS as the page's
+# form, e.g. `just renderers-bench dpr=1 settings=backdrop=dark`.
+renderers-bench *ARGS:
+    cd site && npm ci --no-audit --no-fund --silent
+    node site/tests/renderers-bench.mjs {{ARGS}}
+
 # Drives the built site in headless Chrome (site/tests/e2e.mjs).
 # The garden for other web pages: build/garden/ holds garden.js, its
 # worker and the Lua WebAssembly, to serve together (site/src/lib/garden.js).

@@ -4,25 +4,30 @@
 //   { id, kind: "meta" }            -> { id, meta }  settings to offer, with
 //                                      each ink's ramp, each group's inks and
 //                                      each colourway's palette
-//   { id, kind: "render", spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook, backdrop }
+//   { id, kind: "render", spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook, backdrop, draw }
 //                                   -> { id, bitmap | pdf, ms }
 //   { id, kind: "version" }         -> { id, version }  a hash of the
 //                                      generator's sources, for cache keys
-//   { id, kind: "garden", garden, px, png }
+//   { id, kind: "garden", garden, px, png, draw }
 //                                   -> { id, bitmap, png?, ms }  the flora
 //                                      of a web page (lua/flora/garden.lua:
 //                                      garden = {mode, width, height, x0,
 //                                      x1, seed, grow, settings}), cut to
 //                                      its view; with `png`, also as a PNG
-//                                      Blob for caching
-//   { id, kind: "gallery", palette, spin, base, px, slot, gilt, giltenv, giltlook }
+//                                      Blob for caching; with `scene`, not
+//                                      drawn: -> { id, scene, view, ms },
+//                                      the scene JSON and its view
+//                                      (tools/renderers.js)
+//   { id, kind: "gallery", palette, spin, base, px, slot, gilt, giltenv, giltlook, draw }
 //                                   -> { id, bitmap | pdf, cells, slots, w, h }
 //                                      every ornament kind (gallery.lua), or
 //                                      those of one slot, with where to
 //                                      label each and every slot's label
 // With `px` (the picture's width in device pixels) the page's content
-// stream is drawn here on an OffscreenCanvas (scene.js) and returned as an
-// ImageBitmap; without it, as PDF bytes for pdf.js. `gilt` ("raster" or
+// stream is drawn here by flora's renderers (draw.js) and returned as an
+// ImageBitmap, with `renderer` ("webgl" or "canvas2d") and `drawMs`;
+// without it, as PDF bytes for pdf.js. `draw` ("webgl", the default, or
+// "canvas2d") asks for one renderer. `gilt` ("raster" or
 // "vector") picks how ornament gold is painted, `giltenv` ("studio" or
 // "mirror") which look raster gold takes, and `giltlook` ("key=value, ...",
 // as \florasetup's giltlook) changes keys of that look; raster gold is
@@ -32,7 +37,7 @@
 // light ink on a transparent ground.
 import { LuaFactory } from "wasmoon";
 import wasmUrl from "wasmoon/dist/glue.wasm?url";
-import { paint } from "./scene.js";
+import { draw } from "./draw.js";
 
 const sources = import.meta.glob("../../../lua/flora/*.lua", { query: "?raw", import: "default", eager: true });
 
@@ -128,20 +133,14 @@ return "{\\"kinds\\":[" .. table.concat(kinds, ",") .. "],\\"ornaments\\":[" .. 
 // The transferable objects of the last picture() call.
 let transfers = [];
 
-// Lua's output as a message body: a scene drawn to a bitmap `px` wide, or
-// PDF bytes. `view` {y, height} (bp from the page's foot) keeps only that
-// band of the page.
-function picture(out, px, view) {
+// Lua's output as a message body: a scene drawn to a bitmap `px` wide by
+// renderer `mode` (draw.js), or PDF bytes. `view` {y, height} (bp from the
+// page's foot) keeps only that band of the page.
+function picture(out, px, view, mode) {
   if (px) {
-    const scene = JSON.parse(out);
-    const scale = px / scene.width;
-    const h = view ? view.height : scene.height;
-    const top = view ? scene.height - view.y - view.height : 0;
-    const canvas = new OffscreenCanvas(Math.round(px), Math.round(h * scale));
-    paint(canvas.getContext("2d"), scene, scale, top);
-    const bitmap = canvas.transferToImageBitmap();
+    const { bitmap, renderer, ms } = draw(JSON.parse(out), px, view, mode);
     transfers = [bitmap];
-    return { bitmap };
+    return { bitmap, renderer, drawMs: Math.round(ms) };
   }
   const bytes = new TextEncoder().encode(out);
   transfers = [bytes.buffer];
@@ -173,7 +172,7 @@ onmessage = async (e) => {
       return;
     }
     if (kind === "garden") {
-      const { garden, px, png } = e.data;
+      const { garden, px, png, draw: mode, scene } = e.data;
       if (!(px > 0)) throw new Error("garden: px must be positive");
       const t0 = performance.now();
       const out = await l.doString(`
@@ -188,7 +187,11 @@ onmessage = async (e) => {
         GARDEN_VIEW = string.format('{"y":%.4f,"height":%.4f}', view.y * BP, view.height * BP)
         return Pdf.scene(Compose.page(spec), spec.width, spec.height)`);
       const view = JSON.parse(await l.doString("return GARDEN_VIEW"));
-      const msg = picture(out, px, view);
+      if (scene) {
+        postMessage({ id, scene: out, view, ms: Math.round(performance.now() - t0) });
+        return;
+      }
+      const msg = picture(out, px, view, mode);
       if (png) {
         // The PNG comes from the bitmap itself, so the cache holds exactly
         // what was shown.
@@ -202,7 +205,7 @@ onmessage = async (e) => {
       return;
     }
     if (kind === "gallery") {
-      const { palette, spin, base, px, slot, gilt, giltenv, giltlook } = e.data;
+      const { palette, spin, base, px, slot, gilt, giltenv, giltlook, draw: mode } = e.data;
       l.global.set("GILTLOOK", giltlook ?? "");
       const pdf = await l.doString(`
         local Gallery = require("flora.gallery")
@@ -238,10 +241,10 @@ onmessage = async (e) => {
         GALLERY = string.format('{"w":%.1f,"h":%.1f,"cells":[%s],"slots":[%s]}', w, h, table.concat(rows, ","), table.concat(slots, ","))
         return ${px ? "Pdf.scene" : "Pdf.encode"}(pt, w, h)`);
       const { w, h, cells, slots } = JSON.parse(await l.doString("return GALLERY"));
-      postMessage({ id, ...picture(pdf, px), cells, slots, w, h }, transfers);
+      postMessage({ id, ...picture(pdf, px, null, mode), cells, slots, w, h }, transfers);
       return;
     }
-    const { spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook, backdrop } = e.data;
+    const { spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook, backdrop, draw: mode } = e.data;
     const t0 = performance.now();
     l.global.set("SPEC", spec);
     l.global.set("GILTLOOK", giltlook ?? "");
@@ -266,7 +269,7 @@ onmessage = async (e) => {
       spec.gilt_dpi = ${px ? `math.max(50, math.min(600, ${Number(px)} / spec.width * 72.27))` : 150}
       Paint.reset_resources()
       return ${px ? "Pdf.scene" : "Pdf.encode"}(Compose.page(spec), spec.width, spec.height)`);
-    const out = picture(pdf, px);
+    const out = picture(pdf, px, null, mode);
     postMessage({ id, ...out, ms: Math.round(performance.now() - t0) }, transfers);
   } catch (err) {
     postMessage({ id, error: String(err && err.message || err) });

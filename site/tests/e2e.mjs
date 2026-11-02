@@ -9,6 +9,7 @@
 //   SITE_URL=https://flora.alpacasoft.dev/ node site/tests/e2e.mjs
 //                       (checks a deployed site instead of a local preview)
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
@@ -28,6 +29,16 @@ function check(cond, msg) {
   }
 }
 
+// tests/test_scene_ops.lua holds every page's operators to scene-ops.json;
+// flora's scene reader must know exactly that list.
+{
+  const ops = JSON.parse(readFileSync(join(SITE, "src/lib/scene-ops.json"), "utf8"));
+  const reader = readFileSync(join(SITE, "node_modules/flora/src/pdf-scene.ts"), "utf8");
+  const m = reader.match(/export const OPERATORS = (\[[^\]]*\])/);
+  check(m, "flora's scene reader no longer exports OPERATORS");
+  if (m) check(JSON.stringify(JSON.parse(m[1])) === JSON.stringify(ops), `flora reads ${m[1]}; scene-ops.json lists ${JSON.stringify(ops)}`);
+}
+
 const server = process.env.SITE_URL ? null : spawn("npx", ["vite", "preview", "--port", PORT, "--strictPort", "--host", "127.0.0.1"], {
   cwd: SITE, stdio: ["ignore", "ignore", "pipe"],
 });
@@ -45,7 +56,8 @@ try {
     const r = await fetch(URL + path);
     check(r.ok, `${path} is not served (${r.status})`);
   }
-  browser = await chromium.launch({ channel: "chrome", headless: true });
+  // The GPU flags give headless Chrome hardware WebGL2, as browsers have.
+  browser = await chromium.launch({ channel: "chrome", headless: true, args: ["--use-angle=metal", "--enable-gpu", "--ignore-gpu-blocklist"] });
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["clipboard-read", "clipboard-write"] });
   const page = await context.newPage();
   const errors = [];
@@ -99,8 +111,10 @@ try {
   check(first.blue < 0.1, `the first colourway is ${(first.blue * 100).toFixed(0)}% blue`);
   check(/seed=11,/.test(await code()) && /colourway=ember\}$/.test(await code()), `the mixer does not start on the first colourway: ${await code()}`);
 
-  // The canvas renderer (scene.js) draws what pdf.js draws from the same
-  // page's PDF, up to antialiasing: few sampled pixels differ visibly.
+  // flora's WebGL renderer (draw.js, the default) draws what pdf.js draws
+  // from the same page's PDF, up to antialiasing: few sampled pixels differ
+  // visibly. So does flora's 2D canvas renderer (?renderer=canvas2d).
+  check(/\(WebGL\)/.test(await page.locator(".status").textContent()), `the mixer did not draw with WebGL: ${await page.locator(".status").textContent()}`);
   const pixels = (p, at = ".sheet canvas") => p.evaluate((at) => {
     const c = document.querySelector(at);
     const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
@@ -145,11 +159,21 @@ try {
     const { differ, ink } = compare(a, b);
     console.log(`renderers: ${differ} of ${ink} inked samples differ (${((differ / Math.max(1, ink)) * 100).toFixed(2)}%), sizes ${a.w}x${a.h} / ${b.w}x${b.h}`);
     check(Math.abs(a.w - b.w) <= 1 && Math.abs(a.h - b.h) <= 1, `the renderers draw different sizes (${a.w}x${a.h}, ${b.w}x${b.h})`);
-    check(ink > 2000 && differ < ink * 0.03, `canvas and pdf.js differ at ${differ} of ${ink} inked samples`);
+    check(ink > 2000 && differ < ink * 0.03, `WebGL and pdf.js differ at ${differ} of ${ink} inked samples`);
+
+    const via2d = await context.newPage();
+    await via2d.goto(MIXER + "?renderer=canvas2d");
+    await via2d.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
+    check(/\(2D canvas\)/.test(await via2d.locator(".status").textContent()), "?renderer=canvas2d did not draw with the 2D canvas");
+    const c2 = await pixels(via2d);
+    await via2d.close();
+    const r2 = compare(c2, b);
+    console.log(`2D canvas renderer: ${r2.differ} of ${r2.ink} inked samples differ from pdf.js`);
+    check(r2.ink > 2000 && r2.differ < r2.ink * 0.03, `the 2D canvas and pdf.js differ at ${r2.differ} of ${r2.ink} inked samples`);
 
     // Gold is raster by default (the page above). The vector relief
-    // (?gilt=vector) and the mirror look (?giltenv=mirror) also draw on the
-    // canvas as pdf.js draws them. This page holds little gold, so the
+    // (?gilt=vector) and the mirror look (?giltenv=mirror) also draw with
+    // WebGL as pdf.js draws them. This page holds little gold, so the
     // gallery below checks that each one changes it.
     for (const [q, label] of [["?gilt=vector", "vector gilt"], ["?giltenv=mirror", "mirror gilt"]]) {
       const [alt, altPdf] = [await context.newPage(), await context.newPage()];
@@ -162,7 +186,7 @@ try {
       await altPdf.close();
       const r = compare(c, d);
       console.log(`${label} renderers: ${r.differ} of ${r.ink} inked samples differ`);
-      check(r.ink > 2000 && r.differ < r.ink * 0.03, `with ${label}, canvas and pdf.js differ at ${r.differ} of ${r.ink} inked samples`);
+      check(r.ink > 2000 && r.differ < r.ink * 0.03, `with ${label}, WebGL and pdf.js differ at ${r.differ} of ${r.ink} inked samples`);
     }
   }
 

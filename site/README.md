@@ -37,6 +37,16 @@ listed in the root README.
 - `just test-garden`: build the garden, test its clock
   (`tests/garden.mjs`) and grow it in headless Chrome from a folder of
   its own (`tests/garden-e2e.mjs`).
+- `just renderers`: serve the renderer bench at
+  http://127.0.0.1:5175/tools/renderers.html. It grows one garden and
+  draws it with flora's WebGL2 and 2D canvas renderers. It shows each
+  renderer's median time and a map of where the two pictures differ. The
+  page's URL holds the form, so a link reproduces a run. The bench is a
+  development page and is not part of the build.
+- `just renderers-bench [key=value ...]`: run the same bench in headless
+  Chrome and print its table (`tests/renderers-bench.mjs`). The keys are
+  the form's fields, e.g. `dpr=1 settings=backdrop=dark`. The bench fails
+  when the renderers differ at more than 3% of inked samples.
 - `just site-deploy`: bake, build and publish with `npx wrangler deploy`.
   It needs a `wrangler login` to the Cloudflare account that holds
   `alpacasoft.dev`. Wrangler creates the DNS record for the custom domain
@@ -78,16 +88,20 @@ generator as the package.
 2. For each change, `src/lib/Mixer.svelte` sends the worker the baked
    spec of the chosen layout with the seed, mix, ornaments, palette and
    spin. The worker calls `Compose.page`.
-3. The worker draws the page on an OffscreenCanvas with
-   `src/lib/scene.js`, which replays the PDF content stream `paint.lua`
-   writes (`pdfout.lua` `M.scene`), and returns a bitmap. The baked text
-   image is multiplied over it. With `?renderer=pdf` the worker returns
-   PDF bytes instead and pdf.js draws them, for comparison.
+3. The worker draws the page with `src/lib/draw.js`, which hands the PDF
+   content stream `paint.lua` writes (`pdfout.lua` `M.scene`) to the
+   `flora` package (github.com/wn-mitch/flora, pinned in `package.json`):
+   its reader turns the stream into a display list and its WebGL2
+   renderer draws it on an OffscreenCanvas. Where WebGL2 is missing, or
+   with `?renderer=canvas2d`, flora's 2D canvas renderer draws it. The
+   worker returns a bitmap, and the baked text image is multiplied over
+   it. With `?renderer=pdf` the worker returns PDF bytes instead and
+   pdf.js draws them, for comparison. The status line names the renderer.
 
-   `scene.js` knows only the operators in `src/lib/scene-ops.json`;
+   flora's reader knows only the operators in `src/lib/scene-ops.json`;
    `tests/test_scene_ops.lua` fails when `paint.lua` writes any other,
-   and `tests/e2e.mjs` checks the canvas matches pdf.js on the same
-   page.
+   and `tests/e2e.mjs` checks that flora's list matches the file and
+   that both renderers match pdf.js on the same page.
 4. `src/lib/setup.js` writes the `\florasetup{...}` line for the current
    settings.
 

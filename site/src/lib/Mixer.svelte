@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { meta as loadMeta, render, show, px, renderer } from "./render.js";
+  import { meta as loadMeta, render, show, px, drawnBy } from "./render.js";
   import { setupLine, documentFor, TITLE_PAGES, ARCHES } from "./setup.js";
   import InkPicker from "./InkPicker.svelte";
   import COLOURWAYS from "./colourways.json";
@@ -108,7 +108,7 @@
       const job = { spec: await spec(variant), seed, page: pg.page, mix: $state.snapshot(mix), ornaments: $state.snapshot(ornaments), palette: $state.snapshot(palette), spin, px: px(frame.clientWidth), gilt, giltenv, giltlook: lookLine, backdrop };
       const out = await render(job);
       await show(out, canvas, frame.clientWidth);
-      status = `Grown in ${(out.ms / 1000).toFixed(1)} s${renderer === "pdf" ? " (pdf.js)" : ""}`;
+      status = `Grown in ${(out.ms / 1000).toFixed(1)} s (${drawnBy(out)})`;
     } catch (e) {
       status = `Something went wrong: ${e.message}`;
     }

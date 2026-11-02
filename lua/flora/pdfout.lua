@@ -108,12 +108,12 @@ local function rgba64(im)
 end
 M.rgba64 = rgba64
 
--- Painter `pt` as a scene for the site's canvas renderer
--- (site/src/lib/scene.js): JSON holding the page size in bp, the content
+-- Painter `pt` as a scene for the site's renderers (flora's PDF scene
+-- reader, src/pdf-scene.ts, via site/src/lib/draw.js): JSON holding the page size in bp, the content
 -- stream exactly as the PDF page carries it, and its resources as data —
 -- each opacity state's ca, CA and blend mode, each pattern's axis (bp)
 -- and colour stops, and each image's size and base64 RGBA pixels. The
--- canvas replays the same operators the PDF holds.
+-- renderers replay the same operators the PDF holds.
 function M.scene(pt, width, height)
   local res = Paint.resources()
   local function num(v) return string.format("%.4f", v) end
