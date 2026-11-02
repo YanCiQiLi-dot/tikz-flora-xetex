@@ -22,6 +22,7 @@ local Frames = require("flora.frames")
 local Mix = require("flora.mix")
 local Visitor = require("flora.visitor")
 local Clock = require("flora.clock")
+local Color = require("flora.color")
 local pal = Paint.palette
 
 local C = {}
@@ -237,7 +238,7 @@ local function plant(spec, pt)
 
   -- Paint back to front.
   if not pt then
-    pt = Paint.new({ backend = os.getenv("FLORA_BACKEND"), gilt = spec.gilt })
+    pt = Paint.new({ backend = os.getenv("FLORA_BACKEND"), gilt = spec.gilt, backdrop = Color.backdrop(spec.backdrop) })
     pt.probe = spec.probe
     pt.gilt_dpi, pt.gilt_env, pt.gilt_look = spec.gilt_dpi, spec.gilt_env, spec.gilt_look
   end
@@ -323,7 +324,7 @@ end
 function C.frames(spec)
   local frames = Frames.of(spec)
   if #frames == 1 and not frames[1].fn then return plant(spec) end
-  local pt = Paint.new({ backend = os.getenv("FLORA_BACKEND"), gilt = spec.gilt })
+  local pt = Paint.new({ backend = os.getenv("FLORA_BACKEND"), gilt = spec.gilt, backdrop = Color.backdrop(spec.backdrop) })
   pt.probe = spec.probe
   pt.gilt_dpi, pt.gilt_env, pt.gilt_look = spec.gilt_dpi, spec.gilt_env, spec.gilt_look
   local cover = 0

@@ -17,6 +17,14 @@ for _, case in ipairs(cases) do
   Paint.reset_resources()
   f:write(Compose.page(s):code(), "\n")
 end
+-- A dark backdrop repaints every ink through OKLCH (color.lua), math
+-- the light page never runs.
+Paint.reset_resources()
+do
+  local s = H.page(3, 420)
+  s.layout, s.page, s.backdrop = "surround", 1, "dark"
+  f:write(Compose.page(s):code(), "\n")
+end
 -- Raster gilt, in both looks: the page and every image it computed,
 -- byte for byte.
 for _, env in ipairs({ "studio", "mirror" }) do

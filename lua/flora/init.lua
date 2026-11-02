@@ -105,7 +105,8 @@ function M.gallery(seeds)
     only[name] = true
   end
   seeds = tonumber(os.getenv("FLORA_GALLERY_SEEDS")) or tonumber(seeds) or 3
-  local pt = require("flora.paint").new({ backend = os.getenv("FLORA_BACKEND"), gilt = M.settings.gilt })
+  local pt = require("flora.paint").new({ backend = os.getenv("FLORA_BACKEND"), gilt = M.settings.gilt,
+    backdrop = require("flora.color").backdrop(M.settings.backdrop) })
   pt.gilt_dpi, pt.gilt_env, pt.gilt_look = M.settings.giltdpi, M.settings.giltenv, M.settings.giltlook
   local cells, w, h
   pt, cells, w, h = require("flora.gallery").sheet(pt, seeds, nil, nil, only)
@@ -159,6 +160,7 @@ function M.page(a)
     seed = M.seed(set.seed or a.seed, a.page),
     lines = lines, layout = set.layout, page = a.page, mix = set.mix, ornaments = set.ornaments, palette = set.palette, spin = set.spin,
     gilt = set.gilt, gilt_dpi = set.giltdpi, gilt_env = set.giltenv, gilt_look = set.giltlook,
+    backdrop = set.backdrop,
     doc_seed = tostring(set.seed or a.seed),
   }
   if marks and marks["title-start"] and lines then

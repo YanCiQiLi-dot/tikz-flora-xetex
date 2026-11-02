@@ -1,6 +1,6 @@
 // The \florasetup line for a mixer state: only what differs from the
 // defaults, so it reads like something a person would write.
-export function setupLine({ layout, seed, mix, ornaments = {}, palette, spin, gilt, giltenv, giltlook = {} }, meta) {
+export function setupLine({ layout, seed, mix, ornaments = {}, palette, spin, gilt, giltenv, giltlook = {}, backdrop }, meta) {
   const parts = [`layout=${layout}`, `seed=${seed}`];
   const defaults = Object.fromEntries(meta.kinds.map(([k, , , d]) => [k, d]));
   const changed = Object.entries(mix).filter(([k, v]) => k !== "density" && v !== defaults[k]);
@@ -28,6 +28,7 @@ export function setupLine({ layout, seed, mix, ornaments = {}, palette, spin, gi
     const look = Object.entries(giltlook);
     if (look.length) parts.push(`giltlook={${look.map(([k, v]) => `${k}=${v}`).join(", ")}}`);
   }
+  if (backdrop && backdrop !== "light") parts.push(`backdrop=${backdrop}`);
   return `\\florasetup{${parts.join(", ")}}`;
 }
 
@@ -61,7 +62,9 @@ export function letterOptions({ style = "engraved", arch = 20, ink = "black" } =
 // A whole document that compiles with LuaLaTeX beside the unzipped
 // package and shows the mixer's settings on its first page; a title-page
 // layout's title is lettered as `letters` asks.
-export function documentFor(line, layout, letters) {
+// `ground` ("#rrggbb"), for a dark backdrop, is also given the page and
+// its text is set light, so the document compiles as the mixer shows it.
+export function documentFor(line, layout, letters, ground) {
   const body = TITLE_PAGES.has(layout)
     ? [
       "\\thispagestyle{empty}",
@@ -87,6 +90,7 @@ export function documentFor(line, layout, letters) {
     `\\usepackage[${GEOMETRY[layout] ?? GEOMETRY.left}]{geometry}`,
     "\\usepackage{tikzflora}",
     line,
+    ...(ground ? [`\\pagecolor[HTML]{${ground.replace("#", "").toUpperCase()}}\\color{white}`] : []),
     "",
     "\\begin{document}",
     body.trimEnd(),

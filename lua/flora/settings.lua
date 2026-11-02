@@ -32,6 +32,8 @@ M.about = {
   { "giltdpi", "50 to 1200", "Pixels per inch of raster gilt." },
   { "giltenv", "studio, mirror", "Which look raster gilt takes (see Gilt)." },
   { "giltlook", "{key=value, ...}", "Changes keys of that look, such as giltlook={horizon=0.1, grain=0} (see Gilt)." },
+  { "backdrop", "light, dark, or a dark colour as #rrggbb",
+    "What the flora is painted over: light, white paper (the default); dark, a near-black page; or that colour. On a dark backdrop every ink is painted light, as if lit, and gold stays gold." },
   { "cache", "true, false",
     "true (the default) keeps each page's flora in a folder <jobname>-flora beside the PDF, so a later compile reuses it; false grows every page afresh." },
 }
@@ -113,6 +115,12 @@ M.define("cache", function(v)
   if v == "true" then return true end
   if v == "false" then return false end
   return nil, "cache must be true or false"
+end)
+
+M.define("backdrop", function(v)
+  local rgb, msg = require("flora.color").backdrop(v)
+  if rgb ~= nil or v == "light" then return v:lower() end
+  return nil, msg
 end)
 
 M.define("gilt", function(v)

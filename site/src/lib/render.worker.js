@@ -4,7 +4,7 @@
 //   { id, kind: "meta" }            -> { id, meta }  settings to offer, with
 //                                      each ink's ramp, each group's inks and
 //                                      each colourway's palette
-//   { id, kind: "render", spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook }
+//   { id, kind: "render", spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook, backdrop }
 //                                   -> { id, bitmap | pdf, ms }
 //   { id, kind: "gallery", palette, spin, base, px, slot, gilt, giltenv, giltlook }
 //                                   -> { id, bitmap | pdf, cells, slots, w, h }
@@ -18,6 +18,9 @@
 // "mirror") which look raster gold takes, and `giltlook` ("key=value, ...",
 // as \florasetup's giltlook) changes keys of that look; raster gold is
 // computed at the picture's own resolution (150 dpi for pdf.js).
+// `backdrop` ("light", "dark" or "#rrggbb", as \\florasetup's backdrop)
+// is what the picture will be shown over; on a dark one the picture is
+// light ink on a transparent ground.
 import { LuaFactory } from "wasmoon";
 import wasmUrl from "wasmoon/dist/glue.wasm?url";
 import { paint } from "./scene.js";
@@ -181,11 +184,12 @@ onmessage = async (e) => {
       postMessage({ id, ...picture(pdf, px), cells, slots, w, h }, transfers);
       return;
     }
-    const { spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook } = e.data;
+    const { spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook, backdrop } = e.data;
     const t0 = performance.now();
     l.global.set("SPEC", spec);
     l.global.set("GILTLOOK", giltlook ?? "");
     l.global.set("SEED", String(seed));
+    l.global.set("BACKDROP", backdrop ?? "light");
     const pdf = await l.doString(`
       local Serial = require("flora.serial")
       local Paint = require("flora.paint")
@@ -201,6 +205,7 @@ onmessage = async (e) => {
       spec.gilt = ${JSON.stringify(gilt ?? "raster")}
       spec.gilt_env = ${JSON.stringify(giltenv ?? "studio")}
       spec.gilt_look = require("flora.settings").parse("giltlook={" .. GILTLOOK .. "}").giltlook
+      spec.backdrop = require("flora.settings").parse("backdrop=" .. BACKDROP).backdrop
       spec.gilt_dpi = ${px ? `math.max(50, math.min(600, ${Number(px)} / spec.width * 72.27))` : 150}
       Paint.reset_resources()
       return ${px ? "Pdf.scene" : "Pdf.encode"}(Compose.page(spec), spec.width, spec.height)`);

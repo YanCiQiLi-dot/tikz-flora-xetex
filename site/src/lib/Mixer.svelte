@@ -27,6 +27,9 @@
   let giltenv = $state(query.get("giltenv") === "mirror" ? "mirror" : "studio");
   let giltlook = $state(Object.fromEntries((query.get("giltlook") ?? "").split(",").map((kv) => kv.split("="))
     .filter(([k, v]) => k && v !== undefined && Number.isFinite(Number(v))).map(([k, v]) => [k.trim(), Number(v)])));
+  // What the page is painted over, as \florasetup's backdrop; ?backdrop=dark
+  // opens on a dark page.
+  let backdrop = $state(query.get("backdrop") === "dark" ? "dark" : "light");
   // The title lettering of the four title-page layouts (\floraletters).
   let letters = $state({ style: "engraved", arch: 20, ink: "black" });
   let status = $state("Loading the generator…");
@@ -49,7 +52,7 @@
   let variant = $derived(pages.length ? (lettered ? `${pages[layout].page}-${letters.style}-${letters.arch}` : `${pages[layout].page}`) : "");
   let letterInk = $derived(meta?.catalog.letters.inks[letters.ink] ?? "#000");
   let lookLine = $derived(Object.entries(giltlook).map(([k, v]) => `${k}=${v}`).join(", "));
-  let line = $derived(meta && pages.length ? setupLine({ layout: pages[layout].layout, seed, mix, ornaments, palette, spin, gilt, giltenv, giltlook }, meta) : "");
+  let line = $derived(meta && pages.length ? setupLine({ layout: pages[layout].layout, seed, mix, ornaments, palette, spin, gilt, giltenv, giltlook, backdrop }, meta) : "");
   let anyRandom = $derived(Object.values(palette).includes("random"));
   // The colourway the inks and seed match now, if any (-1 for the
   // package's own look).
@@ -102,7 +105,7 @@
     const pg = pages[layout];
     status = "Growing…";
     try {
-      const job = { spec: await spec(variant), seed, page: pg.page, mix: $state.snapshot(mix), ornaments: $state.snapshot(ornaments), palette: $state.snapshot(palette), spin, px: px(frame.clientWidth), gilt, giltenv, giltlook: lookLine };
+      const job = { spec: await spec(variant), seed, page: pg.page, mix: $state.snapshot(mix), ornaments: $state.snapshot(ornaments), palette: $state.snapshot(palette), spin, px: px(frame.clientWidth), gilt, giltenv, giltlook: lookLine, backdrop };
       const out = await render(job);
       await show(out, canvas, frame.clientWidth);
       status = `Grown in ${(out.ms / 1000).toFixed(1)} s${renderer === "pdf" ? " (pdf.js)" : ""}`;
@@ -167,7 +170,7 @@
   }
 
   async function copy(what) {
-    const text = what === "document" ? documentFor(line, pages[layout].layout, letters) : line;
+    const text = what === "document" ? documentFor(line, pages[layout].layout, letters, backdrop === "dark" ? meta.catalog.backdrop.dark : undefined) : line;
     await navigator.clipboard.writeText(text);
     copied = what;
     setTimeout(() => (copied = ""), 1600);
@@ -288,6 +291,15 @@
         {/each}
         <p class="hint"><a href="/ornaments/">See every kind on the ornaments page.</a></p>
       </details>
+      <details class="backdrop">
+        <summary>Backdrop</summary>
+        <div class="choices" role="group" aria-label="What the page is painted over">
+          {#each [["light", "Light paper"], ["dark", "Dark page"]] as [b, name]}
+            <button type="button" aria-pressed={backdrop === b} onclick={() => { backdrop = b; changed(); }}>{name}</button>
+          {/each}
+        </div>
+        <p class="hint">On a dark page every ink is painted light, as if lit, over a transparent ground; gold stays gold.</p>
+      </details>
       <details class="gilt">
         <summary>Gilt</summary>
         <div class="choices" role="group" aria-label="How gold is painted">
@@ -327,7 +339,8 @@
   </div>
 
   <div class="viewer">
-    <div class="sheet paper" bind:this={frame} class:busy>
+    <div class="sheet paper" bind:this={frame} class:busy class:dark={backdrop === "dark"}
+      style={backdrop === "dark" && meta ? `background:${meta.catalog.backdrop.dark}` : undefined}>
       <canvas bind:this={canvas} aria-label="The page's flora"></canvas>
       {#if pages.length}
         <img src={`/bake/text-${variant}.png`} alt="The example page's text">
@@ -386,6 +399,9 @@
   .sheet img { mix-blend-mode: multiply; }
   /* The title lettering: a baked mask filled with its ink. */
   .sheet .letters { position: absolute; inset: 0; mix-blend-mode: multiply; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
+  /* On a dark page the baked black text and lettering are turned light. */
+  .sheet.dark img { filter: invert(1); mix-blend-mode: screen; }
+  .sheet.dark .letters { mix-blend-mode: screen; filter: invert(1) hue-rotate(180deg); }
   .choices { display: flex; flex-wrap: wrap; gap: .35rem; margin: .45rem 0; }
   .choices button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
   select { grid-column: 2; width: 100%; padding: .3rem .4rem; border: 1px solid var(--control); background: transparent; font: inherit; }

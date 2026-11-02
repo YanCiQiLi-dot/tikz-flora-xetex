@@ -99,7 +99,40 @@ function P.new(opts)
     group = nil,     -- the group currently collecting extents
     -- Gilt as "raster" computed gold (pdf only) or "vector" relief.
     gilt = opts and opts.gilt or Tune.gilt or "raster",
+    -- The dark backdrop {r, g, b} ink is repainted for (P:ink), or nil
+    -- for white paper.
+    backdrop = opts and opts.backdrop or nil,
+    metal = 0,       -- depth of gilding in progress, which keeps its colour
+    inked = {},      -- rgb key -> its colour on the backdrop
   }, P)
+end
+
+-- Colours never repainted for a dark backdrop: metal, which reads on any
+-- ground (orn_gild.lua adds its own), and white, which paints highlights
+-- and glints and stays the lightest thing on the page either way.
+P.keep = { [P.palette.gold] = true, [P.palette.copper] = true, [P.palette.white] = true }
+
+-- `rgb` as it is painted: itself on white paper; on a dark backdrop, its
+-- lightness turned over (color.lua C.on_ground), unless it is one of
+-- P.keep or is painted while gilding.
+function P:ink(rgb)
+  local bd = self.backdrop
+  if not bd or self.metal > 0 or P.keep[rgb] then return rgb end
+  local key = fmt("%.4f,%.4f,%.4f", rgb[1], rgb[2], rgb[3])
+  local c = self.inked[key]
+  if not c then
+    c = require("flora.color").on_ground(rgb, bd, P.palette.paper)
+    self.inked[key] = c
+  end
+  return c
+end
+
+-- On a dark backdrop ink adds light where on paper it takes it away, so
+-- multiply and screen trade places.
+local SWAP = { multiply = "screen", screen = "multiply" }
+function P:blend(mode)
+  if mode and self.backdrop and self.metal == 0 then return SWAP[mode] or mode end
+  return mode
 end
 
 local function n2(v)
@@ -345,16 +378,18 @@ function P:fill(cmds, rgb, opacity, opts)
     self.gilding = true
     return
   end
+  rgb = self:ink(rgb)
+  local blend = self:blend(opts.blend)
   local pdf = self.backend == "pdf"
   local buf = { pdf and "q" or "\\pgfscope" }
   if pdf then
     local op = opacity and opacity < 1 and opacity or 1
-    if op < 1 or opts.blend then
-      buf[#buf + 1] = "/" .. self:gstate(op, 1, BLEND[opts.blend or "normal"]) .. " gs"
+    if op < 1 or blend then
+      buf[#buf + 1] = "/" .. self:gstate(op, 1, BLEND[blend or "normal"]) .. " gs"
     end
     buf[#buf + 1] = rgb3(rgb) .. " rg"
   else
-    if opts.blend then buf[#buf + 1] = fmt("\\pgfsetblendmode{%s}", opts.blend) end
+    if blend then buf[#buf + 1] = fmt("\\pgfsetblendmode{%s}", blend) end
     buf[#buf + 1] = fmt("\\pgfsetfillcolor{%s}", self:color(rgb))
     if opacity and opacity < 1 then
       buf[#buf + 1] = fmt("\\pgfsetfillopacity{%s}", n2(opacity))
@@ -383,16 +418,18 @@ function P:stroke(cmds, rgb, width, opacity, opts)
     self.gilding = true
     return
   end
+  rgb = self:ink(rgb)
+  local blend = self:blend(opts.blend)
   local pdf = self.backend == "pdf"
   local buf = { pdf and "q" or "\\pgfscope" }
   if pdf then
     local op = opacity and opacity < 1 and opacity or 1
-    if op < 1 or opts.blend then
-      buf[#buf + 1] = "/" .. self:gstate(1, op, BLEND[opts.blend or "normal"]) .. " gs"
+    if op < 1 or blend then
+      buf[#buf + 1] = "/" .. self:gstate(1, op, BLEND[blend or "normal"]) .. " gs"
     end
     buf[#buf + 1] = rgb3(rgb) .. " RG " .. b2(width) .. " w 1 J 1 j"
   else
-    if opts.blend then buf[#buf + 1] = fmt("\\pgfsetblendmode{%s}", opts.blend) end
+    if blend then buf[#buf + 1] = fmt("\\pgfsetblendmode{%s}", blend) end
     buf[#buf + 1] = fmt("\\pgfsetstrokecolor{%s}\\pgfsetlinewidth{%spt}", self:color(rgb), n2(width))
     buf[#buf + 1] = "\\pgfsetroundcap\\pgfsetroundjoin"
     if opacity and opacity < 1 then
@@ -412,9 +449,15 @@ end
 -- Declare a gradient once. `stops` lists {position 0-1, rgb}. For the pgf
 -- backend this is a horizontal PGF shading spanning 100bp; for the pdf
 -- backend the stops are kept and become a pattern when `shade` places them.
+-- On a dark backdrop the stops are repainted (P:ink) as they are declared.
 function P:shading(name, stops)
   self.shadings = self.shadings or {}
   if self.shadings[name] then return name end
+  if self.backdrop then
+    local inked = {}
+    for i, s in ipairs(stops) do inked[i] = { s[1], self:ink(s[2]) } end
+    stops = inked
+  end
   self.shadings[name] = stops
   if self.backend == "pgf" then
     local parts = {}

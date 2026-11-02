@@ -93,6 +93,8 @@ function M.build()
       look = r[4], defaults = defaults }
   end
 
+  c.backdrop = { default = "light", dark = hex(require("flora.color").DARK_GROUND) }
+
   c.letters = { styles = {}, default = "shaded", arch = Letters.ARCH, inks = { black = hex(Letters.ink_rgb(nil)) } }
   for _, s in ipairs(Letters.style_order) do c.letters.styles[#c.letters.styles + 1] = { name = s, about = Letters.about[s] } end
   for _, n in ipairs(Inks.order) do c.letters.inks[n] = hex(Letters.ink_rgb(n)) end

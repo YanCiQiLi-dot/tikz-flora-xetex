@@ -216,6 +216,30 @@ try {
   await page.locator("details.gilt").getByRole("button", { name: "raster", exact: true }).click();
   await grown();
 
+  // A dark backdrop regrows the page as light ink over a dark sheet, and
+  // reaches the line and the copied document's page colour.
+  await page.locator("details.backdrop").getByRole("button", { name: "Dark page" }).click();
+  await grown();
+  check(/backdrop=dark/.test(await code()), `the backdrop is not in the line: ${await code()}`);
+  const night = await page.evaluate(() => {
+    const sheet = document.querySelector(".sheet");
+    const c = sheet.querySelector("canvas");
+    const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+    let bright = 0, dark = 0;
+    for (let i = 0; i < d.length; i += 4 * 7) {
+      if (d[i + 3] < 128) continue;
+      const sum = d[i] + d[i + 1] + d[i + 2];
+      if (sum > 450) bright++;
+      else if (sum < 150) dark++;
+    }
+    return { bright, dark, bg: getComputedStyle(sheet).backgroundColor };
+  });
+  check(night.bg !== "rgb(255, 255, 255)" && night.bright > 2000 && night.bright > night.dark * 3,
+    `the dark backdrop does not paint light ink on a dark sheet (${JSON.stringify(night)})`);
+  await page.locator("details.backdrop").getByRole("button", { name: "Light paper" }).click();
+  await grown();
+  check(!/backdrop/.test(await code()), `the light backdrop is still in the line: ${await code()}`);
+
   // An ornament weight reaches the setup line, and the page regrows.
   await page.locator(".controls details.ornaments .row", { hasText: "Crescent moon" }).locator('input[type="range"]').fill("5");
   await grown();
