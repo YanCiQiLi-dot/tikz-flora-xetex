@@ -137,6 +137,31 @@ test-tex:
             "\pdfvariable compresslevel=${pre%:*} \documentclass{article}\usepackage{tikzflora}\typeout{compresslevel=\the\pdfvariable compresslevel}\stop" > build/compress.out || exit 1; \
         grep -q "^compresslevel=${pre#*:}$" build/compress.log || { echo "compresslevel ${pre%:*} became $(grep -o 'compresslevel=[0-9]*' build/compress.log), not ${pre#*:}"; exit 1; }; \
     done; echo "compresslevel: ok"
+    # The page cache: grown on the first run, reused on the second, only
+    # the edited page grown again, unused pages dropped after three runs,
+    # and nothing cached with cache=false, whose pages match the cached
+    # ones pixel for pixel.
+    rm -rf build/cache build/cache-off && mkdir -p build/cache build/cache-off
+    c() { lualatex -interaction=nonstopmode -halt-on-error -output-directory=build/cache -jobname=cache "$1\input{tests/cache.tex}" > build/cache/out.txt || exit 1; \
+        test "$(grep -c 'grown and cached' build/cache/cache.log)/$(grep -c 'from the cache' build/cache/cache.log)" = "$2" || { echo "cache run $3: grown/found $(grep -c 'grown and cached' build/cache/cache.log)/$(grep -c 'from the cache' build/cache/cache.log), not $2"; exit 1; }; }; \
+    c "" 2/0 1; pdftocairo -png -r 72 build/cache/cache.pdf build/cache/first; \
+    c "" 0/2 2; pdftocairo -png -r 72 build/cache/cache.pdf build/cache/second; \
+    cmp build/cache/first-1.png build/cache/second-1.png && cmp build/cache/first-2.png build/cache/second-2.png || { echo "cached pages differ from grown ones"; exit 1; }; \
+    c "\def\cacheedit{}" 1/1 3; test "$(ls build/cache/cache-flora/*.pdf | wc -l | tr -d ' ')" = 3 || { echo "edit run left the wrong number of files"; exit 1; }; \
+    c "\def\cacheedit{}" 0/2 4; c "\def\cacheedit{}" 0/2 5; \
+    test "$(ls build/cache/cache-flora/*.pdf | wc -l | tr -d ' ')" = 2 || { echo "a page unused for three runs was kept"; exit 1; }; \
+    lualatex -interaction=nonstopmode -halt-on-error -output-directory=build/cache-off -jobname=cache "\def\cacheoff{}\input{tests/cache.tex}" > build/cache-off/out.txt || exit 1; \
+    test ! -e build/cache-off/cache-flora || { echo "cache=false still cached"; exit 1; }; \
+    pdftocairo -png -r 72 build/cache-off/cache.pdf build/cache-off/off; \
+    cmp build/cache/first-1.png build/cache-off/off-1.png || { echo "cached page differs from cache=false"; exit 1; }; \
+    rm -rf build/cache && mkdir -p build/cache; \
+    ! lualatex -interaction=nonstopmode -halt-on-error -output-directory=build/cache -jobname=cache "\def\cachecrash{}\input{tests/cache.tex}" > build/cache/out.txt || { echo "the stopped compile did not stop"; exit 1; }; \
+    c "" 1/1 "after a stopped compile"; \
+    echo "cache: ok"
+    # A --draftmode run writes no PDF, so it grows no flora at all.
+    rm -rf build/draft && mkdir -p build/draft
+    lualatex --draftmode -interaction=nonstopmode -halt-on-error -output-directory=build/draft -jobname=cache tests/cache.tex > build/draft/out.txt
+    ! grep -q 'flora: page' build/draft/cache.log && test ! -e build/draft/cache-flora && echo "draftmode: ok"
 
 # The component tuner for lua/flora/tune.lua at http://127.0.0.1:8766/:
 # builds the Svelte app in tuner/ and serves it with the render API.

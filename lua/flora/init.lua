@@ -169,6 +169,19 @@ function M.page(a)
     f:close()
   end
   if skip then return end
+  -- A --draftmode run writes no PDF, and the flora takes no room in the
+  -- layout, so there is nothing to draw.
+  if tex.draftmode and tex.draftmode > 0 then return end
+  if set.cache ~= false and (os.getenv("FLORA_BACKEND") or "pdf") == "pdf" then
+    local file, e, hit = require("flora.cache").page(spec, set, pdf.getcompresslevel and pdf.getcompresslevel() or 6)
+    if file then
+      node.write(img.node(img.scan({ filename = file })))
+      texio.write_nl("log", string.format("flora: page %d %s", a.page, hit and "from the cache" or "grown and cached"))
+      texio.write_nl("log", string.format("flora: %d painted objects", e.count))
+      texio.write_nl("log", string.format("flora: page %d coverage %.2f", a.page, e.coverage))
+      return
+    end
+  end
   local pt = require("flora.compose").page(spec)
   tex.sprint("\\begin{pgfpicture}")
   tex.sprint(string.format(

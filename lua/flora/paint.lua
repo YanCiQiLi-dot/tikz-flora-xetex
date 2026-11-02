@@ -62,9 +62,27 @@ function P.register_xobject(entry)
   return entry[1]
 end
 
--- Write a PDF object; outside LuaTeX (unit tests) objects are only counted.
+-- Paint for a standalone page (P.isolated): resources are kept for
+-- pdfout.lua rather than written into the document being compiled.
+P.standalone = false
+
+-- Run fn() against a fresh set of registered resources, as a page of its
+-- own written by pdfout.lua (the page cache, cache.lua), then restore the
+-- document's. Returns fn's results.
+function P.isolated(fn)
+  local saved, was = registered, P.standalone
+  P.reset_resources()
+  P.standalone = true
+  local res = table.pack(pcall(fn))
+  registered, P.standalone = saved, was
+  if not res[1] then error(res[2], 0) end
+  return table.unpack(res, 2, res.n)
+end
+
+-- Write a PDF object; outside LuaTeX (unit tests) and for a standalone
+-- page, objects are only counted.
 local function pdf_object(s)
-  if pdf and pdf.immediateobj then return pdf.immediateobj(s) end
+  if pdf and pdf.immediateobj and not P.standalone then return pdf.immediateobj(s) end
   registered.fake = (registered.fake or 0) + 1
   return registered.fake
 end

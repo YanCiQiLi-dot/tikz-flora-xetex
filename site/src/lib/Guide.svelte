@@ -184,7 +184,7 @@ Some text.
     <dt>The contents page is empty</dt>
     <dd>Compile twice, or use <code>latexmk</code>.</dd>
     <dt>A long document is slow to compile</dt>
-    <dd>Each page's flora is grown afresh on every compile, a few seconds a page. While you write, turn it off with <code>\floraoff</code> and back on with <code>\floraon</code>: pages from the one it falls on up to <code>\floraon</code> have none. Put <code>\floraoff</code> in the preamble to draft without any, or around the chapters you are not working on.</dd>
+    <dd>Growing a page's flora takes a few seconds, so the first compile is slow. Each page's flora is then kept in a folder <code>&lt;jobname&gt;-flora</code> beside the PDF, and later compiles reuse every page whose text did not move, so LaTeX's second and third runs cost almost nothing. <code>\florasetup&#123;cache=false&#125;</code> keeps nothing. While you write, turn the flora off with <code>\floraoff</code> and back on with <code>\floraon</code>; put <code>\floraoff</code> in the preamble to draft without any.</dd>
     <dt>The flora is cramped</dt>
     <dd>It fills the margins it is given. Widen them with <code>geometry</code> (about 5 cm for a side margin, or 3 cm all round for <code>surround</code>), or lower <code>density</code>.</dd>
   </dl>

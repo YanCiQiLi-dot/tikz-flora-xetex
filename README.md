@@ -84,6 +84,7 @@ compile with a message naming the key.
 | `giltdpi` | 50 to 1200 | Resolution of raster gilt; 600 by default, lower compiles faster |
 | `giltenv` | `studio`, `mirror` | The look of raster gilt: a studio window over dark ground (default), or the vector relief's sky and horizon |
 | `giltlook` | `{key=value, ...}` | Changes keys of that look, e.g. `giltlook={horizon=0.1, grain=0}`: light, horizon, sky, ground, highlight, grain, sparkle, shadow and more (`lua/flora/gilt_look.lua` lists every key and its range) |
+| `cache` | `true` (default), `false` | Keeps each page's flora in a folder `<jobname>-flora/` beside the PDF so a later compile reuses it (see Long documents) |
 
 Mix kinds: `bloom`, `soft`, `lily`, `ghost`, `umbel`, `cyme`
 (forget-me-nots), `gyps` (baby's breath), `leaves`, `leaflets`, `sprays`,
@@ -201,11 +202,21 @@ zip) has a title page in each of the other four, lettered with
 
 ### Long documents
 
-Every page's flora is grown afresh on each compile, which takes a few
-seconds a page. `\floraoff` stops it from the page it falls on and
-`\floraon` starts it again, so a long document can be drafted with the
-flora off (`\floraoff` in the preamble) or with it only on the chapters
-being worked on.
+Growing a page's flora takes a few seconds. Each page's flora is kept in
+a folder `<jobname>-flora/` beside the PDF, named by everything it
+depends on (the page's layout, the settings and the package's code), so
+the next compile reuses every page whose text did not move. The second
+and third runs that LaTeX and `latexmk` make cost almost nothing, and
+an edit grows again only the pages it reflows. The folder holds about
+as much again as the PDF; pages no compile has used for three runs are
+deleted, and the folder can be deleted at any time.
+`\florasetup{cache=false}` grows every page afresh and keeps nothing.
+
+A `lualatex --draftmode` run writes no PDF, so it grows no flora.
+`\floraoff` stops the flora from the page it falls on and `\floraon`
+starts it again, so a long document can be drafted with the flora off
+(`\floraoff` in the preamble) or with it only on the chapters being
+worked on.
 
 The flora is tens of megabytes of PDF drawing per page before
 compression, so the package lowers LaTeX's compression level from 9 to

@@ -24,6 +24,9 @@
 --   giltlook  keys of that look changed, e.g. giltlook={horizon=0.1,
 --             grain=0} (tune.lua's gilt_looks; gilt_look.lua lists the
 --             keys and their ranges)
+--   cache     true (the default) keeps each page's flora in
+--             <jobname>-flora/ beside the PDF so a later compile reuses
+--             it (cache.lua); false grows every page afresh
 
 local M = {}
 
@@ -97,6 +100,12 @@ M.define("ornaments", function(v)
     t[k] = w
   end
   return t
+end)
+
+M.define("cache", function(v)
+  if v == "true" then return true end
+  if v == "false" then return false end
+  return nil, "cache must be true or false"
 end)
 
 M.define("gilt", function(v)
