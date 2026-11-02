@@ -265,10 +265,29 @@ function G.at(pts, t)
 end
 
 -- Resample a polyline to `n` points evenly spaced by arclength.
+-- Each point is exactly G.at(pts, i / (n - 1)); the segment lengths are
+-- measured once rather than once per point.
 function G.resample(pts, n)
+  local m = #pts
+  local ds, total = {}, 0
+  for i = 2, m do
+    local d = G.dist(pts[i - 1], pts[i])
+    ds[i] = d
+    total = total + d
+  end
   local out = {}
   for i = 0, n - 1 do
-    out[#out + 1] = (G.at(pts, i / (n - 1)))
+    local target = G.clamp(i / (n - 1), 0, 1) * total
+    local p = pts[m]
+    for k = 2, m do
+      local d = ds[k]
+      if target <= d or k == m then
+        p = G.mix(pts[k - 1], pts[k], d > 0 and G.clamp(target / d, 0, 1) or 0)
+        break
+      end
+      target = target - d
+    end
+    out[#out + 1] = p
   end
   return out
 end

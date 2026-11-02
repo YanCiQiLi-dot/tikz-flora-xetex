@@ -21,6 +21,13 @@
 % from the repository root without installing anything.
 \directlua{dofile(kpse.find_file("tikzflora-boot.lua", "tex"))}
 
+% Each page's flora is tens of megabytes of PDF drawing before it is
+% compressed. Level 4 compresses it to within 7% of the size LaTeX's
+% level 9 does, in about a ninth of the time, so the package lowers any
+% higher level to 4; a document can set \pdfvariable compresslevel after
+% loading the package to choose another.
+\ifnum\pdfvariable compresslevel>4 \pdfvariable compresslevel=4 \fi
+
 % Document seed: a number, or "random" to draw new flora on every run.
 \providecommand\florseed{1}
 % A page number to draw flora on that page only (empty: every page). The

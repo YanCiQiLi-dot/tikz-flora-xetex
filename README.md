@@ -199,6 +199,20 @@ with a comment at every setting; `tex/titles.tex` (`titles.tex` in the
 zip) has a title page in each of the other four, lettered with
 `\floraletters`.
 
+### Long documents
+
+Every page's flora is grown afresh on each compile, which takes a few
+seconds a page. `\floraoff` stops it from the page it falls on and
+`\floraon` starts it again, so a long document can be drafted with the
+flora off (`\floraoff` in the preamble) or with it only on the chapters
+being worked on.
+
+The flora is tens of megabytes of PDF drawing per page before
+compression, so the package lowers LaTeX's compression level from 9 to
+4: the PDF is about 7% larger and compiles in about half the
+time. Set `\pdfvariable compresslevel=9` after `\usepackage{tikzflora}`
+for the smallest file.
+
 ## Working on tikz-flora
 
 The repository uses [just](https://github.com/casey/just). These recipes

@@ -16,6 +16,15 @@ build name="lorem" seed="1" dpi="200":
     pdftocairo -png -singlefile -r {{dpi}} build/{{name}}.pdf build/{{name}}
     grep -h 'flora:' build/{{name}}.log || true
 
+# Time a compile of tex/manuscript.tex, a 51-page book with flora on every
+# page, to build/manuscript.pdf; prints the seconds taken and the file size.
+bench:
+    mkdir -p build
+    /usr/bin/time -p lualatex -interaction=nonstopmode -halt-on-error -output-directory=build \
+        manuscript > build/manuscript.out 2> build/bench.txt || (tail -30 build/manuscript.log; exit 1)
+    grep real build/bench.txt
+    pdfinfo build/manuscript.pdf | grep -E 'Pages|File size'
+
 # Run the Lua unit tests under texlua, and the tune.lua writer's test.
 test:
     for f in tests/test_*.lua; do texlua "$f" || exit 1; done
@@ -121,6 +130,13 @@ test-tex:
     grep -q 'measure: ok' build/measure.log && echo "measure: ok"
     lualatex -interaction=nonstopmode -halt-on-error -output-directory=build tests/letters.tex > build/letters.out || (grep -A3 '^!' build/letters.log; exit 1)
     grep -q 'letters: ok' build/letters.log && echo "letters: ok"
+    # The package lowers LaTeX's compression level 9 to 4, and keeps a
+    # lower one a document set before loading it.
+    for pre in 9:4 1:1; do \
+        lualatex -interaction=nonstopmode -halt-on-error -output-directory=build -jobname=compress \
+            "\pdfvariable compresslevel=${pre%:*} \documentclass{article}\usepackage{tikzflora}\typeout{compresslevel=\the\pdfvariable compresslevel}\stop" > build/compress.out || exit 1; \
+        grep -q "^compresslevel=${pre#*:}$" build/compress.log || { echo "compresslevel ${pre%:*} became $(grep -o 'compresslevel=[0-9]*' build/compress.log), not ${pre#*:}"; exit 1; }; \
+    done; echo "compresslevel: ok"
 
 # The component tuner for lua/flora/tune.lua at http://127.0.0.1:8766/:
 # builds the Svelte app in tuner/ and serves it with the render API.

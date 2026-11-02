@@ -183,6 +183,8 @@ Some text.
     <dd>TeX found <code>tikzflora.sty</code> but not the <code>lua/</code> folder. Keep <code>lua/</code> beside the <code>.sty</code>, or set <code>FLORA_LUA</code> to its path.</dd>
     <dt>The contents page is empty</dt>
     <dd>Compile twice, or use <code>latexmk</code>.</dd>
+    <dt>A long document is slow to compile</dt>
+    <dd>Each page's flora is grown afresh on every compile, a few seconds a page. While you write, turn it off with <code>\floraoff</code> and back on with <code>\floraon</code>: pages from the one it falls on up to <code>\floraon</code> have none. Put <code>\floraoff</code> in the preamble to draft without any, or around the chapters you are not working on.</dd>
     <dt>The flora is cramped</dt>
     <dd>It fills the margins it is given. Widen them with <code>geometry</code> (about 5 cm for a side margin, or 3 cm all round for <code>surround</code>), or lower <code>density</code>.</dd>
   </dl>
