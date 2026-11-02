@@ -316,7 +316,7 @@ end
 -- when given, is told each frame before its plant is painted.
 function C.page(spec)
   local palette = Mix.resolve(spec.palette, spec.seed, spec.spin)
-  return Mix.with_palette(palette, function() return C.frames(spec) end)
+  return Mix.with_palette(palette, function() return Mix.with_mix(spec.mix, function() return C.frames(spec) end) end)
 end
 
 -- C.page, after the page's palette is in place.

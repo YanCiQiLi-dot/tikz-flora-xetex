@@ -63,6 +63,8 @@ local kinds = {}
 local order = {}
 for _, k in ipairs(Mix.motifs) do order[#order + 1] = k end
 for _, k in ipairs({ "leaves", "leaflets", "sprays", "curls", "density" }) do order[#order + 1] = k end
+for _, k in ipairs(Mix.shapes) do order[#order + 1] = k end
+for _, k in ipairs(Mix.styles) do order[#order + 1] = k end
 for _, k in ipairs(Mix.visitors) do order[#order + 1] = k end
 for _, k in ipairs(order) do
   kinds[#kinds + 1] = "[" .. q(k) .. "," .. doc("mix." .. k) .. "," .. Tune.mix[k] .. "]"
@@ -108,7 +110,7 @@ end
 return "{\\"kinds\\":[" .. table.concat(kinds, ",") .. "],\\"ornaments\\":[" .. table.concat(slots, ",") .. "],\\"parts\\":[" .. table.concat(parts, ",")
   .. "],\\"groups\\":[" .. table.concat(groups, ",") .. "],\\"inks\\":[" .. table.concat(inks, ",")
   .. "],\\"ramps\\":{" .. table.concat(ramps, ",") .. "},\\"groupInks\\":{" .. table.concat(members, ",")
-  .. "},\\"colourways\\":{" .. table.concat(ways, ",") .. "}}"
+  .. "},\\"colourways\\":{" .. table.concat(ways, ",") .. "},\\"catalog\\":" .. require("flora.catalog").json(require("flora.catalog").build()) .. "}"
 `;
 
 // The transferable objects of the last picture() call.

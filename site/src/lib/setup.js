@@ -1,6 +1,6 @@
 // The \florasetup line for a mixer state: only what differs from the
 // defaults, so it reads like something a person would write.
-export function setupLine({ layout, seed, mix, ornaments = {}, palette, spin }, meta) {
+export function setupLine({ layout, seed, mix, ornaments = {}, palette, spin, gilt, giltenv, giltlook = {} }, meta) {
   const parts = [`layout=${layout}`, `seed=${seed}`];
   const defaults = Object.fromEntries(meta.kinds.map(([k, , , d]) => [k, d]));
   const changed = Object.entries(mix).filter(([k, v]) => k !== "density" && v !== defaults[k]);
@@ -21,6 +21,13 @@ export function setupLine({ layout, seed, mix, ornaments = {}, palette, spin }, 
   if (way) parts.push(`colourway=${way}`);
   if (pal.length) parts.push(`palette={${pal.map(([k, v]) => `${k}=${v}`).join(", ")}}`);
   if (spin && Object.values(palette).includes("random")) parts.push(`spin=${spin}`);
+  const g = meta.catalog?.gilt;
+  if (g && gilt && gilt !== g.default) parts.push(`gilt=${gilt}`);
+  if (g && gilt !== "vector") {
+    if (giltenv && giltenv !== g.env) parts.push(`giltenv=${giltenv}`);
+    const look = Object.entries(giltlook);
+    if (look.length) parts.push(`giltlook={${look.map(([k, v]) => `${k}=${v}`).join(", ")}}`);
+  }
   return `\\florasetup{${parts.join(", ")}}`;
 }
 
@@ -40,18 +47,28 @@ const GEOMETRY = {
 
 // The title-page layouts after engraved title pages: a whole title page,
 // lettered with \floraletters, with the text on the next page.
-const TITLE_PAGES = new Set(["flank", "wreath", "bouquet", "scrollwork"]);
+export const TITLE_PAGES = new Set(["flank", "wreath", "bouquet", "scrollwork"]);
+
+// The arches the mixer offers for the lettering, in degrees, each baked
+// (just site-bake).
+export const ARCHES = [[0, "Straight"], [20, "Gentle arch"], [40, "Strong arch"]];
+
+// \floraletters options for the mixer's lettering choice.
+export function letterOptions({ style = "engraved", arch = 20, ink = "black" } = {}) {
+  return `style=${style}, arch=${arch}` + (ink && ink !== "black" ? `, ink=${ink}` : "");
+}
 
 // A whole document that compiles with LuaLaTeX beside the unzipped
-// package and shows the mixer's settings on its first page.
-export function documentFor(line, layout) {
+// package and shows the mixer's settings on its first page; a title-page
+// layout's title is lettered as `letters` asks.
+export function documentFor(line, layout, letters) {
   const body = TITLE_PAGES.has(layout)
     ? [
       "\\thispagestyle{empty}",
       "\\vspace*{\\fill}",
       "\\begin{floratitle}",
       "\\centering",
-      "{\\fontsize{40}{46}\\selectfont\\floraletters[style=engraved, arch=20]{FLORILEGIUM}\\par}",
+      `{\\fontsize{40}{46}\\selectfont\\floraletters[${letterOptions(letters)}]{FLORILEGIUM}\\par}`,
       "\\vspace{1em}",
       "{\\large\\itshape Of leaves, after Vitruvius and Asa Gray\\par}",
       "\\end{floratitle}",

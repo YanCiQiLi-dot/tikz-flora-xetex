@@ -38,6 +38,20 @@ M.order = { "left", "right", "centered", "split", "title", "surround", "flank", 
 M.layouts = {}
 for _, k in ipairs(M.order) do M.layouts[k] = true end
 
+-- What each layout does, for the guide (catalog.lua).
+M.about = {
+  left = "The left margin. The default.",
+  right = "The right margin.",
+  centered = "Both side margins, with a different plant on each side.",
+  split = "The outer margin of a two-sided document: on the right of odd pages and the left of even ones.",
+  title = "A crown over a title. Wrap the title in the floratitle environment; without it the first block of lines on the page is crowned.",
+  surround = "A wreath round the text block, for title pages and contents.",
+  flank = "A title page: a plant up each side of its contents, their roots meeting at the foot round a crest.",
+  wreath = "A title page: an open oval garland round the title, tied at its foot.",
+  bouquet = "A title page: one upright bouquet tied with a bow, behind the title, each title line on a ribbon.",
+  scrollwork = "A title page: an oval gilt scroll frame round the title, with a crest at its head and the flora twined over it.",
+}
+
 -- Apply matrix m to (x, y).
 function M.apply(m, x, y)
   return m[1] * x + m[3] * y + m[5], m[2] * x + m[4] * y + m[6]

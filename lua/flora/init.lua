@@ -79,7 +79,10 @@ function M.letters(reg, opts)
   tex.sprint(string.format("\\hbox to %.3fpt{\\directlua{flora.mark('ink')}\\begin{pgfpicture}\\pgfsetbaseline{0pt}"
     .. "\\pgfpathrectangle{\\pgfqpoint{0pt}{%.3fpt}}{\\pgfqpoint{%.3fpt}{%.3fpt}}\\pgfusepath{use as bounding box}",
     w, -d, w, h + d))
-  M.typeset(pt)
+  -- FLORA_LETTERS=hide keeps the box and leaves it blank: the site's bake
+  -- (just site-bake) takes the page's text and its lettering apart so the
+  -- mixer can colour the lettering.
+  if os.getenv("FLORA_LETTERS") ~= "hide" then M.typeset(pt) end
   tex.sprint("\\end{pgfpicture}\\hss}")
 end
 

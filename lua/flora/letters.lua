@@ -25,9 +25,22 @@ local Inks = require("flora.inks")
 local M = {}
 
 M.styles = { outline = true, shaded = true, engraved = true }
+M.style_order = { "outline", "shaded", "engraved" }
+M.about = {
+  outline = "The letter drawn round, its face left paper.",
+  shaded = "Outlined, with a hatched shadow to the lower right. The default.",
+  engraved = "The face ruled with fine horizontal lines over a solid shadow.",
+}
+M.ARCH = { -180, 180 }
 local SP = 65536
 local PAPER = { 0.995, 0.993, 0.985 }
 local BLACK = { 0.11, 0.095, 0.085 }
+
+-- The colour of the line work in `ink` (an iroshizuku ink name), or
+-- black for nil.
+function M.ink_rgb(ink)
+  return ink and require("flora.color").ink_rgb(ink, 0.36) or BLACK
+end
 
 -- Parse and check the option list; returns the options or nil and an
 -- error message.
@@ -41,7 +54,7 @@ function M.options(s)
       o.style = v
     elseif k == "arch" then
       local n = tonumber(v)
-      if not n or n < -180 or n > 180 then return nil, "arch must be a number of degrees from -180 to 180" end
+      if not n or n < M.ARCH[1] or n > M.ARCH[2] then return nil, string.format("arch must be a number of degrees from %d to %d", M.ARCH[1], M.ARCH[2]) end
       o.arch = n
     elseif k == "ink" then
       if v ~= "black" and not Inks.ramps[v] then return nil, "ink must be black or an iroshizuku ink name, not " .. v end
@@ -203,7 +216,7 @@ function M.paint(pt, box, o)
     for _, c in ipairs(cmds) do face[#face + 1] = c end
   end
   if #face == 0 then return { 0, 0, L, 0 } end
-  local ink = o.ink and require("flora.color").ink_rgb(o.ink, 0.36) or BLACK
+  local ink = M.ink_rgb(o.ink)
   local b = bounds(face, { math.huge, math.huge, -math.huge, -math.huge })
   local lw = em * 0.02
   if o.style == "shaded" then

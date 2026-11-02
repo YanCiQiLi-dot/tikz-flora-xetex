@@ -89,7 +89,11 @@ compile with a message naming the key.
 Mix kinds: `bloom`, `soft`, `lily`, `ghost`, `umbel`, `cyme`
 (forget-me-nots), `gyps` (baby's breath), `leaves`, `leaflets`, `sprays`,
 `curls`, `density`, `bee`, `butterfly`, `bird`, `snail`. Visitors are off
-unless you give them weight.
+unless you give them weight. The mix also weighs the shapes drawn:
+`feather`, `acanthus` and `lance` for large leaves (small leaves are
+always lance leaves), and `fan` and `round` for small blooms, so
+`mix={acanthus=3, feather=0}` grows broad lobed leaves. The guide's
+"Every option" lists every key and value, read from the package.
 
 Palette values are `look` (the default gradients), an ink group (`blue`,
 `blue-grey`, `teal`, `green`, `violet`, `warm`, `earth`, `gold`) or one ink

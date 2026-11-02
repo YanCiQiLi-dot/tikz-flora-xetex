@@ -39,7 +39,9 @@ try {
   }
   for (const path of ["tikzflora.zip", "media/grow.mp4", "media/grow.gif", "img/og.jpg", "img/page-1.jpg", "bake/manifest.json",
     "img/colourway-0.jpg", "img/colourway-1.jpg", "img/colourway-2.jpg", "img/flora-margin.png",
-    "img/title-1.jpg", "img/title-4.jpg", "bake/spec-12.lua", "bake/text-14.png"]) {
+    "img/title-1.jpg", "img/title-4.jpg", "bake/catalog.json",
+    ...["outline", "shaded", "engraved"].flatMap((st) => [0, 20, 40].flatMap((a) =>
+      [11, 14].flatMap((p) => [`bake/spec-${p}-${st}-${a}.lua`, `bake/text-${p}-${st}-${a}.png`, `bake/letters-${p}-${st}-${a}.png`])))]) {
     const r = await fetch(URL + path);
     check(r.ok, `${path} is not served (${r.status})`);
   }
@@ -188,15 +190,31 @@ try {
   // Zero weights (behind their disclosures) grow a sparser page, and the
   // line follows the controls.
   for (const summary of await page.locator(".controls summary").all()) await summary.click();
-  for (const name of ["Leaves", "Baby's breath", "Forget-me-nots", "Sprays"]) {
-    await page.locator(".controls details .row", { hasText: name }).locator('input[type="range"]').fill("0");
-  }
+  const slider = (name) => page.locator(".controls details .row", { has: page.locator("span", { hasText: new RegExp(`^${name}$`) }) })
+    .locator('input[type="range"]');
+  for (const name of ["Leaves", "Baby's breath", "Forget-me-nots", "Sprays"]) await slider(name).fill("0");
   await grown();
   const second = await inked();
   check(second.n < original.n * 0.85, `zero weights did not thin the page (${original.n} -> ${second.n})`);
   const line = await code();
   check(/leaves=0/.test(line) && /gyps=0/.test(line), `setup line does not follow the controls: ${line}`);
   check(line.startsWith("\\florasetup{layout=left, seed="), `setup line has the wrong head: ${line}`);
+
+  // Leaf shapes and bloom styles have their own weights, which reach the
+  // line; so do the gilt's paint and look.
+  for (const name of ["Feather leaves", "Acanthus leaves", "Lance leaves", "Fan blooms", "Round blooms"]) {
+    check(await slider(name).count() === 1, `no ${name} slider`);
+  }
+  await slider("Acanthus leaves").fill("3");
+  await slider("Fan blooms").fill("0");
+  check(/acanthus=3/.test(await code()) && /fan=0/.test(await code()), `leaf and bloom weights not in the line: ${await code()}`);
+  await page.locator("details.gilt").getByRole("button", { name: "Mirror" }).click();
+  await slider("Horizon").fill("0.2");
+  check(/giltenv=mirror, giltlook=\{horizon=0.2\}/.test(await code()), `gilt look not in the line: ${await code()}`);
+  await page.locator("details.gilt").getByRole("button", { name: "vector", exact: true }).click();
+  check(/gilt=vector/.test(await code()) && !/giltenv/.test(await code()), `vector gilt not in the line: ${await code()}`);
+  await page.locator("details.gilt").getByRole("button", { name: "raster", exact: true }).click();
+  await grown();
 
   // An ornament weight reaches the setup line, and the page regrows.
   await page.locator(".controls details.ornaments .row", { hasText: "Crescent moon" }).locator('input[type="range"]').fill("5");
@@ -274,6 +292,19 @@ try {
   const titleDoc = await page.evaluate(() => navigator.clipboard.readText());
   check(titleDoc.includes("\\begin{floratitle}") && titleDoc.includes("\\floraletters") && titleDoc.includes("\\floraoff"),
     `the wreath's document is not a lettered title page:\n${titleDoc}`);
+  // Its lettering's style, arch and ink: the baked page for that style and
+  // arch is shown, the lettering is filled with the ink, and the document
+  // letters the title so.
+  await page.getByRole("button", { name: "outline", exact: true }).click();
+  await page.getByRole("button", { name: "Strong arch" }).click();
+  await page.locator(".controls select").selectOption("kon-peki");
+  await grown();
+  check((await page.locator(".sheet img").getAttribute("src")).endsWith("/bake/text-12-outline-40.png"), "the outline, strong-arch page is not shown");
+  const fill = await page.locator(".sheet .letters").evaluate((el) => [getComputedStyle(el).backgroundColor, getComputedStyle(el).maskImage]);
+  check(fill[0] !== "rgb(0, 0, 0)" && fill[0].startsWith("rgb") && fill[1].includes("letters-12-outline-40.png"), `lettering not filled with the ink: ${fill}`);
+  await page.getByRole("button", { name: "Copy complete document" }).click();
+  const lettered = await page.evaluate(() => navigator.clipboard.readText());
+  check(lettered.includes("\\floraletters[style=outline, arch=40, ink=kon-peki]"), `the document does not letter the title as chosen:\n${lettered}`);
 
   // The gallery opens on the flourishes, labelled, once it scrolls near;
   // the All tab draws every ornament kind.
@@ -325,6 +356,16 @@ try {
   const sheetBg = await page.evaluate(() => getComputedStyle(document.querySelector(".plate")).backgroundColor);
   check(sheetBg === "rgb(255, 255, 255)", `the gallery sheet is ${sheetBg} in dark mode`);
   await page.emulateMedia({ colorScheme: "light" });
+
+  // The guide's tables and its every-option list come from the package
+  // (catalog.json): settings added since the guide was written are listed,
+  // and so are the leaf shapes, gilt look keys and lettering styles.
+  await page.goto(URL + PAGES.guide);
+  await page.locator("#g-reference ~ dl.ref").first().waitFor();
+  const guide = await page.locator("main").textContent();
+  for (const word of ["giltlook", "cache", "feather", "acanthus", "horizon", "window_top", "engraved", "scrollwork", "kon-peki", "cul_de_lampe"]) {
+    check(guide.includes(word), `the guide does not list ${word}`);
+  }
 
   // Phones: no page scrolls sideways, and the mixer's page stays in view
   // while the inks are chosen.

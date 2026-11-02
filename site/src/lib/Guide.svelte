@@ -36,30 +36,14 @@ Some text.
 # then copy tikzflora.sty, tikzflora-boot.lua and lua/ into
 #   <TEXMFHOME>/tex/lualatex/tikzflora/`;
 
-  const keys = [
-    ["layout", "left, right, centered, split, title, surround, flank, wreath, bouquet, scrollwork", "Where the flora grows."],
-    ["seed", "a number, or random", "Which garden. Each page varies it, so pages differ."],
-    ["mix", "{kind=weight, …}", "How much of each kind: 1 the usual amount, 0 none, 2 about twice as much."],
-    ["density", "0 to 10", "Fuller above 1, airier below."],
-    ["visitors", "0 to 10", "The weight of every visitor at once: bees, butterflies, birds and snails."],
-    ["palette", "{part=ink, …}", "What paints each part: hero (the main flower), blooms, leaves, leaflets, stems, sprays, ghost (the pale bloom) and cartouche."],
-    ["colourway", "spring, summer, autumn (or fall), winter, ember, plum, rose, original", "A whole palette at once, chosen to suit its name. A palette after it changes single parts: colourway=winter, palette={hero=momiji}."],
-    ["spin", "a whole number", "Picks the random inks again. The shapes stay where they are."],
-    ["ornaments", "{kind=weight, …}", "How often each ornament kind is picked for its place on the page: the cartouche, header mark, pendant, gilt, and on title pages the crest, flourish, tailpiece and corners. 0 never. The gallery shows every kind with its name."],
-  ];
-  const kinds = "bloom, soft, lily, ghost, umbel, cyme (forget-me-nots), gyps (baby's breath), leaves, leaflets, sprays, curls, density, bee, butterfly, bird, snail";
-  const layouts = [
-    ["left", "The left margin. The default."],
-    ["right", "The right margin."],
-    ["centered", "Both side margins, with a different plant on each side."],
-    ["split", "The outer margin of a two-sided document: on the right of odd pages and the left of even ones."],
-    ["title", "A crown over a title. Wrap the title in the floratitle environment; without it the first block of lines on the page is crowned."],
-    ["surround", "A wreath round the text block, for title pages and contents."],
-    ["flank", "A title page: a plant up each side of its contents, their roots meeting at the foot round a crest."],
-    ["wreath", "A title page: an open oval garland round the title, tied at its foot."],
-    ["bouquet", "A title page: one upright bouquet tied with a bow, behind the title, each title line on a ribbon."],
-    ["scrollwork", "A title page: an oval gilt scroll frame round the title, with a crest at its head and the flora twined over it."],
-  ];
+  // Every setting, layout and value, from the package's own Lua
+  // (lua/flora/catalog.lua, baked to /bake/catalog.json by just site-bake).
+  import { onMount } from "svelte";
+  let cat = $state(null);
+  onMount(async () => {
+    try { cat = await fetch("/bake/catalog.json").then((r) => r.json()); } catch { cat = null; }
+  });
+  const ARCH = (a) => `${a[0]} to ${a[1]} degrees`;
 </script>
 
   <h3 id="g-install">1. Get LuaLaTeX</h3>
@@ -116,11 +100,12 @@ Some text.
     <table>
       <thead><tr><th>Key</th><th>Values</th><th>Effect</th></tr></thead>
       <tbody>
-        {#each keys as [k, v, e]}<tr><td><code>{k}</code></td><td>{v}</td><td>{e}</td></tr>{/each}
+        {#each cat?.settings ?? [] as st}<tr><td><code>{st.key}</code></td><td>{st.values}</td><td>{st.about}</td></tr>{/each}
       </tbody>
     </table>
   </div>
-  <p>Mix kinds: {kinds}. Visitors are off unless you give them weight.</p>
+  <p>Visitors are off unless you give them weight. <a href="#g-reference">Every option</a>
+    below lists each mix kind, ornament, ink and gilt key.</p>
   <p>
     Palette values are <code>look</code> (the original blue gradients), an
     ink group (warm, violet, gold, earth, green, teal, blue-grey, blue), one
@@ -135,7 +120,7 @@ Some text.
 
   <h3 id="g-layouts">5. Layouts</h3>
   <dl>
-    {#each layouts as [k, e]}<dt><code>{k}</code></dt><dd>{e}</dd>{/each}
+    {#each cat?.layouts ?? [] as l}<dt><code>{l.name}</code></dt><dd>{l.about}</dd>{/each}
   </dl>
   <p>A title page:</p>
   <pre><code>{title}</code></pre>
@@ -166,6 +151,56 @@ Some text.
     <code>fontspec</code> font are. The flora keeps clear of it as it does
     of text.
   </p>
+
+  <h3 id="g-reference">7. Every option</h3>
+  <p>
+    Read from the package itself, so it lists exactly what it accepts. The
+    <a href="/mixer/">mixer</a> has a control for each.
+  </p>
+  {#if cat}
+    <h4>Mix: <code>mix=&#123;kind=weight, …&#125;</code></h4>
+    {#each cat.mix as g}
+      <p class="sub">{g.group}</p>
+      <dl class="ref">
+        {#each g.kinds as k}<dt><code>{k.key}</code> <span class="muted">{k.label}, default {k.default}</span></dt><dd>{k.about}</dd>{/each}
+      </dl>
+    {/each}
+    <h4>Ornaments: <code>ornaments=&#123;kind=weight, …&#125;</code></h4>
+    {#each cat.ornaments as o}
+      <p class="sub">{o.label}</p>
+      <p class="list">{o.about} {#each o.kinds as k, i}<code>{k.key}</code> ({k.label}, {k.default}){i < o.kinds.length - 1 ? ", " : "."} {/each}</p>
+    {/each}
+    <h4>Palette: <code>palette=&#123;part=ink, …&#125;</code></h4>
+    <p class="list">Parts, with their defaults: {#each cat.parts as p, i}<code>{p.key}</code> ({p.default}){i < cat.parts.length - 1 ? ", " : "."} {/each}</p>
+    <p class="list">Each takes <code>look</code>, <code>random</code>, an ink group or one ink:</p>
+    <dl class="ref">
+      {#each cat.ink_groups as g}<dt><code>{g.name}</code></dt><dd>{g.inks.join(", ")}</dd>{/each}
+    </dl>
+    <h4>Colourways: <code>colourway=…</code></h4>
+    <dl class="ref">
+      {#each cat.colourways as c}<dt><code>{c.name}</code></dt><dd>{Object.keys(c.inks).length ? Object.entries(c.inks).map(([p, ink]) => `${p} ${ink}`).join(", ") : "the package's own blue look"}</dd>{/each}
+    </dl>
+    <h4>Gilt: <code>gilt</code>, <code>giltdpi</code>, <code>giltenv</code>, <code>giltlook=&#123;key=value, …&#125;</code></h4>
+    <p class="list"><code>gilt</code>: {cat.gilt.modes.join(" or ")} (default {cat.gilt.default}). <code>giltdpi</code>: {cat.gilt.dpi[0]} to {cat.gilt.dpi[1]} (default {cat.gilt.dpi[2]}). <code>giltenv</code>:
+      {#each cat.gilt.looks as lk, i}<code>{lk.name}</code> ({lk.about}){i < cat.gilt.looks.length - 1 ? "; " : "."} {/each}</p>
+    <div class="table">
+      <table>
+        <thead><tr><th>giltlook key</th><th>Range</th><th>Default</th><th>Effect</th></tr></thead>
+        <tbody>
+          {#each cat.gilt.keys as k}<tr><td><code>{k.key}</code></td><td>{k.min} to {k.max}</td>
+            <td>{k.look ? `${k.defaults[k.look]} (${k.look} only)` : `${k.defaults.studio} studio, ${k.defaults.mirror} mirror`}</td><td>{k.about}</td></tr>{/each}
+        </tbody>
+      </table>
+    </div>
+    <h4>Lettering: <code>\floraletters[style=…, arch=…, ink=…]</code></h4>
+    <dl class="ref">
+      {#each cat.letters.styles as st}<dt><code>style={st.name}</code></dt><dd>{st.about}</dd>{/each}
+      <dt><code>arch</code></dt><dd>{ARCH(cat.letters.arch)}: positive arches the middle up, negative sags it; 0 (the default) keeps it straight.</dd>
+      <dt><code>ink</code></dt><dd><code>black</code> (the default) or any ink above.</dd>
+    </dl>
+  {:else}
+    <p class="muted">Loading the list…</p>
+  {/if}
 
   <h3 id="g-grow">Watch it grow</h3>
   <p>
@@ -199,6 +234,10 @@ Some text.
   ol { padding-left: 1.3rem; }
   h3 { font-size: 1.6rem; margin: 3rem 0 .7rem; }
   h3:first-child { margin-top: 0; }
+  h4 { font-family: var(--body); font-size: 1.15rem; margin: 2rem 0 .4rem; }
+  .sub { font-variant-caps: all-small-caps; letter-spacing: .06em; color: var(--rubric); margin: 1rem 0 .2rem; }
+  .list { line-height: 1.6; }
+  .muted { color: var(--muted); }
   /* Phones: each setting stacks as key, values, effect. */
   @media (max-width: 600px) {
     thead { display: none; }

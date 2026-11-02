@@ -6,6 +6,10 @@
 --   bloom, soft, lily, ghost, umbel, cyme, gyps   motifs in the holes
 --                                                 (grow.lua): weight and cap
 --   leaves, leaflets                              spacing along the stems
+--   feather, acanthus, lance                      how often a large leaf
+--                                                 takes each shape (leaf.lua)
+--   fan, round                                    how often a small bloom
+--                                                 takes each style (flower.lua)
 --   sprays, curls                                 the spray cap, curl chance
 --   density                                       the gesture's density field,
 --                                                 spacing and smallest hole
@@ -17,6 +21,8 @@ local M = {}
 
 M.motifs = { "bloom", "soft", "lily", "ghost", "umbel", "cyme", "gyps" }
 M.visitors = { "bee", "butterfly", "bird", "snail" }
+M.shapes = { "feather", "acanthus", "lance" }
+M.styles = { "fan", "round" }
 
 -- The weight of `kind` in `mix` (a table of overrides; nil for defaults).
 function M.weight(mix, kind)
@@ -115,6 +121,25 @@ function M.with_palette(palette, fn)
   Tune.color.palette = cur
   if not ok then error(res, 0) end
   return res
+end
+
+-- The mix of the page being grown (M.with_mix), for choices made deep in
+-- the drawing code, such as a leaf's shape; nil outside a page.
+M.active = nil
+
+-- Run fn() with `mix` as the active mix, then restore the previous one.
+function M.with_mix(mix, fn)
+  local prev = M.active
+  M.active = mix
+  local ok, res = pcall(fn)
+  M.active = prev
+  if not ok then error(res, 0) end
+  return res
+end
+
+-- The active mix's weight for `kind` (1 outside a page).
+function M.factor(kind)
+  return M.weight(M.active, kind)
 end
 
 return M

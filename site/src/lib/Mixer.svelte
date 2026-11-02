@@ -1,16 +1,12 @@
 <script>
   import { onMount } from "svelte";
   import { meta as loadMeta, render, show, px, renderer } from "./render.js";
-  import { setupLine, documentFor } from "./setup.js";
+  import { setupLine, documentFor, TITLE_PAGES, ARCHES } from "./setup.js";
   import InkPicker from "./InkPicker.svelte";
   import COLOURWAYS from "./colourways.json";
   import { face } from "./ink.js";
 
-  const GROUPS = [
-    { title: "Blooms", keys: ["bloom", "soft", "lily", "ghost", "umbel"] },
-    { title: "Sprays and foliage", keys: ["cyme", "gyps", "sprays", "curls", "leaves", "leaflets"] },
-    { title: "Visitors", keys: ["bee", "butterfly", "bird", "snail"] },
-  ];
+  const query = new URLSearchParams(globalThis.location?.search ?? "");
   // What each palette part is called here; the setup line keeps the key.
   const PART_LABEL = {
     hero: "Main flower", blooms: "Blooms", leaves: "Leaves", leaflets: "Leaflets", stems: "Stems",
@@ -25,6 +21,14 @@
   let ornaments = $state({});
   let palette = $state({});
   let spin = $state(0);
+  // Gilt, as \florasetup's gilt, giltenv and giltlook; ?gilt=vector,
+  // ?giltenv=mirror and ?giltlook=horizon=0.1,grain=0 open on them.
+  let gilt = $state(query.get("gilt") === "vector" ? "vector" : "raster");
+  let giltenv = $state(query.get("giltenv") === "mirror" ? "mirror" : "studio");
+  let giltlook = $state(Object.fromEntries((query.get("giltlook") ?? "").split(",").map((kv) => kv.split("="))
+    .filter(([k, v]) => k && v !== undefined && Number.isFinite(Number(v))).map(([k, v]) => [k.trim(), Number(v)])));
+  // The title lettering of the four title-page layouts (\floraletters).
+  let letters = $state({ style: "engraved", arch: 20, ink: "black" });
   let status = $state("Loading the generator…");
   let busy = $state(false);
   let copied = $state("");
@@ -34,7 +38,18 @@
 
   const label = (k) => meta?.kinds.find((x) => x[0] === k)?.[1] ?? k;
   const hint = (k) => meta?.kinds.find((x) => x[0] === k)?.[2] ?? "";
-  let line = $derived(meta && pages.length ? setupLine({ layout: pages[layout].layout, seed, mix, ornaments, palette, spin }, meta) : "");
+  // The mix's kinds in the catalog's groups; density has its own slider.
+  let groups = $derived(meta ? meta.catalog.mix.filter((g) => g.group !== "Overall")
+    .map((g) => ({ title: g.group, keys: g.kinds.map((k) => k.key) })) : []);
+  // The gilt look's keys for the look in use, with their defaults there.
+  let lookKeys = $derived(meta ? meta.catalog.gilt.keys.filter((k) => !k.look || k.look === giltenv) : []);
+  let lettered = $derived(pages.length > 0 && TITLE_PAGES.has(pages[layout].layout));
+  // A title page's baked text and layout depend on its lettering's style
+  // and arch: one bake of each (just site-bake).
+  let variant = $derived(pages.length ? (lettered ? `${pages[layout].page}-${letters.style}-${letters.arch}` : `${pages[layout].page}`) : "");
+  let letterInk = $derived(meta?.catalog.letters.inks[letters.ink] ?? "#000");
+  let lookLine = $derived(Object.entries(giltlook).map(([k, v]) => `${k}=${v}`).join(", "));
+  let line = $derived(meta && pages.length ? setupLine({ layout: pages[layout].layout, seed, mix, ornaments, palette, spin, gilt, giltenv, giltlook }, meta) : "");
   let anyRandom = $derived(Object.values(palette).includes("random"));
   // The colourway the inks and seed match now, if any (-1 for the
   // package's own look).
@@ -72,7 +87,11 @@
   }
 
   async function spec(p) {
-    if (!specs.has(p)) specs.set(p, await fetch(`/bake/spec-${p}.lua`).then((r) => r.text()));
+    if (!specs.has(p)) {
+      const r = await fetch(`/bake/spec-${p}.lua`);
+      if (!r.ok) throw new Error(`no baked page ${p}`);
+      specs.set(p, await r.text());
+    }
     return specs.get(p);
   }
 
@@ -83,7 +102,7 @@
     const pg = pages[layout];
     status = "Growing…";
     try {
-      const job = { spec: await spec(pg.page), seed, page: pg.page, mix: $state.snapshot(mix), ornaments: $state.snapshot(ornaments), palette: $state.snapshot(palette), spin, px: px(frame.clientWidth) };
+      const job = { spec: await spec(variant), seed, page: pg.page, mix: $state.snapshot(mix), ornaments: $state.snapshot(ornaments), palette: $state.snapshot(palette), spin, px: px(frame.clientWidth), gilt, giltenv, giltlook: lookLine };
       const out = await render(job);
       await show(out, canvas, frame.clientWidth);
       status = `Grown in ${(out.ms / 1000).toFixed(1)} s${renderer === "pdf" ? " (pdf.js)" : ""}`;
@@ -133,8 +152,22 @@
     changed();
   }
 
+  // A gilt look key to `v`; at the look's default it is dropped again.
+  function setLook(k, v) {
+    if (v === k.defaults[giltenv]) delete giltlook[k.key];
+    else giltlook[k.key] = v;
+    changed();
+  }
+
+  // Keys belong to one look, so a new look starts from its own defaults.
+  function setEnv(env) {
+    giltenv = env;
+    giltlook = {};
+    changed();
+  }
+
   async function copy(what) {
-    const text = what === "document" ? documentFor(line, pages[layout].layout) : line;
+    const text = what === "document" ? documentFor(line, pages[layout].layout, letters) : line;
     await navigator.clipboard.writeText(text);
     copied = what;
     setTimeout(() => (copied = ""), 1600);
@@ -160,6 +193,32 @@
           </label>
         {/each}
       </fieldset>
+
+      {#if lettered}
+        <h2 class="sc">Title lettering</h2>
+        <p class="hint">The title is drawn from the font's outlines with
+          <code>\floraletters</code>.</p>
+        <div class="choices" role="group" aria-label="Lettering style">
+          {#each meta.catalog.letters.styles as st}
+            <button type="button" title={st.about} aria-pressed={letters.style === st.name}
+              onclick={() => { letters.style = st.name; changed(); }}>{st.name}</button>
+          {/each}
+        </div>
+        <div class="choices" role="group" aria-label="Arch">
+          {#each ARCHES as [deg, name]}
+            <button type="button" aria-pressed={letters.arch === deg}
+              onclick={() => { letters.arch = deg; changed(); }}>{name}</button>
+          {/each}
+        </div>
+        <label class="row">
+          <span>Ink</span>
+          <select bind:value={letters.ink}>
+            <option value="black">black</option>
+            {#each meta.catalog.inks as ink}<option value={ink}>{ink}</option>{/each}
+          </select>
+          <i class="chip" style:background={letterInk}></i>
+        </label>
+      {/if}
 
       <h2 class="sc">Colourway</h2>
       <div class="ways" role="group" aria-label="Colourways">
@@ -200,7 +259,7 @@
         <output>{mix.density}</output>
       </label>
       <p class="hint">Weights: 0 none, 1 the usual amount, 2 about double.</p>
-      {#each GROUPS as g}
+      {#each groups as g}
         <details>
           <summary>{g.title}</summary>
           {#each g.keys as k}
@@ -229,6 +288,31 @@
         {/each}
         <p class="hint"><a href="/ornaments/">See every kind on the ornaments page.</a></p>
       </details>
+      <details class="gilt">
+        <summary>Gilt</summary>
+        <div class="choices" role="group" aria-label="How gold is painted">
+          {#each meta.catalog.gilt.modes as m}
+            <button type="button" aria-pressed={gilt === m} onclick={() => { gilt = m; changed(); }}>{m}</button>
+          {/each}
+        </div>
+        <p class="hint">Raster computes the gold per pixel; vector builds it in relief from flat strips.
+          The looks below apply to raster gold.</p>
+        <div class="choices" role="group" aria-label="Gilt look">
+          {#each meta.catalog.gilt.looks as lk}
+            <button type="button" title={lk.about} aria-pressed={giltenv === lk.name}
+              disabled={gilt !== "raster"} onclick={() => setEnv(lk.name)}>{lk.label}</button>
+          {/each}
+        </div>
+        {#each lookKeys as k (k.key)}
+          <label class="row" title={k.about}>
+            <span>{k.label}</span>
+            <input type="range" min={k.min} max={k.max} step={k.step} disabled={gilt !== "raster"}
+              value={giltlook[k.key] ?? k.defaults[giltenv]} oninput={(e) => setLook(k, Number(e.currentTarget.value))}>
+            <output>{giltlook[k.key] ?? k.defaults[giltenv]}</output>
+          </label>
+        {/each}
+      </details>
+      <p class="hint"><a href="/guide/#g-reference">Every setting and value</a> is listed in the guide.</p>
     {/if}
     {#if line}
       <h2 class="sc">LaTeX settings</h2>
@@ -246,7 +330,11 @@
     <div class="sheet paper" bind:this={frame} class:busy>
       <canvas bind:this={canvas} aria-label="The page's flora"></canvas>
       {#if pages.length}
-        <img src={`/bake/text-${pages[layout].page}.png`} alt="The example page's text">
+        <img src={`/bake/text-${variant}.png`} alt="The example page's text">
+        {#if lettered}
+          <div class="letters" aria-hidden="true"
+            style={`background:${letterInk};-webkit-mask-image:url(/bake/letters-${variant}.png);mask-image:url(/bake/letters-${variant}.png)`}></div>
+        {/if}
       {/if}
     </div>
     <p class="status" aria-live="polite">{status}</p>
@@ -296,6 +384,12 @@
   .sheet { position: relative; height: min(100%, calc(100dvh - var(--bar) - 5rem)); aspect-ratio: 210 / 297; max-width: 100%; box-shadow: 0 1px 2px oklch(30% 0.02 70 / .12), 0 14px 36px -20px oklch(30% 0.02 70 / .4); }
   .sheet canvas, .sheet img { position: absolute; inset: 0; width: 100%; height: 100%; }
   .sheet img { mix-blend-mode: multiply; }
+  /* The title lettering: a baked mask filled with its ink. */
+  .sheet .letters { position: absolute; inset: 0; mix-blend-mode: multiply; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
+  .choices { display: flex; flex-wrap: wrap; gap: .35rem; margin: .45rem 0; }
+  .choices button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  select { grid-column: 2; width: 100%; padding: .3rem .4rem; border: 1px solid var(--control); background: transparent; font: inherit; }
+  .chip { width: 1.4rem; height: 1.4rem; justify-self: end; border: 1px solid var(--rule); }
   .sheet.busy canvas { opacity: .45; transition: opacity .3s; }
   .status { color: var(--muted); font-size: .95rem; font-style: italic; margin: .6rem 0 0; }
   /* Phones: the page scrolls as one, with a small page kept in view. */

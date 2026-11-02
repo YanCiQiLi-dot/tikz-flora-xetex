@@ -193,4 +193,52 @@ do
     "new palette parts lost")
 end
 
+-- Leaf shapes and bloom styles: the mix weighs them on a page. Drawn under
+-- a mix that zeroes the others, every large leaf takes the one shape left
+-- and every small bloom the one style left; small leaves stay lance.
+do
+  local L = require("flora.leaf")
+  local F = require("flora.flower")
+  local Rng = require("flora.rng")
+  local margins = { feather = "feather", acanthus = "acanthus", lance = "entire" }
+  for shape, margin in pairs(margins) do
+    local only = { feather = 0, acanthus = 0, lance = 0 }
+    only[shape] = 1
+    Mix.with_mix(only, function()
+      local r = Rng.new(11)
+      for _ = 1, 60 do
+        local o = L.options(r, 100, 0.4)
+        H.check(o.margin == margin, string.format("mix leaving only %s drew a %s leaf", shape, o.margin))
+      end
+      H.check(L.options(r, 30, 0.4).margin == "entire", "a small leaf was not a lance leaf")
+    end)
+  end
+  local seen = {}
+  Mix.with_mix({ fan = 0 }, function()
+    local r = Rng.new(5)
+    for _ = 1, 40 do seen[F.pick_style(r, { "fan", "round" })] = true end
+  end)
+  H.check(seen.round and not seen.fan, "fan=0 still picked fan blooms")
+  H.check(Mix.active == nil, "with_mix left its mix active")
+  -- Outside a page the defaults hold: both shapes turn up.
+  local any = {}
+  local r = Rng.new(2)
+  for _ = 1, 80 do any[L.options(r, 100, 0.4).margin] = true end
+  H.check(any.feather and any.acanthus and any.entire, "default odds never drew some leaf shape")
+  -- A real page grows its leaves under the page's mix.
+  local drawn = {}
+  local options = L.options
+  L.options = function(rr, len, ang)
+    local o = options(rr, len, ang)
+    drawn[o.margin] = (drawn[o.margin] or 0) + 1
+    return o
+  end
+  page(3, { feather = 0, acanthus = 0 })
+  L.options = options
+  H.check((drawn.entire or 0) > 0 and not drawn.feather and not drawn.acanthus,
+    "a page with feather=0, acanthus=0 still grew lobed leaves")
+  local p = Settings.parse("mix={feather=2, acanthus=0, lance=1, fan=0.5, round=3}")
+  H.check(p.mix.feather == 2 and p.mix.acanthus == 0 and p.mix.round == 3, "leaf and bloom weights not parsed")
+end
+
 H.done("mix")

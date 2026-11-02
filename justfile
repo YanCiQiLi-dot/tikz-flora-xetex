@@ -88,11 +88,22 @@ site-bake seed="3" CW="site/src/lib/colourways.json":
     cp build/tikzflora.zip site/public/
     for _ in 1 2; do FLORA_SPEC_DIR=build/site-bake lualatex -interaction=nonstopmode -halt-on-error -output-directory=build/site-bake -jobname=base "\def\florseed{ {{seed}} }\def\florapages{0}\input{tex/lorem.tex}" > build/site-bake/base.out || (tail -20 build/site-bake/base.log; exit 1); done
     for p in 1 2 3 4 6; do cp build/site-bake/spec-$p.lua site/public/bake/; pdftocairo -png -singlefile -r 110 -f $p -l $p build/site-bake/base.pdf site/public/bake/text-$p; done
-    # The title pages of tex/titles.tex, as mixer pages 11 to 14.
+    # The mixer's title pages (11 to 14), one for each lettering style and
+    # arch (site/bake-titles.mjs): each one's layout, its text without the
+    # lettering, and the lettering alone as a mask the mixer fills with ink.
     mkdir -p build/site-bake/titles
-    FLORA_SPEC_DIR=build/site-bake/titles lualatex -interaction=nonstopmode -halt-on-error -output-directory=build/site-bake/titles -jobname=base "\def\florapages{0}\input{tex/titles.tex}" > build/site-bake/titles/base.out || (tail -20 build/site-bake/titles/base.log; exit 1)
-    for p in 1 2 3 4; do cp build/site-bake/titles/spec-$p.lua site/public/bake/spec-1$p.lua; pdftocairo -png -singlefile -r 110 -f $p -l $p build/site-bake/titles/base.pdf site/public/bake/text-1$p; done
+    node site/bake-titles.mjs build/site-bake/titles > build/site-bake/titles/list.txt
+    while read -r page v f; do \
+        d=build/site-bake/titles/$v; mkdir -p $d; \
+        FLORA_SPEC_DIR=$d lualatex -interaction=nonstopmode -halt-on-error -output-directory=$d -jobname=full "\def\florapages{0}\input{$f}" > $d/full.out || { tail -20 $d/full.log; exit 1; }; \
+        FLORA_LETTERS=hide lualatex -interaction=nonstopmode -halt-on-error -output-directory=$d -jobname=text "\def\florapages{0}\input{$f}" > $d/text.out || { tail -20 $d/text.log; exit 1; }; \
+        cp $d/spec-1.lua site/public/bake/spec-$v.lua; \
+        pdftocairo -png -singlefile -r 110 -f 1 -l 1 $d/full.pdf $d/full; \
+        pdftocairo -png -singlefile -r 110 -f 1 -l 1 $d/text.pdf site/public/bake/text-$v; \
+        magick $d/full.png \( site/public/bake/text-$v.png -colorspace gray -threshold 99.5% -negate \) -compose lighten -composite -colorspace gray -negate -background black -alpha shape site/public/bake/letters-$v.png || exit 1; \
+    done < build/site-bake/titles/list.txt
     printf '%s\n' '[{"layout":"left","page":4,"label":"Left"},{"layout":"right","page":3,"label":"Right"},{"layout":"centered","page":6,"label":"Centred"},{"layout":"title","page":1,"label":"Title"},{"layout":"surround","page":2,"label":"Surround"},{"layout":"flank","page":11,"label":"Flank"},{"layout":"wreath","page":12,"label":"Wreath"},{"layout":"bouquet","page":13,"label":"Bouquet"},{"layout":"scrollwork","page":14,"label":"Scrollwork"}]' > site/public/bake/manifest.json
+    texlua tools/catalog.lua > site/public/bake/catalog.json
     just build lorem {{seed}} >/dev/null; just build lorem {{seed}} 110 >/dev/null
     pdftocairo -jpeg -jpegopt quality=86 -r 110 build/lorem.pdf site/public/img/page
     just build titles {{seed}} 110 >/dev/null
