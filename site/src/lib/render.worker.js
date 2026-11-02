@@ -6,6 +6,15 @@
 //                                      each colourway's palette
 //   { id, kind: "render", spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook, backdrop }
 //                                   -> { id, bitmap | pdf, ms }
+//   { id, kind: "version" }         -> { id, version }  a hash of the
+//                                      generator's sources, for cache keys
+//   { id, kind: "garden", garden, px, png }
+//                                   -> { id, bitmap, png?, ms }  the flora
+//                                      of a web page (lua/flora/garden.lua:
+//                                      garden = {mode, width, height, x0,
+//                                      x1, seed, grow, settings}), cut to
+//                                      its view; with `png`, also as a PNG
+//                                      Blob for caching
 //   { id, kind: "gallery", palette, spin, base, px, slot, gilt, giltenv, giltlook }
 //                                   -> { id, bitmap | pdf, cells, slots, w, h }
 //                                      every ornament kind (gallery.lua), or
@@ -120,13 +129,16 @@ return "{\\"kinds\\":[" .. table.concat(kinds, ",") .. "],\\"ornaments\\":[" .. 
 let transfers = [];
 
 // Lua's output as a message body: a scene drawn to a bitmap `px` wide, or
-// PDF bytes.
-function picture(out, px) {
+// PDF bytes. `view` {y, height} (bp from the page's foot) keeps only that
+// band of the page.
+function picture(out, px, view) {
   if (px) {
     const scene = JSON.parse(out);
     const scale = px / scene.width;
-    const canvas = new OffscreenCanvas(Math.round(px), Math.round(scene.height * scale));
-    paint(canvas.getContext("2d"), scene, scale);
+    const h = view ? view.height : scene.height;
+    const top = view ? scene.height - view.y - view.height : 0;
+    const canvas = new OffscreenCanvas(Math.round(px), Math.round(h * scale));
+    paint(canvas.getContext("2d"), scene, scale, top);
     const bitmap = canvas.transferToImageBitmap();
     transfers = [bitmap];
     return { bitmap };
@@ -136,12 +148,57 @@ function picture(out, px) {
   return { pdf: bytes };
 }
 
+// A short hash of every Lua source, which changes whenever the generator
+// does.
+let version;
+async function sourceVersion() {
+  version ||= (async () => {
+    const all = Object.keys(sources).sort().map((k) => k + "\n" + sources[k]).join("\n");
+    const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(all)));
+    return Array.from(d.slice(0, 8), (b) => b.toString(16).padStart(2, "0")).join("");
+  })();
+  return version;
+}
+
 onmessage = async (e) => {
   const { id, kind } = e.data;
   try {
+    if (kind === "version") {
+      postMessage({ id, version: await sourceVersion() });
+      return;
+    }
     const l = await lua();
     if (kind === "meta") {
       postMessage({ id, meta: JSON.parse(await l.doString(META)) });
+      return;
+    }
+    if (kind === "garden") {
+      const { garden, px, png } = e.data;
+      if (!(px > 0)) throw new Error("garden: px must be positive");
+      const t0 = performance.now();
+      const out = await l.doString(`
+        local Garden = require("flora.garden")
+        local Paint = require("flora.paint")
+        local Compose = require("flora.compose")
+        local Pdf = require("flora.pdfout")
+        local spec, view = Garden.spec(${table(garden)})
+        spec.gilt_dpi = math.max(50, math.min(600, ${Number(px)} / spec.width * 72.27))
+        Paint.reset_resources()
+        local BP = 72 / 72.27
+        GARDEN_VIEW = string.format('{"y":%.4f,"height":%.4f}', view.y * BP, view.height * BP)
+        return Pdf.scene(Compose.page(spec), spec.width, spec.height)`);
+      const view = JSON.parse(await l.doString("return GARDEN_VIEW"));
+      const msg = picture(out, px, view);
+      if (png) {
+        // The PNG comes from the bitmap itself, so the cache holds exactly
+        // what was shown.
+        const c = new OffscreenCanvas(msg.bitmap.width, msg.bitmap.height);
+        c.getContext("bitmaprenderer").transferFromImageBitmap(msg.bitmap);
+        msg.png = await c.convertToBlob({ type: "image/png" });
+        msg.bitmap = await createImageBitmap(msg.png);
+        transfers = [msg.bitmap];
+      }
+      postMessage({ id, ...msg, ms: Math.round(performance.now() - t0) }, transfers);
       return;
     }
     if (kind === "gallery") {

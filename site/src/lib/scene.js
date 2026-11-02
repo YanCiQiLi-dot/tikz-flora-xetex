@@ -19,14 +19,15 @@ function bitmap(im) {
 }
 
 // Draw `scene` onto 2D context `ctx`, `scale` device pixels per bp, over
-// whatever the context already holds.
-export function paint(ctx, scene, scale) {
+// whatever the context already holds; `top` bp of the page's head are cut
+// off, so the context's top edge falls that far down the page.
+export function paint(ctx, scene, scale, top = 0) {
   const { content, gs, patterns } = scene;
   const images = scene.images ?? {};
   const decoded = {};
   ctx.save();
   // PDF space: bp, y up from the page's lower-left corner.
-  ctx.setTransform(scale, 0, 0, -scale, 0, scene.height * scale);
+  ctx.setTransform(scale, 0, 0, -scale, 0, (scene.height - top) * scale);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   let st = { ca: 1, CA: 1, blend: "source-over", fill: "#000", stroke: "#000", width: 1 };

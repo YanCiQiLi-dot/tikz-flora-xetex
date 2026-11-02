@@ -124,6 +124,17 @@ site-dev:
     cd site && npm ci --no-audit --no-fund --silent && npx vite --port 5174 --host 127.0.0.1
 
 # Drives the built site in headless Chrome (site/tests/e2e.mjs).
+# The garden for other web pages: build/garden/ holds garden.js, its
+# worker and the Lua WebAssembly, to serve together (site/src/lib/garden.js).
+garden:
+    cd site && npm ci --no-audit --no-fund --silent && npx vite build --config vite.garden.config.js --logLevel warn
+    @ls -1 build/garden build/garden/assets
+
+# The garden's clock, and its bundle grown in headless Chrome.
+test-garden: garden
+    node site/tests/garden.mjs
+    cd site && node tests/garden-e2e.mjs
+
 test-site:
     cd site && npm ci --no-audit --no-fund --silent && npm run build --silent
     node site/tests/e2e.mjs

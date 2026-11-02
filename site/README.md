@@ -30,6 +30,13 @@ listed in the root README.
   moving the page, and checks the setup line the mixer writes. Set
   `SITE_URL=https://flora.alpacasoft.dev/` and run
   `node site/tests/e2e.mjs` to check the deployed site instead.
+- `just garden`: build the garden for other web pages into
+  `build/garden/`: `garden.js` and `assets/`, served together from any
+  folder. `src/lib/garden.js` documents its interface; the garden's
+  layout is `lua/flora/garden.lua`.
+- `just test-garden`: build the garden, test its clock
+  (`tests/garden.mjs`) and grow it in headless Chrome from a folder of
+  its own (`tests/garden-e2e.mjs`).
 - `just site-deploy`: bake, build and publish with `npx wrangler deploy`.
   It needs a `wrangler login` to the Cloudflare account that holds
   `alpacasoft.dev`. Wrangler creates the DNS record for the custom domain
