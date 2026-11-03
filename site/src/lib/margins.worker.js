@@ -8,12 +8,12 @@
 // right margin's tile is mirrored too.
 //
 // Message { kind: "segment", id, fw, h, m, seed, mirror, dpr, colourway,
-// paper, backdrop, avoid } -> { id, bitmap, birth, rows, reach, cell, ms }:
+// paper, avoid } -> { id, bitmap, birth, rows, reach, cell, ms }:
 //   fw, h     the tile, CSS px (taken as pt)
 //   m         where the content column starts, from the tile's outer edge
 //   mirror    true for the right margin
 //   colourway tikz-flora's colourway name (inks.ts COLOURWAYS)
-//   paper     the page's paper (sRGB 0-1), or backdrop for a dark page
+//   paper     the page's paper (sRGB 0-1)
 //   avoid     [[x0, y0, x1, y1], ...] tile px (y down) nothing grows in
 //   birth     Float32Array, the growth time of each `cell`-px cell of the
 //             tile, row by row (tile px, y down)
@@ -61,7 +61,7 @@ function segment(o) {
   const spec = { width: fw, height: h, seed: o.seed, text, lines: [{ ...text }], closed, ornaments: o.ornaments };
   const way = inks.COLOURWAYS[inks.COLOURWAY_ALIAS[o.colourway] ?? o.colourway];
   const palette = way ? { ...tune.PALETTE, ...way } : tune.PALETTE;
-  const pt = new Painter({ width: fw, height: h, palette, paper: o.paper, backdrop: o.backdrop });
+  const pt = new Painter({ width: fw, height: h, palette, paper: o.paper });
   pt.frame(mirror ? (x, y) => [fw - x, h - y] : (x, y) => [x, h - y]);
   const planted = compose.plant(spec, pt);
   pt.frame(undefined);

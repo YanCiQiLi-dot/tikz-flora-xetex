@@ -66,10 +66,6 @@
   .contents a { text-decoration: none; color: var(--muted); }
   .contents a:hover { color: var(--rubric); }
   #credits { margin-top: 3rem; }
-  @media (prefers-color-scheme: dark) {
-    /* The flora is painted for paper; in the dark it sits on a plate. */
-    .flora img { mix-blend-mode: normal; background: var(--plate); padding: .5rem; }
-  }
   @media (max-width: 75rem) {
     .guide { grid-template-columns: [text] minmax(0, var(--measure)) [contents] minmax(0, 12rem); }
     .flora { display: none; }

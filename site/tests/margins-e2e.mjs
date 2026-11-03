@@ -10,13 +10,35 @@ import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
-import { segmentHeight, rowGrowth, targetRow, MIN_MARGIN } from "../src/lib/margins.js";
+import { segmentHeight, rowGrowth, targetRow, layoutSide, MIN_MARGIN } from "../src/lib/margins.js";
+
+const check2 = (ok, msg) => assert.ok(ok, msg);
 
 // Segments tile the page exactly: whole segments, none past the foot.
 for (const [m, docH] of [[116, 15567], [282, 4068], [110, 600], [400, 100000]]) {
   const h = segmentHeight(m, docH), n = Math.ceil(docH / h);
   assert.ok(n * h >= docH && (n - 1) * h < docH, `m ${m}, page ${docH}: ${n} segments of ${h}`);
   assert.ok(docH < 900 || (h >= 600 && h <= 2250), `m ${m}, page ${docH}: segment ${h} px`);
+}
+// A full-width band breaks the margin: segments run up to it and start
+// again below it, never overlap it or each other, and the run above it is
+// filled to its end; overlapping bands count as one.
+{
+  const docH = 6000, bands = [[1800, 2400], [2300, 2500], [3900, 4000]];
+  const { tiles, openH } = layoutSide(200, bands, docH);
+  for (const t of tiles) for (const [a, b] of bands) check2(t.y + t.h <= a || t.y >= b, `segment ${JSON.stringify(t)} overlaps band ${a}-${b}`);
+  for (let i = 1; i < tiles.length; i++) check2(tiles[i].y >= tiles[i - 1].y + tiles[i - 1].h, `segments ${i - 1} and ${i} overlap`);
+  check2(tiles[0].y === 0, "the first segment does not start at the top");
+  check2(tiles.some((t) => t.y + t.h >= 1780 && t.y + t.h < 1800), "the run above the first band is not filled to it");
+  check2(tiles.some((t) => t.y > 2500 && t.y <= 2520), "no segment starts just below the merged band");
+  check2(tiles.some((t) => t.y > 4000 && t.y <= 4020), "no segment starts below the last band");
+  check2(tiles[tiles.length - 1].y + tiles[tiles.length - 1].h >= docH, "the foot of the page is bare");
+  // A taller page keeps every segment it had and adds below.
+  const more = layoutSide(200, bands, 9000, openH).tiles;
+  check2(JSON.stringify(more.slice(0, tiles.length)) === JSON.stringify(tiles), "a taller page moves existing segments");
+  check2(more.length > tiles.length, "a taller page adds no segments");
+  // A run too short to grow in is left bare.
+  check2(layoutSide(200, [[100, 300]], 3000).tiles[0].y >= 300, "a sliver above a band grows a plant");
 }
 // The front's growth by row never falls, and carries on past the foot
 // without a jump.
@@ -83,6 +105,12 @@ try {
     await sleep(4000);
     const s = await state(p);
     check(s && s.sides.length === 2, `home: margins ${JSON.stringify(s?.sides)}`);
+    const overlap = await p.evaluate(() => {
+      const band = document.querySelector("[data-flora-avoid]").getBoundingClientRect();
+      return [...document.querySelectorAll(".flora-margins canvas")].map((c) => c.getBoundingClientRect())
+        .filter((r) => r.bottom > band.top && r.top < band.bottom).length;
+    });
+    check(overlap === 0, `home: ${overlap} margin segments grow behind the strip of pages`);
     const top = await inked(p, 0, 400);
     check(top.left > 0.08 && top.right > 0.08, `home: the top corners are bare after 4 s (${JSON.stringify(top)})`);
     await p.close();

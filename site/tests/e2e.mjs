@@ -398,11 +398,15 @@ try {
     check(differ > ink * 0.02, `${label} drew the same gallery as the default (${differ} of ${ink} samples differ)`);
   }
 
-  // In dark mode the gallery's sheet stays paper, as its ornaments and
-  // labels are drawn for it.
+  // The site is watercolour on paper whatever the visitor's colour scheme:
+  // a dark-scheme browser gets the same paper page, and the gallery's sheet
+  // stays white.
+  const paperBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   await page.emulateMedia({ colorScheme: "dark" });
+  const darkBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  check(darkBg === paperBg, `a dark-scheme browser gets ${darkBg}, not the paper ${paperBg}`);
   const sheetBg = await page.evaluate(() => getComputedStyle(document.querySelector(".plate")).backgroundColor);
-  check(sheetBg === "rgb(255, 255, 255)", `the gallery sheet is ${sheetBg} in dark mode`);
+  check(sheetBg === "rgb(255, 255, 255)", `the gallery sheet is ${sheetBg} in a dark-scheme browser`);
   await page.emulateMedia({ colorScheme: "light" });
 
   // The guide's tables and its every-option list come from the package

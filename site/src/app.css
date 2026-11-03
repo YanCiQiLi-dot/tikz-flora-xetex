@@ -22,14 +22,6 @@
   --side: max(16px, env(safe-area-inset-left));
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: oklch(19.5% 0.008 70); --ink: oklch(91% 0.012 84); --muted: oklch(73% 0.014 80);
-    --rubric: oklch(72% 0.11 38); --rule: oklch(32% 0.01 70); --control: oklch(56% 0.014 75);
-    --code-bg: oklch(24.5% 0.009 70);
-    color-scheme: dark;
-  }
-}
 * { box-sizing: border-box; }
 html { scroll-padding-top: 1rem; -webkit-text-size-adjust: 100%; }
 body {
