@@ -1,43 +1,19 @@
 // Layout and timing for the margin garden (margins.js), without a browser:
-// where each margin's plants hang, the windows they are drawn in, how far
-// the front has grown at a row, and the row it heads for.
+// the windows a margin's plant is drawn in, how far the front has grown at
+// a row, and the row it heads for.
 
 // The narrowest margin a plant grows in, px.
 export const MIN_MARGIN = 110;
 // The front leads the reader: it heads for this fraction of the viewport.
 export const LEAD = 1;
-// Space kept clear above and below a band, px, and the shortest run of
-// margin that grows a plant.
-export const BAND_GAP = 10, MIN_RUN = 320;
+// The shortest margin that grows a plant, px.
+export const MIN_RUN = 320;
 // A plant is drawn in windows ("tiles") this tall, px: a whole number of
 // birth cells (margins.worker.js CELL), and well inside canvas limits.
 export const TILE = 1200;
 // The first window is shorter: a plant grows from its top, so the reader
 // sees the first window soonest, and a short one is drawn sooner.
 export const FIRST_TILE = 600;
-
-// The runs of one margin down a page `docH` px tall, [{ y, h }, ...]: one
-// plant each. `bands` ([[y0, y1], ...], page px) are elements that span the
-// whole margin, such as a strip of pictures; a plant ends above each band
-// and another starts below it, so nothing grows behind one. Bands that
-// touch count as one; a run shorter than MIN_RUN is left bare.
-export function layoutSide(bands, docH) {
-  const merged = [];
-  for (const [a, b] of [...bands].sort((p, q) => p[0] - q[0])) {
-    const last = merged[merged.length - 1];
-    if (last && a <= last[1] + BAND_GAP * 2) last[1] = Math.max(last[1], b);
-    else merged.push([a, b]);
-  }
-  const out = [];
-  let start = 0;
-  for (const [a, b] of merged) {
-    const end = Math.min(docH, a - BAND_GAP);
-    if (end - start >= MIN_RUN) out.push({ y: start, h: end - start });
-    start = Math.max(start, b + BAND_GAP);
-  }
-  if (docH - start >= MIN_RUN) out.push({ y: start, h: docH - start });
-  return out;
-}
 
 // The windows a run `h` px tall is drawn in, [{ y, h }, ...] from the run's
 // top: FIRST_TILE, then TILE tall, the last one what is left.

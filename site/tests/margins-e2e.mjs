@@ -10,25 +10,8 @@ import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
-import { rowGrowth, targetRow, layoutSide, tilesOf, MIN_MARGIN, MIN_RUN, TILE, FIRST_TILE } from "../src/lib/margins-layout.js";
+import { rowGrowth, targetRow, tilesOf, MIN_MARGIN, TILE, FIRST_TILE } from "../src/lib/margins-layout.js";
 
-// One plant runs the length of a margin: a page with no bands is one run.
-assert.deepEqual(layoutSide([], 15567), [{ y: 0, h: 15567 }]);
-// A full-width band breaks the margin: a plant runs up to it and another
-// starts just below it; none overlaps a band or another; bands that
-// overlap count as one; a sliver too short to grow in is left bare.
-{
-  const docH = 6000, bands = [[1800, 2400], [2300, 2500], [3900, 4000]];
-  const runs = layoutSide(bands, docH);
-  assert.equal(runs.length, 3, JSON.stringify(runs));
-  for (const r of runs) for (const [a, b] of bands) assert.ok(r.y + r.h <= a || r.y >= b, `run ${JSON.stringify(r)} overlaps band ${a}-${b}`);
-  assert.equal(runs[0].y, 0);
-  assert.ok(runs[0].h >= 1780 && runs[0].h < 1800, "the run above the first band does not reach it");
-  assert.ok(runs[1].y > 2500 && runs[1].y <= 2520, "no run starts just below the merged band");
-  assert.ok(runs[2].y > 4000 && runs[2].y + runs[2].h === docH, "the last run does not reach the foot");
-  assert.ok(layoutSide([[100, 300]], 3000)[0].y >= 300, "a sliver above a band grows a plant");
-  assert.ok(layoutSide([], MIN_RUN - 1).length === 0, "a page shorter than a run grows a plant");
-}
 // A run is drawn in windows that cover it exactly, each a whole number of
 // birth cells from its top.
 for (const h of [320, 1200, 1201, 15567]) {
@@ -105,19 +88,24 @@ try {
     await sleep(4000);
     const s = await state(p);
     check(s && s.sides.length === 2, `home: margins ${JSON.stringify(s?.sides)}`);
-    // One plant above the strip of pages and one below, on each side.
+    // One plant down each side, through the strip of pages.
     for (const mirror of [false, true]) {
       const n = s?.runs.filter((r) => r.mirror === mirror).length;
-      check(n === 2, `home: the ${mirror ? "right" : "left"} margin grows ${n} plants, not 2`);
+      check(n === 1, `home: the ${mirror ? "right" : "left"} margin grows ${n} plants, not 1`);
     }
-    const overlap = await p.evaluate(() => {
-      const band = document.querySelector("[data-flora-avoid]").getBoundingClientRect();
-      return [...document.querySelectorAll(".flora-margins canvas")].map((c) => c.getBoundingClientRect())
-        .filter((r) => r.bottom > band.top && r.top < band.bottom).length;
-    });
-    check(overlap === 0, `home: ${overlap} margin tiles grow behind the strip of pages`);
     const top = await inked(p, 0, 400);
     check(top.left > 0.08 && top.right > 0.08, `home: the top corners are bare after 4 s (${JSON.stringify(top)})`);
+    // Beside the strip only stems run on: some ink, but far less than in
+    // the margin just above it, where leaves and blooms grow.
+    const [b0, b1] = await p.evaluate(() => { const r = document.querySelector("[data-flora-avoid]").getBoundingClientRect(); return [r.top + scrollY, r.bottom + scrollY]; });
+    for (let y = 0; y <= b1; y += 400) { await p.evaluate((y) => scrollTo(0, y), y); await sleep(500); }
+    await p.evaluate((y) => scrollTo(0, y), b1);
+    await p.waitForFunction(([b0, b1]) => window.__floraMargins.state.tiles.filter((t) => t.y < b1 && t.y + t.h > b0 - 400).every((t) => t.state === "done"), [b0, b1], { timeout: 60000 }).catch(() => {});
+    const beside = await inked(p, b0, b1), above = await inked(p, b0 - 400, b0);
+    for (const k of ["left", "right"]) {
+      check(beside[k] > 0.003, `home: no stems run behind the strip on the ${k} (${beside[k].toFixed(4)})`);
+      check(beside[k] < above[k] / 3, `home: the ${k} margin beside the strip is as full as above it (${beside[k].toFixed(3)} vs ${above[k].toFixed(3)})`);
+    }
     await p.close();
   }
 

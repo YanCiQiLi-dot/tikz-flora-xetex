@@ -8,9 +8,10 @@
 //
 // Each side's margin is what the page's content leaves between itself and
 // that edge; a side narrower than MIN_MARGIN grows nothing. One plant runs
-// the length of each margin, broken only where an element marked
-// data-flora-avoid spans the margin (margins-layout.js); narrower ones keep
-// the plant out. What the reader has scrolled past is shown grown. Under
+// the length of each margin. Elements marked data-flora-avoid keep its
+// leaves, blooms and sprays out, but not its stems: past one that spans
+// the margin, such as the strip of pages, only stems run on, behind it.
+// What the reader has scrolled past is shown grown. Under
 // prefers-reduced-motion each plant appears whole once drawn.
 import { gardenAt } from "./garden.js";
 import { client, rgbOf } from "./margins-client.js";
@@ -18,7 +19,7 @@ import engine from "@alpaca-software/web-flora/package.json";
 
 // The engine release the tiles are drawn with, for the tile cache.
 const ENGINE = engine.version;
-import { LEAD, MIN_MARGIN, MIN_RUN, layoutSide, tilesOf, rowGrowth, targetRow, jitter } from "./margins-layout.js";
+import { LEAD, MIN_MARGIN, MIN_RUN, tilesOf, rowGrowth, targetRow, jitter } from "./margins-layout.js";
 
 export { MIN_MARGIN };
 // How far a plant reaches into the column, px: the column's edge band,
@@ -97,7 +98,8 @@ export function startMargins({ doc = document, win = window } = {}) {
     return out;
   }
 
-  // The page rows of the full-width bands in a side's margin.
+  // The page rows of the full-width bands in a side's margin: the layout
+  // is laid afresh when they move, as the plants' stems-only stretches do.
   function bandsOf(side) {
     const out = [];
     for (const el of doc.querySelectorAll("[data-flora-avoid]")) {
@@ -135,7 +137,7 @@ export function startMargins({ doc = document, win = window } = {}) {
     tiles = tiles.filter((t) => t.run !== r);
   }
 
-  // Lay side's plants down to docH past those it has. A last plant nothing
+  // Lay side's plant down to docH, past any it has. A last plant nothing
   // has been drawn of yet is laid again, so a page that settles taller
   // just after loading keeps one plant to its foot.
   function addRuns(side, docH) {
@@ -144,10 +146,7 @@ export function startMargins({ doc = document, win = window } = {}) {
     if (last && last.tiles.every((t) => t.state === "idle")) { dropRun(last); mine = mine.slice(0, -1); }
     const tail = mine[mine.length - 1];
     const from = tail ? tail.y + tail.h : 0;
-    for (const p of layoutSide(side.bands, docH)) {
-      const y = Math.max(p.y, from), end = p.y + p.h;
-      if (end - y >= MIN_RUN) addRun(side, y, end - y);
-    }
+    if (docH - from >= MIN_RUN) addRun(side, from, docH - from);
   }
 
   // What the layout depends on, other than the page's height.
