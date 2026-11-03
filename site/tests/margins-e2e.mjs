@@ -181,12 +181,22 @@ try {
     await p.close();
   }
 
-  // Tools keep their margins to themselves, and a phone has none to give.
+  // A tool page is inset on wide screens to grow a plant each side, and
+  // given the whole width (so no garden) on narrower ones; a phone has no
+  // margin to give.
   {
-    const p = await open("mixer/");
-    await sleep(1500);
-    check(await p.locator(".flora-margins").count() === 0, "mixer: a margin garden grows on a tool page");
+    const p = await open("mixer/", { viewport: { width: 1440, height: 900 } });
+    await p.waitForFunction(() => window.__floraMargins?.state?.tiles?.some((t) => t.state === "ready" || t.state === "done"), null, { timeout: 60000 }).catch(() => {});
+    const ms = await state(p);
+    check(ms?.sides.length === 2 && ms.sides.every((sd) => sd.m >= MIN_MARGIN), `mixer: wide screen sides ${JSON.stringify(ms?.sides ?? "no garden")}`);
+    // The garden stays outside the tool: its head and panes start past each side's plant.
+    const box = await p.evaluate(() => [...document.querySelectorAll("header.head, main")].map((e) => { const b = e.getBoundingClientRect(); return [b.left, innerWidth - b.right]; }));
+    check(box.every(([l, r]) => l >= MIN_MARGIN && r >= MIN_MARGIN), `mixer: tool reaches into the margins ${JSON.stringify(box)}`);
     await p.close();
+    const narrow = await open("mixer/", { viewport: { width: 1100, height: 800 } });
+    await sleep(1500);
+    check(await narrow.locator(".flora-margins").count() === 0, "mixer: a garden grows on a screen too narrow to inset the tool");
+    await narrow.close();
     const phone = await open("", { viewport: { width: 390, height: 844 } });
     await sleep(1500);
     const s = await state(phone);

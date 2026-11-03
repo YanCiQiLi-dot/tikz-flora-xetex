@@ -1,15 +1,15 @@
 <script>
   // Every page's running head and colophon. `page` names the current page
-  // for the nav; `tool` gives the page the whole screen below the head.
-  // Pages that are not tools grow a plant down each side margin
-  // (margins.js), loaded once the page is up; the gear in the corner opens
-  // its dials (dials.js), loaded on first press.
+  // for the nav; `tool` gives the page the screen below the head, inset
+  // on wide screens to leave side margins. Every page grows a plant down
+  // each side margin wide enough for one (margins.js), loaded once the
+  // page is up; the gear in the corner opens its dials (dials.js), loaded
+  // on first press.
   import { onMount } from "svelte";
   import Ornament from "./Ornament.svelte";
   let { page, tool = false, children } = $props();
   let garden = $state(null);
   onMount(() => {
-    if (tool) return;
     let gone = false;
     import("./margins.js").then(({ startMargins }) => {
       if (!gone) garden = startMargins();
@@ -68,13 +68,17 @@
     max-width: calc(var(--measure) + var(--gutter) + var(--margin) + 2 * var(--side));
     margin: 0 auto; padding: 1rem var(--side) 0; min-height: var(--bar);
   }
-  .head.tool { max-width: none; padding: 0 1.4rem; align-items: center; border-bottom: 1px solid var(--rule); height: var(--bar); }
+  .head.tool { max-width: none; margin-inline: var(--tool-inset); padding: 0 1.4rem; align-items: center; border-bottom: 1px solid var(--rule); height: var(--bar); }
   .title { font-family: var(--display); font-size: 1.35rem; text-decoration: none; }
   nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .2rem 1.2rem; font-size: 1.08rem; }
   nav a { text-decoration: none; color: var(--muted); }
   nav a:hover, nav a[aria-current="page"] { color: var(--rubric); }
   nav a[aria-current="page"] { text-decoration: underline; text-decoration-color: var(--rubric); text-underline-offset: .3em; }
-  main.tool { height: calc(100dvh - var(--bar)); }
+  main.tool { height: calc(100dvh - var(--bar)); margin-inline: var(--tool-inset); }
+  /* A tool page keeps a margin each side for the garden on wide screens,
+     leaving the tool about 1100 px; narrower screens give it the width. */
+  :global(:root) { --tool-inset: 0px; }
+  @media (min-width: 1200px) { :global(:root) { --tool-inset: clamp(140px, (100vw - 1100px) / 2, 320px); } }
   .colophon { max-width: var(--measure); margin: 0 auto; padding: 4rem var(--side) 3rem; text-align: center; font-size: .98rem; color: var(--muted); }
   .colophon p { margin: 0 0 .5rem; }
   .tailpiece { margin: 0 auto 1.2rem; }

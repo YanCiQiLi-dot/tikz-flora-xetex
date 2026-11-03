@@ -74,18 +74,6 @@ export function startMargins({ doc = document, win = window } = {}) {
     return { vw, ml: Math.floor(x0), mr: Math.floor(vw - x1), docH: Math.ceil(doc.documentElement.scrollHeight) };
   }
 
-  function avoidIn(tile) {
-    const out = [];
-    for (const el of doc.querySelectorAll("[data-flora-avoid]")) {
-      const r = el.getBoundingClientRect();
-      const y0 = r.top + win.scrollY - tile.y, y1 = r.bottom + win.scrollY - tile.y;
-      const x0 = r.left - tile.x, x1 = r.right - tile.x;
-      if (y1 <= 0 || y0 >= tile.h || x1 <= 0 || x0 >= tile.fw) continue;
-      out.push([x0 - 6, y0 - 6, x1 + 6, y1 + 6]);
-    }
-    return out;
-  }
-
   // Rects of [data-flora-avoid] elements that reach into run r, run px.
   function avoidIn(r) {
     const out = [];
