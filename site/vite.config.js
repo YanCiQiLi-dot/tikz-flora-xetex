@@ -17,7 +17,7 @@ export default defineConfig({
   // and fails requests in flight (504 Outdated Optimize Dep).
   optimizeDeps: {
     entries: PAGES.map((p) => `${p}.html`),
-    include: ["flora", "flora/engine", "wasmoon", "pdfjs-dist"],
+    include: ["@alpaca-software/web-flora", "@alpaca-software/web-flora/engine", "wasmoon", "pdfjs-dist"],
   },
   build: {
     outDir: "dist", assetsInlineLimit: 0, chunkSizeWarningLimit: 2000,

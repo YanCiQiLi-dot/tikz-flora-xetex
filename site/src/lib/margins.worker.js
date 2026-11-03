@@ -34,8 +34,8 @@
 // drawn alone, a page ornament for the site's own pages (Ornament.svelte):
 // kind `name`, or one picked by weight for `slot` from `seed`, in a box
 // w x h CSS px.
-import { compose, clock, inks, tune, ornaments, Painter, Rng } from "flora/engine";
-import { toDisplayList, WebGLRenderer, drawCanvas2D } from "flora";
+import { compose, clock, inks, tune, ornaments, Painter, Rng } from "@alpaca-software/web-flora/engine";
+import { toDisplayList, WebGLRenderer, drawCanvas2D } from "@alpaca-software/web-flora";
 
 // The strip kept clear at a run's head and foot (lua/flora/garden.lua).
 const END = 24;

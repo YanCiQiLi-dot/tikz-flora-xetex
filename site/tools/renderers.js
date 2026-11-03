@@ -4,7 +4,7 @@
 // pictures differ. The form's values are kept in the URL, so a link
 // reproduces a run. When done, window.bench holds the last result for
 // tests/renderers-bench.mjs.
-import { fromPdfScene, WebGLRenderer, drawCanvas2D, stats } from "flora";
+import { fromPdfScene, WebGLRenderer, drawCanvas2D, stats } from "@alpaca-software/web-flora";
 
 const form = document.getElementById("opts");
 const statusEl = document.getElementById("status");

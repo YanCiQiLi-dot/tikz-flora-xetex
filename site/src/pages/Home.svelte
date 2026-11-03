@@ -162,8 +162,8 @@
       </table>
       <p class="caption">Until it is on npm, install it from GitHub:</p>
       <pre><code>{`npm install github:wn-mitch/flora`}</code></pre>
-      <pre><code>{`import { compose, Painter } from "flora/engine";
-import { toDisplayList, WebGLRenderer } from "flora";
+      <pre><code>{`import { compose, Painter } from "@alpaca-software/web-flora/engine";
+import { toDisplayList, WebGLRenderer } from "@alpaca-software/web-flora";
 
 // A margin 160 x 900 pt, its column of text from x = 130.
 const text = { x0: 130, y0: 24, x1: 160, y1: 876 };
@@ -181,11 +181,8 @@ new WebGLRenderer(canvas).draw(list, { scale: 1 });`}</code></pre>
         <code>compose.page</code> grows a whole page in any of the package's
         layouts, and <code>ornaments.draw</code> sets a single ornament, as
         between these plates.</p>
-      <p class="caption">It ships as TypeScript source: use it through a
-        bundler that compiles TypeScript, such as Vite. Installed from
-        GitHub it is imported as <code>flora</code>; from npm, as
-        <code>@alpaca-software/web-flora</code>. MIT licence, as the
-        package is.</p>
+      <p class="caption">It ships as JavaScript with type declarations, for
+        plain Node or any bundler. MIT licence, as the package is.</p>
     </div>
   </section>
 

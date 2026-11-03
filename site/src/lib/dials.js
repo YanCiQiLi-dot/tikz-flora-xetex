@@ -6,7 +6,7 @@
 // Copy puts them on the clipboard to bake in (margins.js TUNE).
 import { createDialKit, createDialRoot } from "dialkit/vanilla";
 import "dialkit/vanilla/styles.css";
-import { inks } from "flora/engine";
+import { inks } from "@alpaca-software/web-flora/engine";
 import { TUNE } from "./margins.js";
 
 // The parts a colourway inks (inks.ts COLOURWAYS).

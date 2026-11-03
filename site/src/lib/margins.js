@@ -17,7 +17,7 @@ import { client, rgbOf } from "./margins-client.js";
 import site from "../../package.json";
 
 // The flora build the tiles are drawn with, for the tile cache.
-const ENGINE = site.dependencies.flora;
+const ENGINE = site.dependencies["@alpaca-software/web-flora"];
 import { LEAD, MIN_MARGIN, MIN_RUN, layoutSide, tilesOf, rowGrowth, targetRow, jitter } from "./margins-layout.js";
 
 export { MIN_MARGIN };

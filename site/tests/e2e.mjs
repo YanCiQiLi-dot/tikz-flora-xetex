@@ -33,10 +33,9 @@ function check(cond, msg) {
 // flora's scene reader must know exactly that list.
 {
   const ops = JSON.parse(readFileSync(join(SITE, "src/lib/scene-ops.json"), "utf8"));
-  const reader = readFileSync(join(SITE, "node_modules/flora/src/pdf-scene.ts"), "utf8");
-  const m = reader.match(/export const OPERATORS = (\[[^\]]*\])/);
-  check(m, "flora's scene reader no longer exports OPERATORS");
-  if (m) check(JSON.stringify(JSON.parse(m[1])) === JSON.stringify(ops), `flora reads ${m[1]}; scene-ops.json lists ${JSON.stringify(ops)}`);
+  const { OPERATORS } = await import("@alpaca-software/web-flora");
+  check(Array.isArray(OPERATORS), "flora's scene reader no longer exports OPERATORS");
+  if (OPERATORS) check(JSON.stringify(OPERATORS) === JSON.stringify(ops), `flora reads ${JSON.stringify(OPERATORS)}; scene-ops.json lists ${JSON.stringify(ops)}`);
 }
 
 const server = process.env.SITE_URL ? null : spawn("npx", ["vite", "preview", "--port", PORT, "--strictPort", "--host", "127.0.0.1"], {

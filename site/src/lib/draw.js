@@ -3,7 +3,7 @@
 // with flora's renderers (~/flora, the upstream engine): its reader turns
 // the scene into a display list, then WebGL2 draws it, or the 2D canvas
 // where WebGL2 is missing or when asked for ("canvas2d").
-import { fromPdfScene, WebGLRenderer, drawCanvas2D } from "flora";
+import { fromPdfScene, WebGLRenderer, drawCanvas2D } from "@alpaca-software/web-flora";
 
 // One WebGL context for the worker's life: browsers allow only a few, and
 // a context is costly to make.
