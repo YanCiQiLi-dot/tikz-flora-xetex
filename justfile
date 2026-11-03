@@ -161,6 +161,7 @@ test-garden: garden
 test-site:
     cd site && npm ci --no-audit --no-fund --silent && npm run build --silent
     node site/tests/e2e.mjs
+    node site/tests/margins-e2e.mjs
 
 # Builds and publishes the site at https://flora.alpacasoft.dev (Cloudflare
 # Workers; wrangler creates the DNS record for the custom domain).

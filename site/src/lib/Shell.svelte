@@ -1,7 +1,21 @@
 <script>
   // Every page's running head and colophon. `page` names the current page
   // for the nav; `tool` gives the page the whole screen below the head.
+  // Pages that are not tools grow a plant down each side margin
+  // (margins.js), loaded once the page is up.
+  import { onMount } from "svelte";
   let { page, tool = false, children } = $props();
+  onMount(() => {
+    if (tool) return;
+    let garden, gone = false;
+    import("./margins.js").then(({ startMargins }) => {
+      if (!gone) garden = startMargins();
+    }, (e) => console.error(e));
+    return () => {
+      gone = true;
+      garden?.stop();
+    };
+  });
   const NAV = [["mixer", "/mixer/", "Mixer"], ["ornaments", "/ornaments/", "Ornaments"], ["guide", "/guide/", "Guide"]];
 </script>
 

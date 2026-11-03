@@ -112,7 +112,7 @@
       <h2 id="example">The example document</h2>
       <p class="caption">Seven pages of one document, each with the setting that shaped it.</p>
     </div></header>
-    <ol class="pages">
+    <ol class="pages" data-flora-avoid>
       {#each pages as [p, what, how], i}
         <li>
           <a href={`/img/page-${p}.jpg`}><img class="paper" src={`/img/page-${p}.jpg`} width="910" height="1287" loading="lazy"
