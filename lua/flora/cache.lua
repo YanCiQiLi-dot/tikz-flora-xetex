@@ -9,8 +9,12 @@
 -- times over, and an edit reflows only the pages after it, so most pages
 -- of most compiles are found here.
 --
--- index.lua in the folder lists each file's paint count and the last
--- run that used it; files no run has used for KEEP runs are deleted.
+-- index.lua in the folder lists each file's paint count and the layout
+-- that last used it, a layout being the set of pages one run embedded.
+-- It keeps the last KEEP distinct layouts; a file no kept layout used is
+-- deleted. A run that embeds the same pages as the run before leaves the
+-- index byte for byte as it was, so latexmk, which reruns LaTeX until the
+-- files it read stop changing, settles as soon as the document does.
 
 local Serial = require("flora.serial")
 
@@ -53,15 +57,15 @@ local function load()
   local out = status.output_directory
   local dir = ((out and out ~= "") and out .. "/" or "") .. tex.jobname .. "-flora"
   if not lfs.isdir(dir) then lfs.mkdir(dir) end
-  local index = { run = 0, entries = {} }
+  local index, text = { layouts = {}, entries = {} }, nil
   local f = io.open(dir .. "/index.lua", "rb")
   if f then
-    local ok, t = pcall(Serial.decode, f:read("a"))
+    text = f:read("a")
     f:close()
-    if ok and type(t) == "table" and type(t.entries) == "table" then index = t end
+    local ok, t = pcall(Serial.decode, text)
+    if ok and type(t) == "table" and type(t.entries) == "table" and type(t.layouts) == "table" then index = t end
   end
-  index.run = (tonumber(index.run) or 0) + 1
-  state = { dir = dir, index = index, ok = lfs.isdir(dir) }
+  state = { dir = dir, index = index, text = text, used = {}, ok = lfs.isdir(dir) }
   luatexbase.add_to_callback("finish_pdffile", M.finish, "flora.cache")
   return state
 end
@@ -80,8 +84,11 @@ local function write_whole(path, data)
   return os.rename(tmp, path) and true or false
 end
 
+-- Save the index, unless it would be written exactly as it stands.
 local function save_index(st)
-  write_whole(st.dir .. "/index.lua", Serial.encode(st.index) .. "\n")
+  local text = Serial.encode(st.index) .. "\n"
+  if text == st.text then return end
+  if write_whole(st.dir .. "/index.lua", text) then st.text = text end
 end
 
 -- The key for a page: everything its flora depends on; nil when the
@@ -115,23 +122,37 @@ function M.page(spec, set, level)
       st.ok = false
       return nil
     end
-    e = { count = pt.count, coverage = pt.coverage or 0, run = st.index.run }
+    e = { count = pt.count, coverage = pt.coverage or 0 }
     st.index.entries[key] = e
     save_index(st)
   end
-  e.run = st.index.run
+  st.used[key] = true
   return file, e, hit and true or false
 end
 
--- At the end of the run: drop entries unused for KEEP runs, delete every
--- file the index no longer lists (and any left half-written), and save
--- the index.
+-- At the end of the run: record this run's layout, drop entries no kept
+-- layout used, delete every file the index no longer lists (and any left
+-- half-written), and save the index if it changed.
 function M.finish()
   local st = state
   if not st or not st.ok then return end
+  local keys = {}
+  for key in pairs(st.used) do keys[#keys + 1] = key end
+  table.sort(keys)
+  if #keys > 0 then
+    local layout = md5.sumhexa(table.concat(keys, " "))
+    local layouts = { layout }
+    for _, l in ipairs(st.index.layouts) do
+      if l ~= layout and #layouts < KEEP then layouts[#layouts + 1] = l end
+    end
+    st.index.layouts = layouts
+    for _, key in ipairs(keys) do st.index.entries[key].layout = layout end
+  end
+  local kept = {}
+  for _, l in ipairs(st.index.layouts) do kept[l] = true end
   local keep = {}
   for key, e in pairs(st.index.entries) do
-    if (e.run or 0) > st.index.run - KEEP then keep[key] = e end
+    if kept[e.layout] then keep[key] = e end
   end
   st.index.entries = keep
   for name in lfs.dir(st.dir) do

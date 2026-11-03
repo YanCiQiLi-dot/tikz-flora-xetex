@@ -1,7 +1,7 @@
 % Integration test for the page cache (lua/flora/cache.lua): run with
 % `just test-tex`, which compiles it several times and reads the log.
-% Two short pages; \def\cacheedit{} before \input changes the second
-% page's seed, as an edit would change its layout; \def\cacheoff{}
+% Two short pages; \def\cacheedit{N} before \input sets the second
+% page's seed to N, as an edit would change its layout; \def\cacheoff{}
 % turns the cache off; \def\cachecrash{} stops the compile with an error
 % after the first page, as a time limit would.
 \documentclass{article}
@@ -12,6 +12,6 @@
 First page.
 \clearpage
 \ifdefined\cachecrash \cachestopshere\fi
-\ifdefined\cacheedit \florathispage{seed=9}\fi
+\ifdefined\cacheedit \edef\x{\noexpand\florathispage{seed=\cacheedit}}\x\fi
 Second page.
 \end{document}

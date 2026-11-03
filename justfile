@@ -68,6 +68,10 @@ test-dist: dist
     cd build/test-dist/tikzflora && env -u TEXINPUTS -u FLORA_TUNE latexmk -quiet example > latexmk.out 2>&1 || (tail -30 example.log; exit 1)
     test "$(pdfinfo build/test-dist/tikzflora/example.pdf | awk '/^Pages/ {print $2}')" = 7
     grep -q 'painted objects' build/test-dist/tikzflora/example.log
+    # An edit, as a user makes one: latexmk must settle again (the page
+    # cache's index must stop changing once the pages do).
+    cd build/test-dist/tikzflora && sed -i.orig "s/a hen's egg/a goose's egg/" example.tex && ! cmp -s example.tex example.tex.orig
+    cd build/test-dist/tikzflora && env -u TEXINPUTS -u FLORA_TUNE latexmk -quiet example > latexmk-edit.out 2>&1 || (tail -30 latexmk-edit.out; echo "dist: latexmk did not settle after an edit"; exit 1)
     cd build/test-dist/tikzflora && env -u TEXINPUTS -u FLORA_TUNE latexmk -quiet titles > latexmk-titles.out 2>&1 || (tail -30 titles.log; exit 1)
     test "$(pdfinfo build/test-dist/tikzflora/titles.pdf | awk '/^Pages/ {print $2}')" = 4
     ! grep -q 'floraletters needs' build/test-dist/tikzflora/titles.log
@@ -179,18 +183,24 @@ test-tex:
         grep -q "^compresslevel=${pre#*:}$" build/compress.log || { echo "compresslevel ${pre%:*} became $(grep -o 'compresslevel=[0-9]*' build/compress.log), not ${pre#*:}"; exit 1; }; \
     done; echo "compresslevel: ok"
     # The page cache: grown on the first run, reused on the second, only
-    # the edited page grown again, unused pages dropped after three runs,
-    # and nothing cached with cache=false, whose pages match the cached
-    # ones pixel for pixel.
+    # the edited page grown again, its index untouched by a run that uses
+    # the same pages (latexmk reruns while it changes), a page dropped once
+    # three newer layouts have not used it, and nothing cached with
+    # cache=false, whose pages match the cached ones pixel for pixel.
     rm -rf build/cache build/cache-off && mkdir -p build/cache build/cache-off
     c() { lualatex -interaction=nonstopmode -halt-on-error -output-directory=build/cache -jobname=cache "$1\input{tests/cache.tex}" > build/cache/out.txt || exit 1; \
         test "$(grep -c 'grown and cached' build/cache/cache.log)/$(grep -c 'from the cache' build/cache/cache.log)" = "$2" || { echo "cache run $3: grown/found $(grep -c 'grown and cached' build/cache/cache.log)/$(grep -c 'from the cache' build/cache/cache.log), not $2"; exit 1; }; }; \
     c "" 2/0 1; pdftocairo -png -r 72 build/cache/cache.pdf build/cache/first; \
     c "" 0/2 2; pdftocairo -png -r 72 build/cache/cache.pdf build/cache/second; \
     cmp build/cache/first-1.png build/cache/second-1.png && cmp build/cache/first-2.png build/cache/second-2.png || { echo "cached pages differ from grown ones"; exit 1; }; \
-    c "\def\cacheedit{}" 1/1 3; test "$(ls build/cache/cache-flora/*.pdf | wc -l | tr -d ' ')" = 3 || { echo "edit run left the wrong number of files"; exit 1; }; \
-    c "\def\cacheedit{}" 0/2 4; c "\def\cacheedit{}" 0/2 5; \
-    test "$(ls build/cache/cache-flora/*.pdf | wc -l | tr -d ' ')" = 2 || { echo "a page unused for three runs was kept"; exit 1; }; \
+    n() { ls build/cache/cache-flora/*.pdf | wc -l | tr -d ' '; }; \
+    c "\def\cacheedit{9}" 1/1 3; test "$(n)" = 3 || { echo "edit run left $(n) files, not 3"; exit 1; }; \
+    cp build/cache/cache-flora/index.lua build/cache/index-before.lua; \
+    c "\def\cacheedit{9}" 0/2 4; \
+    cmp -s build/cache/index-before.lua build/cache/cache-flora/index.lua || { echo "a run using the same pages rewrote the cache index"; exit 1; }; \
+    c "\def\cacheedit{10}" 1/1 5; test "$(n)" = 4 || { echo "a page used two layouts ago was dropped"; exit 1; }; \
+    c "\def\cacheedit{11}" 1/1 6; test "$(n)" = 4 || { echo "a page unused for three layouts was kept ($(n) files)"; exit 1; }; \
+    c "\def\cacheedit{9}" 0/2 7; \
     lualatex -interaction=nonstopmode -halt-on-error -output-directory=build/cache-off -jobname=cache "\def\cacheoff{}\input{tests/cache.tex}" > build/cache-off/out.txt || exit 1; \
     test ! -e build/cache-off/cache-flora || { echo "cache=false still cached"; exit 1; }; \
     pdftocairo -png -r 72 build/cache-off/cache.pdf build/cache-off/off; \
