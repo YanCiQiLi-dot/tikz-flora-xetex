@@ -164,7 +164,9 @@ new WebGLRenderer(canvas).draw(list, { scale: 1 });`}</code></pre>
         <code>compose.page</code> grows a whole page in any of the package's
         layouts, and <code>ornaments.draw</code> sets a single ornament, as
         between these plates.</p>
-      <p class="caption">MIT licence, as the package is.</p>
+      <p class="caption">It ships as TypeScript source: use it through a
+        bundler that compiles TypeScript, such as Vite. MIT licence, as the
+        package is.</p>
     </div>
   </section>
 
