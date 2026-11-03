@@ -8,7 +8,7 @@
 // hero hangs at the foot. The right margin's plant is mirrored too. Each
 // plant is grown once and kept for the windows that follow.
 //
-// Message { kind: "tile", id, run, fw, h, m, seed, mirror, colourway,
+// Message { kind: "tile", id, run, fw, h, m, seed, mirror, colourway, inks,
 // paper, avoid, dpr, y0, th, rows } -> { id, bitmap, birth, nx, ny, cell,
 // rows?, full, ms }:
 //   run       a key for the plant: windows with the same key share it
@@ -16,6 +16,7 @@
 //   m         where the content column starts, from the run's outer edge
 //   mirror    true for the right margin
 //   colourway tikz-flora's colourway name (inks.ts COLOURWAYS)
+//   inks      { part: ink name } over the colourway's
 //   paper     the page's paper (sRGB 0-1)
 //   avoid     [[x0, y0, x1, y1], ...] run px (y down) nothing grows in
 //   y0, th    the window: its top in the run and its height, px; y0 a
@@ -26,7 +27,13 @@
 //   rows      (sent) Float32Array, per cell row of the run: the growth by
 //             which the front has reached that row, never falling
 //   full      the growth by which the whole plant has grown
-import { compose, clock, inks, tune, Painter } from "flora/engine";
+//
+// Message { kind: "ornament", id, slot, name, seed, w, h, dpr, colourway,
+// inks, paper } -> { id, bitmap, name }: one of the package's ornaments
+// drawn alone, a page ornament for the site's own pages (Ornament.svelte):
+// kind `name`, or one picked by weight for `slot` from `seed`, in a box
+// w x h CSS px.
+import { compose, clock, inks, tune, ornaments, Painter, Rng } from "flora/engine";
 import { toDisplayList, WebGLRenderer, drawCanvas2D } from "flora";
 
 // The strip kept clear at a run's head and foot (lua/flora/garden.lua).
@@ -78,9 +85,7 @@ function plantFor(o) {
   const closed = (o.avoid ?? []).map(([x0, y0, x1, y1]) => (mirror ? [fw - x1, y0, fw - x0, y1] : [x0, y0, x1, y1]));
   const text = { x0: m, x1: fw, y0: END, y1: h - END };
   const spec = { width: fw, height: h, seed: o.seed, text, lines: [{ ...text }], closed, ornaments: o.ornaments, budget: Math.max(1, h / PER_BUDGET) };
-  const way = inks.COLOURWAYS[inks.COLOURWAY_ALIAS[o.colourway] ?? o.colourway];
-  const palette = way ? { ...tune.PALETTE, ...way } : tune.PALETTE;
-  const pt = new Painter({ width: fw, height: h, palette, paper: o.paper });
+  const pt = new Painter({ width: fw, height: h, palette: paletteOf(o), paper: o.paper });
   pt.frame(mirror ? (x, y) => [fw - x, h - y] : (x, y) => [x, h - y]);
   const planted = compose.plant(spec, pt);
   pt.frame(undefined);
@@ -106,6 +111,25 @@ function plantFor(o) {
   return p;
 }
 
+function paletteOf(o) {
+  const way = inks.COLOURWAYS[inks.COLOURWAY_ALIAS[o.colourway] ?? o.colourway];
+  return { ...tune.PALETTE, ...(way ?? {}), ...(o.inks ?? {}) };
+}
+
+function ornament(o) {
+  const rng = new Rng(`ornament ${o.slot} ${o.seed}`);
+  const k = o.name ? ornaments.kind(o.name) : ornaments.pick(rng, o.slot);
+  if (!k) throw new Error(`margins worker: no ${o.slot} ornament ${o.name ?? ""}`);
+  const { w, h } = o;
+  // The box keeps clear what the kind may paint past it.
+  const pad = k.reach * Math.max(w, h) + 2;
+  const pt = new Painter({ width: w, height: h, palette: paletteOf(o), paper: o.paper });
+  pt.frame((x, y) => [x, h - y]);
+  ornaments.draw(k, pt, rng.fork("draw"), [pad, pad, w - pad, h - pad], {});
+  pt.frame(undefined);
+  return { bitmap: draw(toDisplayList(pt.scene()), w, h, o.dpr, 0), name: k.name };
+}
+
 function tile(o) {
   const t0 = performance.now();
   const p = plantFor(o);
@@ -120,6 +144,11 @@ function tile(o) {
 self.onmessage = (e) => {
   const { id, kind } = e.data;
   try {
+    if (kind === "ornament") {
+      const out = ornament(e.data);
+      self.postMessage({ id, ...out }, [out.bitmap]);
+      return;
+    }
     if (kind !== "tile") throw new Error(`margins worker: unknown kind ${kind}`);
     const out = tile(e.data);
     const moved = [out.bitmap, out.birth.buffer];

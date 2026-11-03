@@ -13,59 +13,34 @@
 // the plant out. What the reader has scrolled past is shown grown. Under
 // prefers-reduced-motion each plant appears whole once drawn.
 import { gardenAt } from "./garden.js";
-import { MIN_MARGIN, MIN_RUN, layoutSide, tilesOf, rowGrowth, targetRow, jitter } from "./margins-layout.js";
+import { client, rgbOf } from "./margins-client.js";
+import { LEAD, MIN_MARGIN, MIN_RUN, layoutSide, tilesOf, rowGrowth, targetRow, jitter } from "./margins-layout.js";
 
 export { MIN_MARGIN };
 // How far a plant reaches into the column, px: the column's edge band,
 // which the engine keeps clear.
 const INTO = 30;
-// The width of the wet front, in px of growth.
-const SOFT = 70;
-// Growth speed, px of growth per second: at least SLOW, and CATCH times
-// the growth still to go, so the front eases in behind a quick scroll.
-const SLOW = 110, CATCH = 0.9;
+// How the garden grows, as startMargins starts it; garden.tune(...)
+// changes it (the dials, dials.js):
+//   lead      the share of the viewport the front heads for (LEAD)
+//   soft      the width of the wet front, px of growth
+//   slow      the least growth speed, px of growth per second
+//   catch     the share of the growth still to go grown each second, so
+//             the front eases in behind a quick scroll
+//   colourway tikz-flora's colourway (default: the season's)
+//   inks      { part: ink name } over the colourway's (inks.ts parts)
+export const TUNE = { lead: LEAD, soft: 70, slow: 110, catch: 0.9 };
 // Tiles are asked for this many viewports ahead of the front.
 const AHEAD = 1.5;
 // How far above the viewport's top the front may still be growing, px.
 const UNSEEN = 40;
 
-// A CSS colour as sRGB 0-1, through a 1 px canvas (oklch and all).
-function rgbOf(css) {
-  const c = new OffscreenCanvas(1, 1), x = c.getContext("2d");
-  x.fillStyle = css;
-  x.fillRect(0, 0, 1, 1);
-  const d = x.getImageData(0, 0, 1, 1).data;
-  return [d[0] / 255, d[1] / 255, d[2] / 255];
-}
-
-function client() {
-  const worker = new Worker(new URL("./margins.worker.js", import.meta.url), { type: "module" });
-  let next = 0;
-  const waiting = new Map();
-  worker.onmessage = (e) => {
-    const p = waiting.get(e.data.id);
-    waiting.delete(e.data.id);
-    if (!p) return;
-    if (e.data.error) p.reject(new Error(e.data.error));
-    else p.resolve(e.data);
-  };
-  worker.onerror = (e) => {
-    for (const p of waiting.values()) p.reject(new Error(e.message || "margins worker failed"));
-    waiting.clear();
-  };
-  return {
-    post: (msg) => new Promise((resolve, reject) => {
-      const id = ++next;
-      waiting.set(id, { resolve, reject });
-      worker.postMessage({ ...msg, id });
-    }),
-    stop: () => worker.terminate(),
-  };
-}
-
 export function startMargins({ doc = document, win = window } = {}) {
   const reduce = win.matchMedia("(prefers-reduced-motion: reduce)");
   const at = gardenAt();
+  const T = { ...TUNE, colourway: at.colourway, inks: {} };
+  const SOFT = () => T.soft;
+  const targetAt = () => targetRow(win.scrollY, win.innerHeight, parseFloat(layer.style.height), T.lead);
   // Two workers, so the two margins grow side by side. A plant is kept by
   // the worker that grew it, so all its tiles go to that worker.
   const workers = [client(), client()];
@@ -76,12 +51,13 @@ export function startMargins({ doc = document, win = window } = {}) {
   // The viewport width, each side's margin (what the page's content leaves
   // between itself and the edge) and the page's height. Content is every
   // element narrower than the viewport, other than what the plants keep
-  // out of (data-flora-avoid) and the garden itself.
+  // out of (data-flora-avoid), the site's own controls (data-flora-ui) and
+  // the garden itself.
   function measure() {
     const vw = doc.documentElement.clientWidth;
     let x0 = vw, x1 = 0;
     for (const el of doc.body.querySelectorAll("*")) {
-      if (el.tagName === "SCRIPT" || el.tagName === "STYLE" || el.closest("[data-flora-avoid], .flora-margins")) continue;
+      if (el.tagName === "SCRIPT" || el.tagName === "STYLE" || el.closest("[data-flora-avoid], [data-flora-ui], .flora-margins")) continue;
       const r = el.getBoundingClientRect();
       if (r.width <= 0 || r.height <= 0 || r.width >= vw - 1 || r.right <= 0 || r.left >= vw) continue;
       x0 = Math.min(x0, r.left);
@@ -131,7 +107,7 @@ export function startMargins({ doc = document, win = window } = {}) {
   function addRun(side, y, h) {
     const k = runs.filter((r) => r.side === side).length;
     const r = {
-      key: `r${nextRun++}`, side, k, y, h, tiles: [], rows: null, full: 0, u: -1, cell: 3,
+      key: `r${nextRun++}`, side, k, y, h, tiles: [], rows: null, born: 0, u: -1, cell: 3,
       seed: at.seed * 4 + k * 2 + (side.mirror ? 1 : 0),
       wi: sides.length === 2 ? (side.mirror ? 1 : 0) : k % 2,
     };
@@ -141,7 +117,7 @@ export function startMargins({ doc = document, win = window } = {}) {
       canvas.height = Math.round(w.h * dpr);
       Object.assign(canvas.style, { position: "absolute", left: `${side.x}px`, top: `${y + w.y}px`, width: `${side.fw}px`, height: `${w.h}px` });
       layer.append(canvas);
-      const t = { run: r, ly: w.y, y: y + w.y, h: w.h, canvas, state: "idle", data: null, shown: -1, lo: 0, hi: 0 };
+      const t = { run: r, ly: w.y, y: y + w.y, h: w.h, canvas, state: "idle", data: null, shown: -1, blo: 0, bhi: 0 };
       r.tiles.push(t);
       tiles.push(t);
     }
@@ -221,7 +197,7 @@ export function startMargins({ doc = document, win = window } = {}) {
     if (stopped || !layer) return;
     for (const wi of [...idle]) {
       const top = win.scrollY, vh = win.innerHeight, foot = top + vh;
-      const horizon = targetRow(top, vh, parseFloat(layer.style.height)) + vh * AHEAD;
+      const horizon = targetAt() + vh * AHEAD;
       let best = null, bestScore = Infinity;
       for (const t of tiles) {
         if (t.state !== "idle" || t.run.wi !== wi) continue;
@@ -237,15 +213,15 @@ export function startMargins({ doc = document, win = window } = {}) {
       t.state = "pending";
       workers[wi].post({
         kind: "tile", run: r.key, fw: r.side.fw, h: r.h, m: r.side.m, seed: r.seed, mirror: r.side.mirror, dpr,
-        colourway: at.colourway, avoid: avoidIn(r), paper: ground, y0: t.ly, th: t.h, rows: !r.rows,
+        colourway: T.colourway, inks: T.inks, avoid: avoidIn(r), paper: ground, y0: t.ly, th: t.h, rows: !r.rows,
       }).then((data) => {
         if (!tiles.includes(t)) { data.bitmap.close?.(); return; }
-        if (data.rows && !r.rows) { r.rows = data.rows; r.cell = data.cell; r.full = data.full + SOFT * 1.3; }
+        if (data.rows && !r.rows) { r.rows = data.rows; r.cell = data.cell; r.born = data.full; }
         let lo = Infinity, hi = 0;
         for (let i = 0; i < data.birth.length; i++) { lo = Math.min(lo, data.birth[i]); hi = Math.max(hi, data.birth[i]); }
         t.data = { ...data, jitter: jitter(data.nx, data.ny, r.seed * 31 + t.ly) };
-        t.lo = lo - SOFT - 16;
-        t.hi = hi + SOFT * 1.3;
+        t.blo = lo;
+        t.bhi = hi;
         t.state = "ready";
       }, (err) => {
         t.state = "failed";
@@ -265,13 +241,13 @@ export function startMargins({ doc = document, win = window } = {}) {
     if (u <= 0) return;
     ctx.globalCompositeOperation = "source-over";
     ctx.drawImage(d.bitmap, 0, 0, W, H);
-    if (u >= t.hi) return;
+    if (u >= hiOf(t)) return;
     d.mask ??= new OffscreenCanvas(d.nx, d.ny);
     const mc = d.mask.getContext("2d");
     d.pixels ??= mc.createImageData(d.nx, d.ny);
     const px = d.pixels.data, b = d.birth, jit = d.jitter;
     for (let i = 0; i < b.length; i++) {
-      let a = (u - b[i] - jit[i] * 16) / SOFT;
+      let a = (u - b[i] - jit[i] * 16) / SOFT();
       a = a <= 0 ? 0 : a >= 1 ? 1 : a * a * (3 - 2 * a);
       px[i * 4 + 3] = a * 255;
     }
@@ -283,9 +259,15 @@ export function startMargins({ doc = document, win = window } = {}) {
     ctx.globalCompositeOperation = "source-over";
   }
 
+  // The growth before which tile t shows nothing, and by which it is whole;
+  // and by which run r is whole.
+  const loOf = (t) => t.blo - SOFT() - 16;
+  const hiOf = (t) => t.bhi + SOFT() * 1.3;
+  const fullOf = (r) => r.born + SOFT() * 1.3;
+
   function finish(t) {
-    paint(t, t.hi);
-    t.shown = t.hi;
+    paint(t, hiOf(t));
+    t.shown = hiOf(t);
     t.state = "done";
     const d = t.data;
     d.birth = d.jitter = d.mask = d.pixels = null;
@@ -298,15 +280,16 @@ export function startMargins({ doc = document, win = window } = {}) {
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
     last = now;
     const top = win.scrollY;
-    const target = targetRow(top, win.innerHeight, parseFloat(layer.style.height));
+    const target = targetAt();
     let moving = false;
     for (const r of runs) {
       if (!r.rows) continue;
       const reach = target - r.y;
-      const cap = Math.min(r.full, rowGrowth(r.rows, r.cell, reach) + (reach > 0 ? SOFT * 0.6 : 0));
+      const full = fullOf(r);
+      const cap = Math.min(full, rowGrowth(r.rows, r.cell, reach) + (reach > 0 ? SOFT() * 0.6 : 0));
       let u = r.u < 0 ? 0 : r.u;
-      if (reduce.matches) u = reach > 0 ? r.full : u;
-      else if (u < cap) u = Math.min(cap, u + Math.max(SLOW, (cap - u) * CATCH) * dt);
+      if (reduce.matches) u = reach > 0 ? full : u;
+      else if (u < cap) u = Math.min(cap, u + Math.max(T.slow, (cap - u) * T.catch) * dt);
       // What lies above the viewport is shown grown: nobody saw it grow,
       // and the front should be where the reader is looking.
       if (top > r.y) u = Math.max(u, Math.min(cap, rowGrowth(r.rows, r.cell, top - r.y - UNSEEN)));
@@ -314,9 +297,9 @@ export function startMargins({ doc = document, win = window } = {}) {
       if (!reduce.matches && u < cap - 0.25) moving = true;
       for (const t of r.tiles) {
         if (t.state !== "ready") continue;
-        if (bottom(t) <= top || r.u >= t.hi) { finish(t); continue; }
+        if (bottom(t) <= top || r.u >= hiOf(t)) { finish(t); continue; }
         // Paint only what the front shows anew.
-        if (r.u > t.lo && r.u > t.shown + 0.25) {
+        if (r.u > loOf(t) && r.u > t.shown + 0.25) {
           paint(t, r.u);
           t.shown = r.u;
         }
@@ -357,6 +340,23 @@ export function startMargins({ doc = document, win = window } = {}) {
   Promise.resolve(doc.fonts?.ready).then(() => { if (!stopped) build(); });
 
   const api = {
+    // Change how the garden grows (TUNE's keys). New inks grow it afresh;
+    // the rest takes effect as it grows on.
+    tune(o) {
+      const inks = { colourway: o.colourway ?? T.colourway, inks: o.inks ?? T.inks };
+      const regrow = JSON.stringify(inks) !== JSON.stringify({ colourway: T.colourway, inks: T.inks });
+      for (const k of Object.keys(TUNE)) if (typeof o[k] === "number" && Number.isFinite(o[k])) T[k] = o[k];
+      Object.assign(T, inks);
+      if (regrow) build();
+      else kick();
+    },
+    // Grow the garden again from nothing.
+    regrow() {
+      build();
+    },
+    get tuning() {
+      return { ...T, inks: { ...T.inks } };
+    },
     stop() {
       stopped = true;
       if (raf) win.cancelAnimationFrame(raf);
@@ -371,9 +371,9 @@ export function startMargins({ doc = document, win = window } = {}) {
     // each tile.
     get state() {
       return {
-        target: layer ? targetRow(win.scrollY, win.innerHeight, parseFloat(layer.style.height)) : 0,
+        target: layer ? targetAt() : 0,
         sides: sides.map((s) => ({ mirror: s.mirror, m: s.m, bands: s.bands })),
-        runs: runs.map((r) => ({ mirror: r.side.mirror, k: r.k, y: r.y, h: r.h, u: r.u, full: r.full })),
+        runs: runs.map((r) => ({ mirror: r.side.mirror, k: r.k, y: r.y, h: r.h, u: r.u, full: r.rows ? fullOf(r) : 0 })),
         tiles: tiles.map((t) => ({ mirror: t.run.side.mirror, run: t.run.k, state: t.state, y: t.y, h: t.h, ms: t.data?.ms ?? null })),
       };
     },

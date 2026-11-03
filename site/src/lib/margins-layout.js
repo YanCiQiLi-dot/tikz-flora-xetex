@@ -5,7 +5,7 @@
 // The narrowest margin a plant grows in, px.
 export const MIN_MARGIN = 110;
 // The front leads the reader: it heads for this fraction of the viewport.
-const LEAD = 0.82;
+export const LEAD = 0.82;
 // Space kept clear above and below a band, px, and the shortest run of
 // margin that grows a plant.
 export const BAND_GAP = 10, MIN_RUN = 320;
@@ -55,13 +55,13 @@ export function rowGrowth(rows, cell, r) {
   return rows[rows.length - 1] + (r - rows.length * cell);
 }
 
-// The page row the front heads for at scroll position `y`: LEAD of the
-// way down the viewport, and the whole page once the reader reaches its
-// foot (or when it does not scroll).
-export function targetRow(y, vh, docH) {
+// The page row the front heads for at scroll position `y`: `lead` (LEAD
+// by default) of the way down the viewport, and the whole page once the
+// reader reaches its foot (or when it does not scroll).
+export function targetRow(y, vh, docH, lead = LEAD) {
   const max = Math.max(0, docH - vh);
   const end = max <= 0 ? 1 : Math.min(1, y / max) ** 8;
-  return Math.min(docH, y + vh * LEAD + end * vh * (1 - LEAD) + (max <= 0 ? docH : 0));
+  return Math.min(docH, y + vh * lead + end * vh * (1 - lead) + (max <= 0 ? docH : 0));
 }
 
 // Fixed per-cell jitter in about [-1, 1], smooth over a few cells, so the

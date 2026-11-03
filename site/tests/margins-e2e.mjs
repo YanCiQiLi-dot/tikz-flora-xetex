@@ -185,6 +185,46 @@ try {
     await phone.close();
   }
 
+  // The gear opens the dials without the panel or the gear counting as
+  // content (both margins still grow); the dials' tuning moves the front,
+  // and new inks grow the garden afresh.
+  {
+    const p = await open("");
+    await p.locator("button.gear").click();
+    await p.locator(".dialkit-root").waitFor({ state: "attached", timeout: 10000 });
+    await sleep(1500);
+    const s = await state(p);
+    check(s?.sides.length === 2, `dials: the margins with the panel open are ${JSON.stringify(s?.sides)}`);
+    const moved = await p.evaluate(() => {
+      const g = window.__floraMargins, a = g.state.target;
+      g.tune({ lead: 0.4 });
+      return [a, g.state.target];
+    });
+    check(moved[1] < moved[0] - 100, `dials: a shorter lead leaves the front at ${moved[1]} (was ${moved[0]})`);
+    const regrown = await p.evaluate(async () => {
+      const g = window.__floraMargins;
+      g.tune({ inks: { leaves: "ku-jaku" } });
+      return g.state.tiles.every((t) => t.state === "idle" || t.state === "pending") && g.tuning.inks.leaves === "ku-jaku";
+    });
+    check(regrown, "dials: new inks do not grow the garden afresh");
+    await p.close();
+  }
+
+  // The package's ornaments set between the plates draw, each a kind of
+  // its slot, and gild in once seen.
+  {
+    const p = await open("");
+    const n = await p.locator(".ornament").count();
+    check(n >= 5, `home: ${n} ornaments`);
+    await p.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+    await p.waitForFunction(() => document.querySelector("footer .ornament.gilt"), null, { timeout: 15000 })
+      .catch(() => check(false, "the colophon's tailpiece never gilds in"));
+    const kinds = await p.evaluate(() => [...document.querySelectorAll(".ornament")].map((o) => [o.dataset.slot, o.dataset.kind]));
+    const drawn = kinds.filter(([, k]) => k);
+    check(drawn.length >= 2, `ornaments drawn: ${JSON.stringify(kinds)}`);
+    await p.close();
+  }
+
   // Stopping removes the garden and its hook.
   {
     const p = await open("");

@@ -1,5 +1,6 @@
 <script>
   import Shell from "../lib/Shell.svelte";
+  import Ornament from "../lib/Ornament.svelte";
   import COLOURWAYS from "../lib/colourways.json";
 
   // The example document's pages, with what each shows.
@@ -49,6 +50,8 @@
     </div>
   </section>
 
+  <div class="divider"><Ornament slot="flourish" seed={1} /></div>
+
   <section class="book chapter" aria-labelledby="ways">
     <header class="wide lead">
       <p class="sc rubric">Plate I</p>
@@ -67,6 +70,8 @@
       {/each}
     </div>
   </section>
+
+  <div class="divider"><Ornament slot="flourish" seed={2} /></div>
 
   <section class="book chapter" aria-labelledby="titles">
     <header class="wide lead">
@@ -89,6 +94,8 @@
     </div>
   </section>
 
+  <div class="divider"><Ornament slot="flourish" seed={3} /></div>
+
   <section class="book chapter" aria-labelledby="grow">
     <header class="wide lead">
       <p class="sc rubric">Plate III</p>
@@ -106,6 +113,8 @@
     </div>
   </section>
 
+  <div class="divider"><Ornament slot="flourish" seed={4} /></div>
+
   <section class="chapter example" aria-labelledby="example">
     <header class="book"><div class="wide lead">
       <p class="sc rubric">Plate IV</p>
@@ -122,6 +131,44 @@
       {/each}
     </ol>
   </section>
+
+  <div class="divider"><Ornament slot="flourish" seed={5} /></div>
+
+  <section class="book chapter" aria-labelledby="engine">
+    <header class="wide lead">
+      <p class="sc rubric">Plate V</p>
+      <h2 id="engine">The same garden on the web</h2>
+    </header>
+    <div class="engine">
+      <p>The margins of this page are grown by flora, the package's engine
+        in TypeScript. Given the same seed it grows the same plant as the
+        Lua inside LuaLaTeX, and draws it with WebGL2, or a 2D canvas where
+        WebGL2 is missing.</p>
+      <pre><code>{`npm install github:wn-mitch/flora`}</code></pre>
+      <pre><code>{`import { compose, Painter } from "flora/engine";
+import { toDisplayList, WebGLRenderer } from "flora";
+
+// A margin 160 x 900 pt, its column of text from x = 130.
+const text = { x0: 130, y0: 24, x1: 160, y1: 876 };
+const spec = { width: 160, height: 900, seed: 7, text, lines: [text] };
+const pt = new Painter({ width: 160, height: 900 });
+compose.plant(spec, pt);
+
+// Onto a 160 x 900 canvas.
+const canvas = document.querySelector("canvas");
+const list = toDisplayList(pt.scene());
+new WebGLRenderer(canvas).draw(list, { scale: 1 });`}</code></pre>
+    </div>
+    <div class="note side">
+      <p><code>compose.plant</code> grows one plant into a margin;
+        <code>compose.page</code> grows a whole page in any of the package's
+        layouts, and <code>ornaments.draw</code> sets a single ornament, as
+        between these plates.</p>
+      <p class="caption">MIT licence, as the package is.</p>
+    </div>
+  </section>
+
+  <div class="divider"><Ornament slot="flourish" seed={6} /></div>
 
   <section class="book chapter" aria-labelledby="contents">
     <header class="lead">
@@ -154,6 +201,10 @@
   .lede { font-size: 1.3rem; line-height: 1.5; }
   .actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.6rem; }
   .chapter { padding-top: clamp(4rem, 10vh, 7rem); }
+  /* A flourish of the package's own between the plates, set in the gap a
+     chapter would otherwise open with. */
+  .divider { max-width: calc(var(--measure) + var(--gutter) + var(--margin) + 2 * var(--side)); margin: 0 auto; padding: clamp(2.5rem, 7vh, 5rem) var(--side) 0; }
+  .divider + .chapter { padding-top: clamp(2rem, 5vh, 3.5rem); }
   .lead { margin-bottom: 1.6rem; }
   .lead p.sc { margin: 0 0 .2rem; }
   .lead h2 { margin: 0; }
@@ -165,6 +216,8 @@
   .ways img, .titles img, .pages img { display: block; width: 100%; height: auto; box-shadow: 0 0 0 1px var(--rule); }
   .ways figcaption, .titles figcaption { margin-top: .6rem; }
   .ways .line, .titles .line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 .6rem; }
+  .engine { grid-column: text; min-width: 0; }
+  .engine pre { font-size: .76rem; }
   .growth { grid-column: text; width: 100%; height: auto; max-height: 82svh; object-fit: contain; display: block; box-shadow: 0 0 0 1px var(--rule); }
   .side { align-self: end; }
   .side p:first-child { font-size: 1.15rem; }

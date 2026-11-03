@@ -2,20 +2,27 @@
   // Every page's running head and colophon. `page` names the current page
   // for the nav; `tool` gives the page the whole screen below the head.
   // Pages that are not tools grow a plant down each side margin
-  // (margins.js), loaded once the page is up.
+  // (margins.js), loaded once the page is up; the gear in the corner opens
+  // its dials (dials.js), loaded on first press.
   import { onMount } from "svelte";
+  import Ornament from "./Ornament.svelte";
   let { page, tool = false, children } = $props();
+  let garden = $state(null);
   onMount(() => {
     if (tool) return;
-    let garden, gone = false;
+    let gone = false;
     import("./margins.js").then(({ startMargins }) => {
       if (!gone) garden = startMargins();
     }, (e) => console.error(e));
     return () => {
       gone = true;
       garden?.stop();
+      import("./dials.js").then((d) => d.closeDials(), () => {});
     };
   });
+  function dials() {
+    import("./dials.js").then((d) => d.toggleDials(garden), (e) => console.error(e));
+  }
   const NAV = [["mixer", "/mixer/", "Mixer"], ["ornaments", "/ornaments/", "Ornaments"], ["guide", "/guide/", "Guide"]];
 </script>
 
@@ -33,11 +40,21 @@
   {@render children()}
 </main>
 
+{#if garden}
+  <button class="gear" type="button" data-flora-ui onclick={dials} aria-label="Tune the margin garden" title="Tune the margin garden">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.2h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.7h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/>
+    </svg>
+  </button>
+{/if}
+
 {#if !tool}
   <footer class="colophon">
-    <p class="fleuron" aria-hidden="true">❦</p>
+    <div class="tailpiece"><Ornament slot="tailpiece" seed={97} width={170} aspect={1.6} /></div>
     <p>Set in IM Fell English and EB Garamond. Every flower, ink wash and
-      ornament on these pages is drawn by the package's own Lua.</p>
+      ornament on these pages is drawn by the package: the plates by its
+      Lua, the margins and the ornaments between them by flora, its
+      TypeScript engine.</p>
     <p class="sc">
       <a href="/guide/#credits">Credits</a> · MIT licence ·
       <a href="https://github.com/wn-mitch/tikz-flora">Source on GitHub</a>
@@ -60,8 +77,15 @@
   main.tool { height: calc(100dvh - var(--bar)); }
   .colophon { max-width: var(--measure); margin: 0 auto; padding: 4rem var(--side) 3rem; text-align: center; font-size: .98rem; color: var(--muted); }
   .colophon p { margin: 0 0 .5rem; }
-  .fleuron { font-size: 1.5rem; color: var(--rubric); }
+  .tailpiece { margin: 0 auto 1.2rem; }
+  .gear {
+    position: fixed; right: 14px; bottom: 14px; z-index: 5; width: 36px; height: 36px; padding: 0;
+    display: grid; place-items: center; border: 1px solid var(--rule); border-radius: 50%;
+    background: var(--paper); color: var(--muted); cursor: pointer; opacity: .7;
+  }
+  .gear:hover, .gear:focus-visible { opacity: 1; color: var(--rubric); }
   @media (max-width: 40rem) {
+    .gear { display: none; }
     .head { flex-direction: column; gap: .3rem; padding-top: .8rem; }
     .head.tool { height: auto; padding: .6rem var(--side) .4rem; align-items: flex-start; }
     main.tool { height: auto; }

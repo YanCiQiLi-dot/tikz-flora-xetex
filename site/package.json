@@ -9,7 +9,9 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
+    "dialkit": "^2.1.0",
     "flora": "github:wn-mitch/flora#22e914063e49",
+    "motion": "^14.9.0",
     "pdfjs-dist": "6.4.299",
     "svelte": "5.57.3",
     "wasmoon": "1.16.0"
