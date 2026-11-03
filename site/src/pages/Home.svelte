@@ -29,6 +29,8 @@
     ["/ornaments/", "Ornaments", "Every gilt piece by its place on the page, from cartouches to title corners."],
     ["/guide/", "The guide", "Install, compile a first page, and every key the package takes."],
   ];
+  const NPM = "https://www.npmjs.com/package/@alpaca-software/web-flora";
+  const REPO = "https://github.com/wn-mitch/flora";
 </script>
 
 <Shell page="home">
@@ -47,6 +49,8 @@
         <a class="button primary" href="/tikzflora.zip" download>Download the package</a>
         <a class="button" href="/mixer/">Open the mixer</a>
       </p>
+      <p class="also">Growing a web page instead? <a href="#engine">web-flora</a>
+        is the same garden as a TypeScript package.</p>
     </div>
   </section>
 
@@ -140,10 +144,23 @@
       <h2 id="engine">The same garden on the web</h2>
     </header>
     <div class="engine">
-      <p>The margins of this page are grown by flora, the package's engine
-        in TypeScript. Given the same seed it grows the same plant as the
-        Lua inside LuaLaTeX, and draws it with WebGL2, or a 2D canvas where
-        WebGL2 is missing.</p>
+      <p>The margins of this page are grown by web-flora, the package's
+        engine in TypeScript. Given the same seed it grows the same plant as
+        the Lua inside LuaLaTeX, and draws it with WebGL2, or a 2D canvas
+        where WebGL2 is missing.</p>
+      <table class="packages">
+        <caption class="sr">The two packages</caption>
+        <thead><tr><td></td><th scope="col">tikz-flora</th><th scope="col">web-flora</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">For</th><td>LuaLaTeX documents</td><td>Web pages</td></tr>
+          <tr><th scope="row">Written in</th><td>Lua, run by LuaLaTeX</td><td>TypeScript, run in the browser</td></tr>
+          <tr><th scope="row">Paints</th><td>The PDF, as it compiles</td><td>A canvas, with WebGL2 or 2D</td></tr>
+          <tr><th scope="row">Get it</th>
+            <td><a href="/tikzflora.zip" download>tikzflora.zip</a></td>
+            <td><a href={NPM}>@alpaca-software/web-flora</a> on npm (soon); <a href={REPO}>GitHub</a> now</td></tr>
+        </tbody>
+      </table>
+      <p class="caption">Until it is on npm, install it from GitHub:</p>
       <pre><code>{`npm install github:wn-mitch/flora`}</code></pre>
       <pre><code>{`import { compose, Painter } from "flora/engine";
 import { toDisplayList, WebGLRenderer } from "flora";
@@ -165,7 +182,9 @@ new WebGLRenderer(canvas).draw(list, { scale: 1 });`}</code></pre>
         layouts, and <code>ornaments.draw</code> sets a single ornament, as
         between these plates.</p>
       <p class="caption">It ships as TypeScript source: use it through a
-        bundler that compiles TypeScript, such as Vite. MIT licence, as the
+        bundler that compiles TypeScript, such as Vite. Installed from
+        GitHub it is imported as <code>flora</code>; from npm, as
+        <code>@alpaca-software/web-flora</code>. MIT licence, as the
         package is.</p>
     </div>
   </section>
@@ -220,6 +239,11 @@ new WebGLRenderer(canvas).draw(list, { scale: 1 });`}</code></pre>
   .ways .line, .titles .line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 .6rem; }
   .engine { grid-column: text; min-width: 0; }
   .engine pre { font-size: .76rem; }
+  .packages { width: 100%; border-collapse: collapse; margin: 1.2rem 0 1.4rem; font-size: .98rem; }
+  .packages th, .packages td { text-align: left; vertical-align: top; padding: .45rem .8rem .45rem 0; border-bottom: 1px solid var(--rule); }
+  .packages thead th { font-family: var(--display); font-weight: normal; font-size: 1.15rem; }
+  .packages tbody th { font-weight: normal; color: var(--muted); white-space: nowrap; }
+  .also { color: var(--muted); font-size: .98rem; margin: 1rem 0 0; }
   .growth { grid-column: text; width: 100%; height: auto; max-height: 82svh; object-fit: contain; display: block; box-shadow: 0 0 0 1px var(--rule); }
   .side { align-self: end; }
   .side p:first-child { font-size: 1.15rem; }
