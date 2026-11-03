@@ -43,11 +43,19 @@ local function offset(pts, d)
   return out
 end
 
+-- Points to resample a line `len` pt long at: at least `least`, and one
+-- every BROKEN_STEP pt, so a long stroke follows its curve rather than
+-- cutting chords across it. Taken a hair above the boundary, as in stem.
+local BROKEN_STEP = 6
+local function steps(len, least)
+  return math.max(least, math.floor(len / BROKEN_STEP + 1e-6))
+end
+
 -- Outlines of one broken stroke along polyline `line`, at most `wmax` pt
 -- wide. `gap` (0-1) sets how much of the length is left unpainted; `dry`
 -- (0-1) is the chance a piece splits into threads.
 function B.broken(rng, line, wmax, gap, dry)
-  local pts = G.resample(line, 32)
+  local pts = G.resample(line, steps(G.length(line), 32))
   local nz = G.noise(rng, 16)
   local phase = rng:range(0, 16)
   local out = {}
@@ -56,7 +64,7 @@ function B.broken(rng, line, wmax, gap, dry)
     local t1 = math.min(1, t + rng:range(0.14, 0.5) * (1 - 0.6 * gap))
     local seg = slice(pts, t, t1)
     if #seg >= 2 then
-      seg = G.resample(seg, 10)
+      seg = G.resample(seg, steps(G.length(seg), 10))
       local a, b = t, t1
       local function w(u)
         local tt = a + (b - a) * u
