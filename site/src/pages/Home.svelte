@@ -157,11 +157,10 @@
           <tr><th scope="row">Paints</th><td>The PDF, as it compiles</td><td>A canvas, with WebGL2 or 2D</td></tr>
           <tr><th scope="row">Get it</th>
             <td><a href="/tikzflora.zip" download>tikzflora.zip</a></td>
-            <td><a href={NPM}>@alpaca-software/web-flora</a> on npm (soon); <a href={REPO}>GitHub</a> now</td></tr>
+            <td><a href={NPM}>@alpaca-software/web-flora</a> on npm; source on <a href={REPO}>GitHub</a></td></tr>
         </tbody>
       </table>
-      <p class="caption">Until it is on npm, install it from GitHub:</p>
-      <pre><code>{`npm install github:wn-mitch/flora`}</code></pre>
+      <pre><code>{`npm install @alpaca-software/web-flora`}</code></pre>
       <pre><code>{`import { compose, Painter } from "@alpaca-software/web-flora/engine";
 import { toDisplayList, WebGLRenderer } from "@alpaca-software/web-flora";
 
