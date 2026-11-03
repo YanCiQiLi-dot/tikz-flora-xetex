@@ -45,6 +45,26 @@ end
 
 -- Tune.compose (`base`) adjusted by the mix's leaves, leaflets, sprays and
 -- curls weights; `base` itself when they are all 1.
+-- `c` with its caps on how much grows (large leaves, fine sprays, small
+-- blooms, and the soft blooms, lilies and umbels, M.motif_cap) scaled by
+-- `b`, for a plant longer than a page, which would otherwise run out of
+-- growth part way along; `c` itself when b is nil or 1. Spacing is
+-- unchanged, so a longer plant is as full as a page's, not fuller.
+function M.budget(c, b)
+  if b == nil or b == 1 then return c end
+  local out = {}
+  for k, v in pairs(c) do out[k] = v end
+  local function r(n) return math.max(0, math.floor(n * b + 0.5)) end
+  out.leaves, out.sprays, out.small_blooms, out.budget = r(c.leaves), r(c.sprays), r(c.small_blooms), b
+  return out
+end
+
+-- A hole motif's cap `n` under cfg's budget (M.budget).
+function M.motif_cap(n, c)
+  if c.budget == nil then return n end
+  return math.max(1, math.floor(n * c.budget + 0.5))
+end
+
 function M.cfg(base, mix)
   if neutral(mix) then return base end
   local c = {}

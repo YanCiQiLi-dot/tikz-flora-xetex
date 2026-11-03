@@ -39,7 +39,7 @@ local function plant(spec, pt)
   local mw = m.x1 - m.x0
   local top = spec.header_y or spec.text.y1
 
-  local cfg = Mix.cfg(Tune.compose, spec.mix)
+  local cfg = Mix.budget(Mix.cfg(Tune.compose, spec.mix), spec.budget)
   local R = G.clamp(mw * cfg.hero, 28, 80)
   -- As in the reference, the hero's heart sits just below the running-head
   -- rule, so the bloom fills the top corner of the page up to the paper's
