@@ -27,6 +27,7 @@
 //   rows      (sent) Float32Array, per cell row of the run: the growth by
 //             which the front has reached that row, never falling
 //   full      the growth by which the whole plant has grown
+//   engine    the flora build (its commit), for the tile cache below
 //
 // Message { kind: "ornament", id, slot, name, seed, w, h, dpr, colourway,
 // inks, paper } -> { id, bitmap, name }: one of the package's ornaments
@@ -46,7 +47,7 @@ const PER_BUDGET = 3000;
 // Plants kept for windows still to come.
 const KEEP = 4;
 
-let gl = null, glCanvas = null, glFailed = false;
+let gl = null, glCanvas = null, glFailed = false, last = null;
 
 function draw(list, w, h, dpr, y0) {
   const pw = Math.round(w * dpr), ph = Math.round(h * dpr);
@@ -56,7 +57,7 @@ function draw(list, w, h, dpr, y0) {
       gl ??= new WebGLRenderer(glCanvas);
       glCanvas.width = pw;
       glCanvas.height = ph;
-      gl.draw(list, { scale: dpr, y0 });
+      last = gl.draw(list, { scale: dpr, y0 });
       return glCanvas.transferToImageBitmap();
     } catch (e) {
       if (!/WebGL2 is not available|no stencil/.test(String(e?.message))) throw e;
@@ -69,6 +70,96 @@ function draw(list, w, h, dpr, y0) {
 }
 
 const plants = new Map();
+
+// Tiles once drawn are kept in this browser (IndexedDB) with their birth
+// times, so another page of the site, or the same page later the same day,
+// shows its margins without growing them again. A key holds everything
+// the drawing depends on; CACHE changes when this file's drawing does.
+// Without IndexedDB (some private windows) tiles are drawn every time.
+const DB = "flora-margins", STORE = "tiles", CACHE = 1, KEEP_MS = 2 * 24 * 3600 * 1000;
+let opened = null;
+
+function asked(r) {
+  return new Promise((resolve, reject) => {
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+
+function db() {
+  opened ??= (async () => {
+    try {
+      const open = indexedDB.open(DB, 1);
+      open.onupgradeneeded = () => open.result.createObjectStore(STORE);
+      const d = await asked(open);
+      prune(d);
+      return d;
+    } catch {
+      return null;
+    }
+  })();
+  return opened;
+}
+
+// Drop tiles kept longer than KEEP_MS.
+function prune(d) {
+  const old = Date.now() - KEEP_MS;
+  const cur = d.transaction(STORE, "readwrite").objectStore(STORE).openCursor();
+  cur.onsuccess = () => {
+    const c = cur.result;
+    if (!c) return;
+    if (!(c.value?.stamp > old)) c.delete();
+    c.continue();
+  };
+}
+
+async function cached(key) {
+  const d = await db();
+  if (!d) return undefined;
+  try {
+    return await asked(d.transaction(STORE).objectStore(STORE).get(key));
+  } catch {
+    return undefined;
+  }
+}
+
+async function keep(key, value) {
+  const d = await db();
+  if (!d) return;
+  try {
+    await asked(d.transaction(STORE, "readwrite").objectStore(STORE).put(value, key));
+  } catch {
+    // A full or blocked store only costs the next visit a redraw.
+  }
+}
+
+const keyOf = (o) => JSON.stringify([CACHE, o.engine, o.fw, o.h, o.m, o.seed, o.mirror, o.colourway, o.inks ?? {}, o.avoid ?? [], o.paper, o.y0, o.th, o.dpr]);
+
+// Tile o, from the cache or drawn; `store` (when drawn) keeps it once the
+// reply has gone. (Not `then`: an object with a then method returned from
+// an async function is taken for a promise and never resolves.)
+async function tileFor(o) {
+  const t0 = performance.now();
+  const key = keyOf(o);
+  const hit = await cached(key);
+  if (hit) {
+    const bitmap = await createImageBitmap(hit.blob);
+    const out = { bitmap, birth: hit.birth, nx: hit.nx, ny: hit.ny, cell: hit.cell, full: hit.full, ms: performance.now() - t0, timing: { cached: 1 } };
+    if (o.rows) out.rows = hit.rows;
+    return { out };
+  }
+  const out = tile(o);
+  const copy = await createImageBitmap(out.bitmap);
+  const birth = out.birth.slice(), rows = plants.get(o.run).rows.slice();
+  const store = async () => {
+    const c = new OffscreenCanvas(copy.width, copy.height);
+    c.getContext("2d").drawImage(copy, 0, 0);
+    copy.close();
+    const blob = await c.convertToBlob({ type: "image/png" });
+    await keep(key, { stamp: Date.now(), blob, birth, rows, nx: out.nx, ny: out.ny, cell: out.cell, full: out.full });
+  };
+  return { out, store };
+}
 
 // The plant for run key o.run, grown on first asking.
 function plantFor(o) {
@@ -87,9 +178,12 @@ function plantFor(o) {
   const spec = { width: fw, height: h, seed: o.seed, text, lines: [{ ...text }], closed, ornaments: o.ornaments, budget: Math.max(1, h / PER_BUDGET) };
   const pt = new Painter({ width: fw, height: h, palette: paletteOf(o), paper: o.paper });
   pt.frame(mirror ? (x, y) => [fw - x, h - y] : (x, y) => [x, h - y]);
+  const t0 = performance.now();
   const planted = compose.plant(spec, pt);
   pt.frame(undefined);
+  const t1 = performance.now();
   const list = toDisplayList(pt.scene());
+  const t2 = performance.now();
   const k = new clock.GrowthClock(planted.space, planted.stems, 1);
   const nx = Math.ceil(fw / CELL), ny = Math.ceil(h / CELL);
   const birth = new Float32Array(nx * ny), rows = new Float32Array(ny);
@@ -105,7 +199,7 @@ function plantFor(o) {
     running = Math.max(running, low);
     rows[j] = running;
   }
-  const p = { list, birth, rows, nx, ny, full };
+  const p = { list, birth, rows, nx, ny, full, timing: { compose: t1 - t0, list: t2 - t1, birth: performance.now() - t2 } };
   plants.set(o.run, p);
   if (plants.size > KEEP) plants.delete(plants.keys().next().value);
   return p;
@@ -132,11 +226,17 @@ function ornament(o) {
 
 function tile(o) {
   const t0 = performance.now();
+  const had = plants.has(o.run);
   const p = plantFor(o);
+  const t1 = performance.now();
   const bitmap = draw(p.list, o.fw, o.th, o.dpr, o.y0);
+  const drawMs = performance.now() - t1;
   const j0 = Math.round(o.y0 / CELL), j1 = Math.min(p.ny, Math.ceil((o.y0 + o.th) / CELL));
   const birth = p.birth.slice(j0 * p.nx, j1 * p.nx);
-  const out = { bitmap, birth, nx: p.nx, ny: j1 - j0, cell: CELL, full: p.full, ms: performance.now() - t0 };
+  // ms: the whole job; timing: its parts (grown is the plant's, when this
+  // job grew it).
+  const out = { bitmap, birth, nx: p.nx, ny: j1 - j0, cell: CELL, full: p.full, ms: performance.now() - t0,
+    timing: { ...(had ? {} : p.timing), draw: drawMs, prepare: last?.prepare ?? 0, raster: last?.draw ?? 0, items: p.list.items?.length ?? 0 } };
   if (o.rows) out.rows = p.rows.slice();
   return out;
 }
@@ -150,10 +250,12 @@ self.onmessage = (e) => {
       return;
     }
     if (kind !== "tile") throw new Error(`margins worker: unknown kind ${kind}`);
-    const out = tile(e.data);
-    const moved = [out.bitmap, out.birth.buffer];
-    if (out.rows) moved.push(out.rows.buffer);
-    self.postMessage({ id, ...out }, moved);
+    tileFor(e.data).then(({ out, store }) => {
+      const moved = [out.bitmap, out.birth.buffer];
+      if (out.rows) moved.push(out.rows.buffer);
+      self.postMessage({ id, ...out }, moved);
+      store?.().catch(() => {});
+    }, (err) => self.postMessage({ id, error: String(err?.stack ?? err) }));
   } catch (err) {
     self.postMessage({ id, error: String(err?.stack ?? err) });
   }

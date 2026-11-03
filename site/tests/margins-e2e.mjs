@@ -10,7 +10,7 @@ import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
-import { rowGrowth, targetRow, layoutSide, tilesOf, MIN_MARGIN, MIN_RUN, TILE } from "../src/lib/margins-layout.js";
+import { rowGrowth, targetRow, layoutSide, tilesOf, MIN_MARGIN, MIN_RUN, TILE, FIRST_TILE } from "../src/lib/margins-layout.js";
 
 // One plant runs the length of a margin: a page with no bands is one run.
 assert.deepEqual(layoutSide([], 15567), [{ y: 0, h: 15567 }]);
@@ -37,6 +37,7 @@ for (const h of [320, 1200, 1201, 15567]) {
   for (let i = 1; i < ws.length; i++) assert.equal(ws[i].y, ws[i - 1].y + ws[i - 1].h);
   assert.equal(ws[ws.length - 1].y + ws[ws.length - 1].h, h);
   for (const w of ws) assert.ok(w.y % 3 === 0 && w.h <= TILE && w.h > 0, `window ${JSON.stringify(w)} of ${h}`);
+  assert.ok(ws[0].h <= FIRST_TILE, `the first window of ${h} is ${ws[0].h} tall`);
 }
 // The front's growth by row never falls, and carries on past the foot
 // without a jump.
@@ -231,6 +232,35 @@ try {
     const drawn = kinds.filter(([, k]) => k);
     check(drawn.length >= 2, `ornaments drawn: ${JSON.stringify(kinds)}`);
     await p.close();
+  }
+
+  // A tile once drawn is kept: in the same browser the page's second visit
+  // reads its first tiles from the cache, without growing the plant, and
+  // they look as they did when drawn.
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const firstTile = (p) => p.evaluate(() => {
+      const c = document.querySelector(".flora-margins canvas");
+      return [...c.getContext("2d").getImageData(0, 0, c.width, c.height).data];
+    });
+    const visit = async () => {
+      const p = await ctx.newPage();
+      p.on("pageerror", (e) => errors.push(`cache: ${e}`));
+      await p.goto(URL);
+      await p.waitForFunction(() => window.__floraMargins?.state.tiles[0]?.state === "done", null, { timeout: 60000 });
+      const t = await p.evaluate(() => window.__floraMargins.state.tiles[0].timing);
+      const px = await firstTile(p);
+      await sleep(1500); // the cache is written after the reply
+      await p.close();
+      return { t, px };
+    };
+    const a = await visit(), b = await visit();
+    check(!a.t?.cached && a.t?.compose > 0, `cache: the first visit did not grow its plant (${JSON.stringify(a.t)})`);
+    check(b.t?.cached === 1, `cache: the second visit grew its plant again (${JSON.stringify(b.t)})`);
+    let worst = 0;
+    for (let i = 0; i < Math.min(a.px.length, b.px.length); i++) worst = Math.max(worst, Math.abs(a.px[i] - b.px[i]));
+    check(a.px.length === b.px.length && worst <= 2, `cache: the cached tile differs from the drawn one by ${worst}/255`);
+    await ctx.close();
   }
 
   // Stopping removes the garden and its hook.

@@ -14,6 +14,10 @@
 // prefers-reduced-motion each plant appears whole once drawn.
 import { gardenAt } from "./garden.js";
 import { client, rgbOf } from "./margins-client.js";
+import site from "../../package.json";
+
+// The flora build the tiles are drawn with, for the tile cache.
+const ENGINE = site.dependencies.flora;
 import { LEAD, MIN_MARGIN, MIN_RUN, layoutSide, tilesOf, rowGrowth, targetRow, jitter } from "./margins-layout.js";
 
 export { MIN_MARGIN };
@@ -216,7 +220,7 @@ export function startMargins({ doc = document, win = window } = {}) {
       t.state = "pending";
       workers[wi].post({
         kind: "tile", run: r.key, fw: r.side.fw, h: r.h, m: r.side.m, seed: r.seed, mirror: r.side.mirror, dpr,
-        colourway: T.colourway, inks: T.inks, avoid: avoidIn(r), paper: ground, y0: t.ly, th: t.h, rows: !r.rows,
+        colourway: T.colourway, inks: T.inks, avoid: avoidIn(r), paper: ground, y0: t.ly, th: t.h, rows: !r.rows, engine: ENGINE,
       }).then((data) => {
         if (!tiles.includes(t)) { data.bitmap.close?.(); return; }
         if (data.rows && !r.rows) { r.rows = data.rows; r.cell = data.cell; r.born = data.full; }
@@ -384,7 +388,7 @@ export function startMargins({ doc = document, win = window } = {}) {
         target: layer ? targetAt() : 0,
         sides: sides.map((s) => ({ mirror: s.mirror, m: s.m, bands: s.bands })),
         runs: runs.map((r) => ({ mirror: r.side.mirror, k: r.k, y: r.y, h: r.h, u: r.u, full: r.rows ? fullOf(r) : 0 })),
-        tiles: tiles.map((t) => ({ mirror: t.run.side.mirror, run: t.run.k, state: t.state, y: t.y, h: t.h, ms: t.data?.ms ?? null })),
+        tiles: tiles.map((t) => ({ mirror: t.run.side.mirror, run: t.run.k, state: t.state, y: t.y, h: t.h, ms: t.data?.ms ?? null, timing: t.data?.timing ?? null })),
       };
     },
   };

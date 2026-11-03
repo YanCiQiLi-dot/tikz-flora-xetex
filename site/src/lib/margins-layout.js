@@ -12,6 +12,9 @@ export const BAND_GAP = 10, MIN_RUN = 320;
 // A plant is drawn in windows ("tiles") this tall, px: a whole number of
 // birth cells (margins.worker.js CELL), and well inside canvas limits.
 export const TILE = 1200;
+// The first window is shorter: a plant grows from its top, so the reader
+// sees the first window soonest, and a short one is drawn sooner.
+export const FIRST_TILE = 600;
 
 // The runs of one margin down a page `docH` px tall, [{ y, h }, ...]: one
 // plant each. `bands` ([[y0, y1], ...], page px) are elements that span the
@@ -37,10 +40,10 @@ export function layoutSide(bands, docH) {
 }
 
 // The windows a run `h` px tall is drawn in, [{ y, h }, ...] from the run's
-// top: TILE tall, the last one what is left.
+// top: FIRST_TILE, then TILE tall, the last one what is left.
 export function tilesOf(h) {
   const out = [];
-  for (let y = 0; y < h; y += TILE) out.push({ y, h: Math.min(TILE, h - y) });
+  for (let y = 0; y < h; y += y === 0 ? FIRST_TILE : TILE) out.push({ y, h: Math.min(y === 0 ? FIRST_TILE : TILE, h - y) });
   return out;
 }
 
