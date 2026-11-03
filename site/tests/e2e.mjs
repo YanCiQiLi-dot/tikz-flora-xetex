@@ -326,6 +326,73 @@ try {
   check(doc.includes("\\documentclass") && doc.includes("\\usepackage{tikzflora}") && doc.includes(await code()),
     `the copied document lacks the package or the settings:\n${doc}`);
 
+  // A picture on the home page opens in the viewer at the large copy's
+  // resolution; a click zooms it to full size about the point clicked; the
+  // arrow keys step through its group; Escape closes it; and the margin
+  // garden takes none of it for page content, even laid out again under it.
+  {
+    const home = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    await home.goto(URL);
+    await home.waitForFunction(() => window.__floraMargins?.state?.sides?.length === 2, null, { timeout: 10000 }).catch(() => {});
+    const sides = () => home.evaluate(() => JSON.stringify(window.__floraMargins?.state?.sides));
+    const before = await sides();
+    const strip = home.locator(".pages a.enlarge");
+    check(await strip.count() === 7 && await home.locator("a.enlarge").count() === 7 + 4 + 4 + 1, `the home page's pictures do not all open the viewer (${await home.locator("a.enlarge").count()})`);
+    await strip.nth(1).scrollIntoViewIfNeeded();
+    await strip.nth(1).click();
+    const img = home.locator("dialog.lightbox[open] img");
+    await home.waitForFunction(() => { const i = document.querySelector("dialog.lightbox[open] img"); return i && i.src.endsWith("/img/large/page-2.jpg") && i.complete && i.naturalWidth > 0; }, null, { timeout: 15000 }).catch(() => {});
+    const fit = await img.evaluate((i) => ({ src: i.src, natural: i.naturalWidth, w: i.getBoundingClientRect().width, h: i.getBoundingClientRect().height })).catch(() => null);
+    check(fit && fit.src.endsWith("/img/large/page-2.jpg") && fit.natural >= 1800, `the viewer does not show the large copy: ${JSON.stringify(fit)}`);
+    check(fit && fit.h <= 900 && fit.h > 600, `the viewer does not fit the page to the screen: ${JSON.stringify(fit)}`);
+    const box = await img.boundingBox();
+    const at = { x: box.x + box.width * 0.6, y: box.y + box.height * 0.35 };
+    await home.mouse.click(at.x, at.y);
+    await home.waitForTimeout(400);
+    const z = await img.boundingBox();
+    check(Math.abs(z.width - fit.natural) < 2, `a click does not zoom to full size (${z.width} px)`);
+    check(Math.abs((at.x - z.x) / z.width - 0.6) < 0.02 && Math.abs((at.y - z.y) / z.height - 0.35) < 0.02, `the zoom does not keep the clicked point under the pointer (${JSON.stringify(z)})`);
+    // A window resized while the viewer is open lays the garden out again,
+    // and the viewer's caption and buttons near the edges are not content.
+    await home.setViewportSize({ width: 1400, height: 900 });
+    await home.waitForTimeout(1500);
+    const open = await home.evaluate(() => window.__floraMargins?.state?.sides?.map((sd) => sd.m) ?? []);
+    check(open.length === 2 && open.every((m) => m >= 110), `the open viewer is taken for page content: margins ${JSON.stringify(open)}`);
+    await home.setViewportSize({ width: 1440, height: 900 });
+    await home.waitForTimeout(1500);
+    await home.keyboard.press("ArrowRight");
+    await home.waitForFunction(() => document.querySelector("dialog.lightbox[open] img")?.src.includes("page-3.jpg"), null, { timeout: 5000 }).catch(() => {});
+    check((await img.getAttribute("src")).includes("page-3.jpg"), `the right arrow does not step to the next page: ${await img.getAttribute("src")}`);
+    await home.keyboard.press("Escape");
+    check(await home.locator("dialog.lightbox[open]").count() === 0, "Escape does not close the viewer");
+    check(await sides() === before, `the viewer changes the margin garden: ${before} -> ${await sides()}`);
+    await home.close();
+  }
+
+  // Each layout button grows its own layout, whatever its baked page was
+  // laid out as: the Title button's page is the example document's flank
+  // title page, grown as a title crown (no plant down the left side), and
+  // the Flank button's page grows one.
+  {
+    const leftInk = async (layout) => {
+      const m = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+      await m.goto(`${MIXER}?layout=${layout}`);
+      await m.locator(".status", { hasText: "Grown in" }).waitFor({ timeout: 120000 });
+      const ink = await m.evaluate(() => {
+        const c = document.querySelector(".sheet canvas");
+        const d = c.getContext("2d").getImageData(0, Math.round(c.height * 0.45), Math.round(c.width * 0.2), Math.round(c.height * 0.3)).data;
+        let n = 0, k = 0;
+        for (let i = 3; i < d.length; i += 16) { k++; if (d[i] > 40) n++; }
+        return n / k;
+      });
+      await m.close();
+      return ink;
+    };
+    const title = await leftInk("title"), flank = await leftInk("flank");
+    check(title < 0.02, `the mixer's Title page grows down its left side (${title.toFixed(3)}): not a title crown`);
+    check(flank > 0.05, `the mixer's Flank page has no plant up its left side (${flank.toFixed(3)})`);
+  }
+
   // The home page shows the four seasons; one opens in the mixer, which
   // names it in the setup line, and one changed ink follows it there.
   await page.goto(URL);

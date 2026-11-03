@@ -111,7 +111,7 @@
     status = "Growing…";
     progress = 0;
     try {
-      const job = { spec: await spec(variant), seed, page: pg.page, mix: $state.snapshot(mix), ornaments: $state.snapshot(ornaments), palette: $state.snapshot(palette), spin, px: px(frame.clientWidth), gilt, giltenv, giltlook: lookLine, backdrop };
+      const job = { spec: await spec(variant), layout: pg.layout, seed, page: pg.page, mix: $state.snapshot(mix), ornaments: $state.snapshot(ornaments), palette: $state.snapshot(palette), spin, px: px(frame.clientWidth), gilt, giltenv, giltlook: lookLine, backdrop };
       const out = await render(job, (f) => { progress = Math.max(progress, f); });
       await show(out, canvas, frame.clientWidth);
       progress = 1;

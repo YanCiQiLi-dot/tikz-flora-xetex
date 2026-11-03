@@ -40,6 +40,10 @@ const INTO = 30;
 export const TUNE = { lead: LEAD, soft: 90, slow: 200, catch: 2, top: 900, ease: 1.2, colourway: "spring" };
 // Tiles are asked for this many viewports ahead of the front.
 const AHEAD = 1.5;
+// The plants at the page's top start growing together, once each has its
+// first window drawn, so neither margin starts alone; but a margin drawn
+// this much later than the first (ms) is not waited for.
+const TOGETHER_MS = 1200;
 // How far above the viewport's top the front may still be growing, px.
 const UNSEEN = 40;
 
@@ -54,6 +58,8 @@ export function startMargins({ doc = document, win = window } = {}) {
   const workers = [client(), client()];
   const idle = new Set([0, 1]);
   let layer = null, runs = [], tiles = [], raf = 0, stopped = false, layoutKey = "", nextRun = 0;
+  // When the first of the top plants could start, and whether they have.
+  let firstAt = 0, together = false, held = 0;
   let sides = [], ground = [1, 1, 1], dpr = 1;
 
   // The viewport width, each side's margin (what the page's content leaves
@@ -167,6 +173,9 @@ export function startMargins({ doc = document, win = window } = {}) {
   function build() {
     const g = measure();
     teardown();
+    firstAt = 0;
+    together = false;
+    win.clearTimeout(held);
     if (!g) return;
     sides = sidesOf(g);
     layoutKey = keyOf(g);
@@ -220,7 +229,10 @@ export function startMargins({ doc = document, win = window } = {}) {
         colourway: T.colourway, inks: T.inks, avoid: avoidIn(r), paper: ground, y0: t.ly, th: t.h, rows: !r.rows, engine: ENGINE,
       }).then((data) => {
         if (!tiles.includes(t)) { data.bitmap.close?.(); return; }
-        if (data.rows && !r.rows) { r.rows = data.rows; r.cell = data.cell; r.born = data.full; }
+        if (data.rows && !r.rows) {
+          r.rows = data.rows; r.cell = data.cell; r.born = data.full;
+          if (r.y === 0 && !firstAt) firstAt = performance.now();
+        }
         let lo = Infinity, hi = 0;
         for (let i = 0; i < data.birth.length; i++) { lo = Math.min(lo, data.birth[i]); hi = Math.max(hi, data.birth[i]); }
         t.data = { ...data, jitter: jitter(data.nx, data.ny, r.seed * 31 + t.ly) };
@@ -285,6 +297,19 @@ export function startMargins({ doc = document, win = window } = {}) {
     last = now;
     const top = win.scrollY;
     const target = targetAt();
+    // Hold the top plants, once one can start, until each can, or until
+    // TOGETHER_MS has passed. (Before one can, there is nothing to grow.)
+    if (!together && firstAt) {
+      const wait = TOGETHER_MS - (performance.now() - firstAt);
+      if (runs.some((r) => r.y === 0 && !r.rows) && wait > 0) {
+        win.clearTimeout(held);
+        held = win.setTimeout(() => kick(), wait);
+        request();
+        last = 0;
+        return;
+      }
+      together = true;
+    }
     let moving = false;
     for (const r of runs) {
       if (!r.rows) continue;
@@ -371,6 +396,7 @@ export function startMargins({ doc = document, win = window } = {}) {
     stop() {
       stopped = true;
       if (raf) win.cancelAnimationFrame(raf);
+      win.clearTimeout(held);
       clearTimeout(resizeTimer);
       ro.disconnect();
       win.removeEventListener("scroll", onScroll);

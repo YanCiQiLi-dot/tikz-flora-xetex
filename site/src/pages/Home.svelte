@@ -1,11 +1,12 @@
 <script>
   import Shell from "../lib/Shell.svelte";
   import Ornament from "../lib/Ornament.svelte";
+  import Lightbox from "../lib/Lightbox.svelte";
   import COLOURWAYS from "../lib/colourways.json";
 
   // The example document's pages, with what each shows.
   const pages = [
-    [1, "Title crown", "layout=title"],
+    [1, "Flanked title", "layout=flank"],
     [2, "Contents wreath", "layout=surround"],
     [3, "Outer margin, into a gap", "layout=split"],
     [4, "A new mix: lilies, umbels, birds", "mix={…}, palette={leaves=green}"],
@@ -29,6 +30,22 @@
     ["/ornaments/", "Ornaments", "Every gilt piece by its place on the page, from cartouches to title corners."],
     ["/guide/", "The guide", "Install, compile a first page, and every key the package takes."],
   ];
+  // Each picture on the page, as the viewer (Lightbox.svelte) shows it: its
+  // image, the large copy site-bake makes of it, and its words. Clicking a
+  // picture opens its group there.
+  const view = (name, alt, caption) => ({ small: `/img/${name}.jpg`, large: `/img/large/${name}.jpg`, alt, caption });
+  const FRONT = [view("page-1", "The title page of the example document, with a painted plant up each side meeting at the foot round a gilt crest", "The example document's title page")];
+  const SEASON_VIEWS = SEASONS.map((c) => view(`colourway-${c.i}`, `The same page of text with its margin grown in ${c.name.toLowerCase()} inks`, `${c.name}: colourway=${c.key}`));
+  const TITLE_VIEWS = TITLES.map(([key, name, what], i) => view(`title-${i + 1}`, `A title page in the ${name.toLowerCase()} layout: ${what.toLowerCase()}`, `${name}: layout=${key}`));
+  const PAGE_VIEWS = pages.map(([p, what, how]) => view(`page-${p}`, `Page ${p} of the example document: ${what.toLowerCase()}`, `${what}: ${how}`));
+  let viewer;
+  // A plain click opens the viewer; a modified one follows the link to the
+  // large image, as a link does.
+  function enlarge(e, list, i) {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    viewer.open(list, i);
+  }
   const NPM = "https://www.npmjs.com/package/@alpaca-software/web-flora";
   const REPO = "https://github.com/wn-mitch/flora";
 </script>
@@ -36,8 +53,8 @@
 <Shell page="home">
   <section class="opening">
     <figure class="frontis rise">
-      <img class="paper" src="/img/page-1.jpg" width="910" height="1287"
-        alt="The title page of the example document, crowned with painted flowers and a gilt flourish">
+      <a class="enlarge" href={FRONT[0].large} onclick={(e) => enlarge(e, FRONT, 0)}>
+        <img class="paper" src={FRONT[0].small} width="910" height="1287" alt={FRONT[0].alt}></a>
     </figure>
     <div class="titling rise late">
       <p class="sc rubric">A package for LuaLaTeX</p>
@@ -62,10 +79,10 @@
       <h2 id="ways">One page through the seasons</h2>
     </header>
     <div class="wide ways">
-      {#each SEASONS as c}
+      {#each SEASONS as c, i}
         <figure>
-          <img class="paper" src={`/img/colourway-${c.i}.jpg`} width="910" height="1287" loading="lazy"
-            alt={`The same page of text with its margin grown in ${c.name.toLowerCase()} inks`}>
+          <a class="enlarge" href={SEASON_VIEWS[i].large} onclick={(e) => enlarge(e, SEASON_VIEWS, i)}>
+            <img class="paper" src={SEASON_VIEWS[i].small} width="910" height="1287" loading="lazy" alt={SEASON_VIEWS[i].alt}></a>
           <figcaption class="caption">
             <span class="line"><span class="sc">{c.name}</span> <a href={`/mixer/?way=${c.key}`}>Use these inks</a></span>
             <code>colourway={c.key}</code>
@@ -87,8 +104,8 @@
     <div class="wide titles">
       {#each TITLES as [key, name, what], i}
         <figure>
-          <img class="paper" src={`/img/title-${i + 1}.jpg`} width="910" height="1287" loading="lazy"
-            alt={`A title page in the ${name.toLowerCase()} layout: ${what.toLowerCase()}`}>
+          <a class="enlarge" href={TITLE_VIEWS[i].large} onclick={(e) => enlarge(e, TITLE_VIEWS, i)}>
+            <img class="paper" src={TITLE_VIEWS[i].small} width="910" height="1287" loading="lazy" alt={TITLE_VIEWS[i].alt}></a>
           <figcaption class="caption">
             <span class="line"><span class="sc">{name}</span> <a href={`/mixer/?layout=${key}`}>Try it</a></span>
             <code>layout={key}</code>
@@ -128,8 +145,8 @@
     <ol class="pages" data-flora-avoid>
       {#each pages as [p, what, how], i}
         <li>
-          <a href={`/img/page-${p}.jpg`}><img class="paper" src={`/img/page-${p}.jpg`} width="910" height="1287" loading="lazy"
-            alt={`Page ${p} of the example document: ${what.toLowerCase()}`}></a>
+          <a class="enlarge" href={PAGE_VIEWS[i].large} onclick={(e) => enlarge(e, PAGE_VIEWS, i)}>
+            <img class="paper" src={PAGE_VIEWS[i].small} width="910" height="1287" loading="lazy" alt={PAGE_VIEWS[i].alt}></a>
           <p class="caption"><span class="sc">{ROMAN[i]}.</span> {what}<br><code>{how}</code></p>
         </li>
       {/each}
@@ -201,6 +218,7 @@ new WebGLRenderer(canvas).draw(list, { scale: 1 });`}</code></pre>
       {/each}
     </ol>
   </section>
+  <Lightbox bind:this={viewer} />
 </Shell>
 
 <style>
@@ -228,6 +246,8 @@ new WebGLRenderer(canvas).draw(list, { scale: 1 });`}</code></pre>
   .lead .caption { margin: .5rem 0 0; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   figure { margin: 0; }
+  .enlarge { display: block; cursor: zoom-in; }
+  .enlarge:focus-visible { outline: 2px solid var(--rubric); outline-offset: 3px; }
   .ways, .titles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(1rem, 2vw, 1.6rem); }
   .ways code, .titles code { font-size: .68rem; }
   .ways img, .titles img, .pages img { display: block; width: 100%; height: auto; box-shadow: 0 0 0 1px var(--rule); }

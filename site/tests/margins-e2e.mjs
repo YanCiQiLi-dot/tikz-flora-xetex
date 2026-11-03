@@ -109,6 +109,41 @@ try {
     await p.close();
   }
 
+  // The two margins start growing together, even when one is drawn
+  // later: here the second margin worker's replies are held back 700 ms.
+  {
+    const p = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await p.addInitScript(() => {
+      let made = 0;
+      const W = window.Worker;
+      window.Worker = class extends W {
+        constructor(url, o) {
+          super(url, o);
+          this.slow = String(url).includes("margins.worker") && ++made === 2;
+        }
+        set onmessage(f) {
+          super.onmessage = this.slow ? (e) => setTimeout(() => f(e), 700) : f;
+        }
+      };
+      window.__start = {};
+      const t0 = performance.now();
+      const tick = () => {
+        for (const r of window.__floraMargins?.state?.runs ?? []) {
+          const k = r.mirror ? "R" : "L";
+          if (r.u > 0 && !(k in window.__start)) window.__start[k] = performance.now() - t0;
+        }
+        if (!("L" in window.__start && "R" in window.__start)) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    await p.goto(URL);
+    await p.waitForFunction(() => "L" in window.__start && "R" in window.__start, null, { timeout: 30000 }).catch(() => {});
+    const st = await p.evaluate(() => window.__start);
+    check(st.L !== undefined && st.R !== undefined && Math.abs(st.L - st.R) < 150,
+      `home: the margins start growing ${Math.round(Math.abs((st.L ?? 0) - (st.R ?? 0)))} ms apart (${JSON.stringify(st)})`);
+    await p.close();
+  }
+
   // A hidden 1 px iframe in the page's corner (the analytics beacon the
   // live site gets) is not content, so both margins still grow.
   {

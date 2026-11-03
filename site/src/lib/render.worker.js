@@ -4,7 +4,7 @@
 //   { id, kind: "meta" }            -> { id, meta }  settings to offer, with
 //                                      each ink's ramp, each group's inks and
 //                                      each colourway's palette
-//   { id, kind: "render", spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook, backdrop, draw }
+//   { id, kind: "render", spec, layout, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook, backdrop, draw }
 //                                   -> { id, progress } as it goes (0 to 1,
 //                                      rising: PROGRESS below), then
 //                                      { id, bitmap | pdf, ms }
@@ -251,7 +251,7 @@ onmessage = async (e) => {
       postMessage({ id, ...picture(pdf, px, null, mode), cells, slots, w, h }, transfers);
       return;
     }
-    const { spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook, backdrop, draw: mode } = e.data;
+    const { spec, layout, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook, backdrop, draw: mode } = e.data;
     const t0 = performance.now();
     // The page's own progress (compose.lua's spec.progress) is the grow's
     // share of the whole; the PDF scene and the drawing follow.
@@ -260,6 +260,8 @@ onmessage = async (e) => {
     l.global.set("GILTLOOK", giltlook ?? "");
     l.global.set("SEED", String(seed));
     l.global.set("BACKDROP", backdrop ?? "light");
+    // `layout`, when given, replaces the baked page's own (frames.lua).
+    l.global.set("LAYOUT", layout ?? "");
     await l.doString(`
       local Serial = require("flora.serial")
       local Paint = require("flora.paint")
@@ -268,6 +270,7 @@ onmessage = async (e) => {
       local Init = require("flora.init")
       local spec = Serial.decode(SPEC)
       spec.seed = Init.seed(SEED, ${Number(page) | 0})
+      if LAYOUT ~= "" then spec.layout = LAYOUT end
       spec.mix = ${table(mix)}
       spec.ornaments = ${table(ornaments)}
       spec.palette = ${table(palette)}
