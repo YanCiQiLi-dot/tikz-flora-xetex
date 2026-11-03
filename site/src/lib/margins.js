@@ -27,9 +27,9 @@ const INTO = 30;
 //   slow      the least growth speed, px of growth per second
 //   catch     the share of the growth still to go grown each second, so
 //             the front eases in behind a quick scroll
-//   colourway tikz-flora's colourway (default: the season's)
+//   colourway tikz-flora's colourway
 //   inks      { part: ink name } over the colourway's (inks.ts parts)
-export const TUNE = { lead: LEAD, soft: 70, slow: 110, catch: 0.9 };
+export const TUNE = { lead: LEAD, soft: 70, slow: 85, catch: 1.5, colourway: "spring" };
 // Tiles are asked for this many viewports ahead of the front.
 const AHEAD = 1.5;
 // How far above the viewport's top the front may still be growing, px.
@@ -38,7 +38,7 @@ const UNSEEN = 40;
 export function startMargins({ doc = document, win = window } = {}) {
   const reduce = win.matchMedia("(prefers-reduced-motion: reduce)");
   const at = gardenAt();
-  const T = { ...TUNE, colourway: at.colourway, inks: {} };
+  const T = { ...TUNE, inks: {} };
   const SOFT = () => T.soft;
   const targetAt = () => targetRow(win.scrollY, win.innerHeight, parseFloat(layer.style.height), T.lead);
   // Two workers, so the two margins grow side by side. A plant is kept by
@@ -345,7 +345,7 @@ export function startMargins({ doc = document, win = window } = {}) {
     tune(o) {
       const inks = { colourway: o.colourway ?? T.colourway, inks: o.inks ?? T.inks };
       const regrow = JSON.stringify(inks) !== JSON.stringify({ colourway: T.colourway, inks: T.inks });
-      for (const k of Object.keys(TUNE)) if (typeof o[k] === "number" && Number.isFinite(o[k])) T[k] = o[k];
+      for (const k of Object.keys(TUNE)) if (typeof TUNE[k] === "number" && typeof o[k] === "number" && Number.isFinite(o[k])) T[k] = o[k];
       Object.assign(T, inks);
       if (regrow) build();
       else kick();

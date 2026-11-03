@@ -143,13 +143,21 @@ try {
     const runs = (await state(p))?.runs ?? [];
     check(runs.length === 2 && runs.every((r) => r.y === 0), `guide: plants ${JSON.stringify(runs.map((r) => [r.mirror, r.y, r.h]))}`);
     await sleep(1000);
+    // A slow catch-up, so only the rule under test (what lies above the
+    // viewport is shown grown) can fill the view in time.
+    await p.evaluate(() => window.__floraMargins.tune({ catch: 0.3 }));
     const y = await p.evaluate(() => {
       const y = Math.round((document.documentElement.scrollHeight - innerHeight) * 0.5);
       window.scrollTo(0, y);
       return y;
     });
-    // By 2 s the view is most of the way to grown; regrowing the part
-    // above the viewport first leaves it nearly bare that long.
+    // Once the tiles in view are drawn (how long that takes is the
+    // machine's business), 2 s takes the view most of the way to grown;
+    // regrowing the part above the viewport first leaves it nearly bare
+    // that long.
+    await p.waitForFunction(() => window.__floraMargins.state.tiles
+      .filter((t) => t.y < scrollY + innerHeight && t.y + t.h > scrollY)
+      .every((t) => t.state === "ready" || t.state === "done"), null, { timeout: 60000 });
     await sleep(2000);
     const soon = await inked(p, y, y + 480);
     await sleep(4000);
