@@ -5,7 +5,7 @@
 // The narrowest margin a plant grows in, px.
 export const MIN_MARGIN = 110;
 // The front leads the reader: it heads for this fraction of the viewport.
-export const LEAD = 0.95;
+export const LEAD = 1;
 // Space kept clear above and below a band, px, and the shortest run of
 // margin that grows a plant.
 export const BAND_GAP = 10, MIN_RUN = 320;

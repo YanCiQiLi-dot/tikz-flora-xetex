@@ -36,7 +36,7 @@ const INTO = 30;
 //             starts as a sprout rather than appearing in a burst
 //   colourway tikz-flora's colourway
 //   inks      { part: ink name } over the colourway's (inks.ts parts)
-export const TUNE = { lead: LEAD, soft: 70, slow: 85, catch: 1.5, top: 700, ease: 1.2, colourway: "spring" };
+export const TUNE = { lead: LEAD, soft: 90, slow: 200, catch: 2, top: 900, ease: 1.2, colourway: "spring" };
 // Tiles are asked for this many viewports ahead of the front.
 const AHEAD = 1.5;
 // How far above the viewport's top the front may still be growing, px.

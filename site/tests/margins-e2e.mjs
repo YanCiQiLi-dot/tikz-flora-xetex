@@ -54,7 +54,8 @@ for (const h of [320, 1200, 1201, 15567]) {
 }
 // The front leads the reader, and takes in the whole page at its foot or
 // on a page that does not scroll.
-assert.ok(targetRow(0, 800, 5000) > 600 && targetRow(0, 800, 5000) < 800);
+assert.ok(targetRow(0, 800, 5000, 0.9) > 600 && targetRow(0, 800, 5000, 0.9) < 800);
+assert.equal(targetRow(0, 800, 5000, 1), 800);
 assert.equal(targetRow(4200, 800, 5000), 5000);
 assert.equal(targetRow(0, 800, 700), 700);
 for (let y = 0; y <= 4200; y += 300) assert.ok(targetRow(y, 800, 5000) >= y + 600, `the front trails the reader at ${y}`);
