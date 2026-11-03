@@ -36,7 +36,8 @@ MiKTeX, or TinyTeX). Check with `lualatex --version`. The example also uses
 `lipsum` (`tlmgr install lipsum` on TinyTeX).
 
 1. Download `tikzflora.zip` from the site, or build it with `just dist`.
-2. Unzip it. It holds `tikzflora.sty`, `tikzflora-boot.lua`, the generator
+2. Unzip it into a folder of its own; its files sit at the zip's root. It
+   holds `tikzflora.sty`, `tikzflora-boot.lua`, the generator
    in `lua/flora/`, and `example.tex`.
 3. Put your document next to `tikzflora.sty` (or copy the `.sty`, the boot
    file and `lua/` next to your document).
@@ -49,7 +50,10 @@ the path).
 
 **Overleaf:** New Project, Upload Project, choose `tikzflora.zip`. The
 `latexmkrc` in the zip sets the compiler to LuaLaTeX; otherwise choose it
-under Menu, Compiler.
+under Menu, Compiler. The zip holds two documents; if Overleaf opens
+`titles.tex`, set Menu, Main document to `example.tex`. To add flora to an
+existing project, upload `tikzflora.sty`, `tikzflora-boot.lua` and the
+`lua` folder to the project's top level, beside its main document.
 
 A minimal document:
 

@@ -51,14 +51,20 @@ dist:
     cp tex/titles.tex build/dist/tikzflora/titles.tex
     cp -R lua/flora build/dist/tikzflora/lua/flora
     rm -f build/tikzflora.zip
-    cd build/dist && zip -qrX ../tikzflora.zip tikzflora
+    # The files sit at the zip's root: Overleaf keeps a top-level folder on
+    # Upload Project, and a main document inside one does not compile.
+    cd build/dist/tikzflora && zip -qrX ../../tikzflora.zip .
     @echo "dist: build/tikzflora.zip"
 
 # Compiles the example and the title pages from the unpacked zip alone,
 # outside the repository and without its TEXINPUTS, as a user would.
 test-dist: dist
     rm -rf build/test-dist && mkdir -p build/test-dist
-    unzip -q build/tikzflora.zip -d build/test-dist
+    unzip -q build/tikzflora.zip -d build/test-dist/tikzflora
+    # As Overleaf sees it: the package and the example at the root.
+    for f in tikzflora.sty tikzflora-boot.lua latexmkrc example.tex titles.tex lua/flora/init.lua; do \
+      unzip -l build/tikzflora.zip "$f" > /dev/null || { echo "dist: $f is not at the zip's root"; exit 1; }; \
+    done
     cd build/test-dist/tikzflora && env -u TEXINPUTS -u FLORA_TUNE latexmk -quiet example > latexmk.out 2>&1 || (tail -30 example.log; exit 1)
     test "$(pdfinfo build/test-dist/tikzflora/example.pdf | awk '/^Pages/ {print $2}')" = 7
     grep -q 'painted objects' build/test-dist/tikzflora/example.log

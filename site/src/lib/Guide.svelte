@@ -60,7 +60,7 @@ Some text.
   <h3>2. Get the package</h3>
   <p>
     <a href="/tikzflora.zip" download>Download tikzflora.zip</a> and unzip
-    it. It holds <code>tikzflora.sty</code>, <code>tikzflora-boot.lua</code>,
+    it into a folder of its own. It holds <code>tikzflora.sty</code>, <code>tikzflora-boot.lua</code>,
     the generator in <code>lua/flora/</code>, a worked example
     <code>example.tex</code>, and a <code>latexmkrc</code> that selects
     LuaLaTeX.
@@ -85,7 +85,9 @@ Some text.
   <ol>
     <li>Choose New Project, then Upload Project, and pick <code>tikzflora.zip</code>.</li>
     <li>The <code>latexmkrc</code> in the zip selects LuaLaTeX. If your project lacks it, open Menu and set Compiler to LuaLaTeX.</li>
+    <li>The zip holds two documents. If Overleaf opens <code>titles.tex</code>, set Menu, Main document to <code>example.tex</code>.</li>
     <li>Recompile. <code>example.tex</code> shows every setting with a comment at each.</li>
+    <li>To add flora to a project you already have, upload <code>tikzflora.sty</code>, <code>tikzflora-boot.lua</code> and the <code>lua</code> folder to its top level, beside the main document.</li>
   </ol>
 
   <h3 id="g-settings">4. Settings</h3>
