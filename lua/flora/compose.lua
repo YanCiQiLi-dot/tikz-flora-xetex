@@ -29,9 +29,48 @@ local C = {}
 local pi = math.pi
 local HERO_TOP = 8
 
+-- Progress through a page (C.page's spec.progress): a span [lo, hi] of the
+-- whole page maps its own 0..1 into it. A value is sent once it passes the
+-- last one sent by at least STEP, and 1 always is, so a page sends a
+-- short, rising list ending in 1. Without a hook every call does nothing.
+local STEP = 0.01
+local Progress = {}
+Progress.__index = Progress
+
+local function progress(fn)
+  return setmetatable({ fn = fn, lo = 0, hi = 1, sent = { last = -1 } }, Progress)
+end
+
+-- The part of this span from a to b (0..1 of it).
+function Progress:part(a, b)
+  local w = self.hi - self.lo
+  return setmetatable({ fn = self.fn, lo = self.lo + w * a, hi = self.lo + w * b, sent = self.sent }, Progress)
+end
+
+function Progress:at(f)
+  if not self.fn then return end
+  local v = self.lo + (self.hi - self.lo) * f
+  local s = self.sent
+  if v > s.last and (v >= 1 or v >= s.last + STEP) then
+    s.last = v
+    self.fn(v)
+  end
+end
+
+-- A plant's share of its progress: the grow to these points, then the
+-- painting, item by item, each item one unit and a bloom BLOOM units; the
+-- batches painted at once (stems, sprays, leaflets, the hero) count as
+-- the units given.
+local GROWN = { laid = 0.02, nodes = 0.06, holes = 0.16, details = 0.25 }
+-- A title page's share of its progress taken by its title furniture.
+local TITLE_SHARE = 0.08
+local BLOOM, BATCH = 3, { stems = 4, sprays = 8, leaflets = 3, hero = 4, finish = 2 }
+
 -- Plan and paint one plant in its frame's left margin (frames.lua), onto
--- `pt` when given, else onto a new painter.
-local function plant(spec, pt)
+-- `pt` when given, else onto a new painter, telling `prog` (Progress, when
+-- given) how far it has got.
+local function plant(spec, pt, prog)
+  prog = prog or progress(nil)
   local rng = Rng.new(spec.seed or 1)
   local W = spec.width
   local edge = spec.edge or 16
@@ -150,10 +189,12 @@ local function plant(spec, pt)
     end
   end
   local grow_rng = rng:fork("grow")
+  prog:at(GROWN.laid)
   Grow.node_leaves(g, grow_rng:fork("nodes"), strands, ctx)
   Grow.tips(g, grow_rng:fork("tips"), strands, ctx)
   -- Visitors claim their space before the holes fill (visitor.lua).
   Visitor.place(g, rng:fork("visitors"), ctx, strands)
+  prog:at(GROWN.nodes)
 
   -- Gilt ornaments claim their space before the sprays fill in.
   if spec.header_y then
@@ -215,7 +256,9 @@ local function plant(spec, pt)
 
   -- Blooms and sprays on branches to the largest holes, then details.
   Grow.holes(g, grow_rng:fork("holes"), ctx)
+  prog:at(GROWN.holes)
   Grow.details(g, grow_rng:fork("details"), ctx)
+  prog:at(GROWN.details)
   for _, s in ipairs(cfg.no_leaflets and {} or strands) do
     for _, it in ipairs(S.leaflet_items(rng, s.pts, cfg.leaflet_spacing, cfg.leaflet_size)) do
       if g:room(it[1], it[2]) >= it[4] * 0.3 and rng:next() < dens(it[1], it[2]) then
@@ -247,6 +290,14 @@ local function plant(spec, pt)
     fn()
     pt:end_group()
   end
+  -- The painting's units (GROWN, BLOOM), and a tally of those painted.
+  local units = #back + #painted + #leaves + BLOOM * #blooms + #(ctx.visitors or {}) + #orn
+    + BATCH.stems + BATCH.sprays + BATCH.leaflets + BATCH.hero + BATCH.finish
+  local painting, done = prog:part(GROWN.details, 1), 0
+  local function paid(n)
+    done = done + n
+    painting:at(done / units)
+  end
   -- A "watch it grow" frame (spec.grow below 1) paints only what the growth
   -- front has reached (clock.lua); otherwise every element paints in full.
   local clock = spec.grow and spec.grow < 1 and Clock.new(g, stems, spec.grow) or nil
@@ -255,7 +306,7 @@ local function plant(spec, pt)
     if clock then clock:draw(pt, f, ctx.pos[f], dur, delay) else f(pt) end
   end
   layer("back", function()
-    for _, f in ipairs(back) do draw(f, 0.1) end
+    for _, f in ipairs(back) do draw(f, 0.1); paid(1) end
   end)
   -- Bottom to top, as in the reference: stems and sprays, then leaflets,
   -- then leaves, then blooms. Each leaf knocks out what lies under it.
@@ -267,11 +318,14 @@ local function plant(spec, pt)
       else
         Brush.stem(pt, sr, s.pts, s.width, Tune.plant)
       end
+      paid(1)
     end
     stem_batch:paint(pt)
+    paid(BATCH.stems)
   end)
   -- Fine sprays are pen work in a diluted ink, lighter than the stems.
   layer("sprays", function() spray_batch:paint(pt, Paint.mix(pal.ink, pal.sky, 0.4)) end)
+  paid(BATCH.sprays)
   layer("leaflets", function()
     if clock then
       clock:leaflets(pt, rng:fork("leaflets"), leaflet_items, L.leaflets)
@@ -279,26 +333,29 @@ local function plant(spec, pt)
       L.leaflets(pt, rng:fork("leaflets"), leaflet_items)
     end
   end)
+  paid(BATCH.leaflets)
   layer("leaves", function()
-    for _, f in ipairs(leaves) do draw(f, 0.06) end
+    for _, f in ipairs(leaves) do draw(f, 0.06); paid(1) end
   end)
   layer("blooms", function()
-    for _, f in ipairs(blooms) do draw(f, 0.1, 10) end
+    for _, f in ipairs(blooms) do draw(f, 0.1, 10); paid(BLOOM) end
     local hf = function(p) F.hero(p, rng:fork("hero"), hero) end
     if clock then clock:draw(pt, hf, hero, 0.15) else hf(pt) end
+    paid(BATCH.hero)
   end)
   if ctx.visitors then
     layer("visitors", function()
-      for _, f in ipairs(ctx.visitors) do draw(f, 0.08, clock and clock.reach * 0.25) end
+      for _, f in ipairs(ctx.visitors) do draw(f, 0.08, clock and clock.reach * 0.25); paid(1) end
     end)
   end
   layer("ornaments", function()
-    for _, f in ipairs(orn) do draw(f, 0.15) end
+    for _, f in ipairs(orn) do draw(f, 0.15); paid(1) end
     O.sparkles(pt, clock and clock:sparkles(sparkles) or sparkles)
     if not spec.bare then
       draw(function(p) O.compass(p, midfoot[1], midfoot[2], 7, { hair = 0.9, ring = 0 }) end, 0.15)
     end
   end)
+  paid(BATCH.finish)
   pt.clock = nil
   pt.coverage = g:coverage()
   pt.panel = panel
@@ -314,7 +371,9 @@ end
 -- optional lines, header_y, seed, edge, layout (frames.lua) with page and
 -- title, and probe(x, y, r), which sees every painted point in page
 -- coordinates (tests use it to check nothing lands on text); on_frame(f),
--- when given, is told each frame before its plant is painted.
+-- when given, is told each frame before its plant is painted; progress(f),
+-- when given, is told how much of the page is done (0 to 1, rising, by
+-- about 0.01 at a time and ending in 1).
 function C.page(spec)
   local palette = Mix.resolve(spec.palette, spec.seed, spec.spin)
   return Mix.with_palette(palette, function() return Mix.with_mix(spec.mix, function() return C.frames(spec) end) end)
@@ -323,7 +382,12 @@ end
 -- C.page, after the page's palette is in place.
 function C.frames(spec)
   local frames = Frames.of(spec)
-  if #frames == 1 and not frames[1].fn then return plant(spec) end
+  local prog = progress(spec.progress)
+  if #frames == 1 and not frames[1].fn then
+    local pt = plant(spec, nil, prog)
+    prog:at(1)
+    return pt
+  end
   local pt = Paint.new({ backend = os.getenv("FLORA_BACKEND"), gilt = spec.gilt, backdrop = Color.backdrop(spec.backdrop) })
   pt.probe = spec.probe
   pt.gilt_dpi, pt.gilt_env, pt.gilt_look = spec.gilt_dpi, spec.gilt_env, spec.gilt_look
@@ -334,16 +398,20 @@ function C.frames(spec)
     frames.before(pt)
     pt:end_group()
   end
-  for _, f in ipairs(frames) do
+  -- The plants share the page's progress equally; title furniture, when
+  -- painted, takes TITLE_SHARE of it after them.
+  local titled = frames.title and (spec.grow or 1) >= 0.9
+  local plants = titled and 1 - TITLE_SHARE or 1
+  for k, f in ipairs(frames) do
     if spec.on_frame then spec.on_frame(f) end
     pt:frame(f.fn)
-    plant(f.spec, pt)
+    plant(f.spec, pt, prog:part(plants * (k - 1) / #frames, plants * k / #frames))
     cover = cover + pt.coverage / #frames
   end
   pt:frame(nil)
   -- Title furniture paints over the finished crowns, in page coordinates;
   -- while the page grows it waits for the plants.
-  if frames.title and (spec.grow or 1) >= 0.9 then
+  if titled then
     pt:begin_group("title")
     Title.paint(pt, spec, frames.title)
     pt:end_group()
@@ -355,6 +423,7 @@ function C.frames(spec)
     frames.after(pt)
     pt:end_group()
   end
+  prog:at(1)
   pt.title = frames.title
   pt.coverage = cover
   pt.frames = frames

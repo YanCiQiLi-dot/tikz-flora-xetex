@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "dialkit": "^2.1.0",
-    "flora": "github:wn-mitch/flora#da98d3abd1e0",
+    "flora": "github:wn-mitch/flora#7b6b18893ac9",
     "motion": "^14.9.0",
     "pdfjs-dist": "6.4.299",
     "svelte": "5.57.3",

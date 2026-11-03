@@ -34,6 +34,10 @@
   let letters = $state({ style: "engraved", arch: 20, ink: "black" });
   let status = $state("Loading the generator…");
   let busy = $state(false);
+  // The bar along the sheet's foot: running while the generator loads
+  // (`loading`), then how far each grow has got (0 to 1).
+  let loading = $state(true);
+  let progress = $state(0);
   let copied = $state("");
   let canvas, frame;
   const specs = new Map();
@@ -87,6 +91,7 @@
     } catch (e) {
       status = `The mixer could not start: ${e.message}`;
     }
+    loading = false;
   }
 
   async function spec(p) {
@@ -104,10 +109,12 @@
     busy = true;
     const pg = pages[layout];
     status = "Growing…";
+    progress = 0;
     try {
       const job = { spec: await spec(variant), seed, page: pg.page, mix: $state.snapshot(mix), ornaments: $state.snapshot(ornaments), palette: $state.snapshot(palette), spin, px: px(frame.clientWidth), gilt, giltenv, giltlook: lookLine, backdrop };
-      const out = await render(job);
+      const out = await render(job, (f) => { progress = Math.max(progress, f); });
       await show(out, canvas, frame.clientWidth);
+      progress = 1;
       status = `Grown in ${(out.ms / 1000).toFixed(1)} s (${drawnBy(out)})`;
     } catch (e) {
       status = `Something went wrong: ${e.message}`;
@@ -342,6 +349,10 @@
     <div class="sheet paper" bind:this={frame} class:busy class:dark={backdrop === "dark"}
       style={backdrop === "dark" && meta ? `background:${meta.catalog.backdrop.dark}` : undefined}>
       <canvas bind:this={canvas} aria-label="The page's flora"></canvas>
+      <div class="bar" class:on={loading || busy} class:loading role="progressbar" aria-label="Growing the page"
+        aria-valuemin="0" aria-valuemax="100" aria-valuenow={loading ? undefined : Math.round(progress * 100)}>
+        <i style:transform={loading ? undefined : `scaleX(${progress})`}></i>
+      </div>
       {#if pages.length}
         <img src={`/bake/text-${variant}.png`} alt="The example page's text">
         {#if lettered}
@@ -407,6 +418,16 @@
   select { grid-column: 2; width: 100%; padding: .3rem .4rem; border: 1px solid var(--control); background: transparent; font: inherit; }
   .chip { width: 1.4rem; height: 1.4rem; justify-self: end; border: 1px solid var(--rule); }
   .sheet.busy canvas { opacity: .45; transition: opacity .3s; }
+  /* The grow's progress, along the sheet's foot; it fades once grown. */
+  .bar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; height: 3px; overflow: hidden; background: oklch(30% 0.02 70 / .08); opacity: 0; transition: opacity .6s .2s; }
+  .bar.on { opacity: 1; transition-delay: 0s; }
+  .bar i { position: absolute; inset: 0; background: var(--rubric); transform-origin: left; transform: scaleX(0); transition: transform .25s ease-out; }
+  .bar.loading i { width: 30%; transform: none; animation: sweep 1.4s ease-in-out infinite; }
+  @keyframes sweep { from { translate: -100% 0; } to { translate: 340% 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .bar i { transition: none; }
+    .bar.loading i { animation: none; width: 100%; opacity: .35; }
+  }
   .status { color: var(--muted); font-size: .95rem; font-style: italic; margin: .6rem 0 0; }
   /* Phones: the page scrolls as one, with a small page kept in view. */
   @media (max-width: 860px) {

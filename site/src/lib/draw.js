@@ -11,10 +11,13 @@ let gl = null, glCanvas = null, glFailed = false;
 
 // The scene `scene` (parsed JSON) drawn `px` device pixels wide. `view`
 // {y, height} (bp from the page's foot) keeps only that band of the page.
-// Returns { bitmap, renderer, ms }.
-export function draw(scene, px, view, mode = "webgl") {
+// `listed`, when given, is called once the display list is read, before
+// it is drawn. Returns { bitmap, renderer, ms, listMs }.
+export function draw(scene, px, view, mode = "webgl", listed) {
   const t0 = performance.now();
   const list = fromPdfScene(scene);
+  const listMs = performance.now() - t0;
+  listed?.();
   const scale = px / scene.width;
   const h = view ? view.height : scene.height;
   // The band's top, in the display list's y-down units.
@@ -27,7 +30,7 @@ export function draw(scene, px, view, mode = "webgl") {
       glCanvas.width = w;
       glCanvas.height = hp;
       gl.draw(list, { scale, y0 });
-      return { bitmap: glCanvas.transferToImageBitmap(), renderer: "webgl", ms: performance.now() - t0 };
+      return { bitmap: glCanvas.transferToImageBitmap(), renderer: "webgl", ms: performance.now() - t0, listMs };
     } catch (e) {
       // No WebGL2 (or no stencil): the 2D canvas from here on.
       if (!/WebGL2 is not available|no stencil/.test(String(e?.message))) throw e;
@@ -36,5 +39,5 @@ export function draw(scene, px, view, mode = "webgl") {
   }
   const c = new OffscreenCanvas(w, hp);
   drawCanvas2D(c.getContext("2d"), list, { scale, y0 });
-  return { bitmap: c.transferToImageBitmap(), renderer: "canvas2d", ms: performance.now() - t0 };
+  return { bitmap: c.transferToImageBitmap(), renderer: "canvas2d", ms: performance.now() - t0, listMs };
 }

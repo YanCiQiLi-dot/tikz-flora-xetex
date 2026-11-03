@@ -5,7 +5,9 @@
 //                                      each ink's ramp, each group's inks and
 //                                      each colourway's palette
 //   { id, kind: "render", spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook, backdrop, draw }
-//                                   -> { id, bitmap | pdf, ms }
+//                                   -> { id, progress } as it goes (0 to 1,
+//                                      rising: PROGRESS below), then
+//                                      { id, bitmap | pdf, ms }
 //   { id, kind: "version" }         -> { id, version }  a hash of the
 //                                      generator's sources, for cache keys
 //   { id, kind: "garden", garden, px, png, draw }
@@ -54,6 +56,10 @@ async function lua() {
   })();
   return engine;
 }
+
+// A render's progress at the end of the grow, of the PDF scene and of
+// reading it into the drawing's display list; drawing it takes the rest.
+const PROGRESS = { grow: 0.7, scene: 0.79, listed: 0.83 };
 
 // A Lua table literal for {name: value}, names checked to be identifiers.
 function table(obj) {
@@ -136,11 +142,12 @@ let transfers = [];
 // Lua's output as a message body: a scene drawn to a bitmap `px` wide by
 // renderer `mode` (draw.js), or PDF bytes. `view` {y, height} (bp from the
 // page's foot) keeps only that band of the page.
-function picture(out, px, view, mode) {
+// `listed`, when given, is called once the drawing's display list is read.
+function picture(out, px, view, mode, listed) {
   if (px) {
-    const { bitmap, renderer, ms } = draw(JSON.parse(out), px, view, mode);
+    const { bitmap, renderer, ms, listMs } = draw(JSON.parse(out), px, view, mode, listed);
     transfers = [bitmap];
-    return { bitmap, renderer, drawMs: Math.round(ms) };
+    return { bitmap, renderer, drawMs: Math.round(ms), listMs: Math.round(listMs) };
   }
   const bytes = new TextEncoder().encode(out);
   transfers = [bytes.buffer];
@@ -246,11 +253,14 @@ onmessage = async (e) => {
     }
     const { spec, seed, page, mix, ornaments, palette, spin, px, gilt, giltenv, giltlook, backdrop, draw: mode } = e.data;
     const t0 = performance.now();
+    // The page's own progress (compose.lua's spec.progress) is the grow's
+    // share of the whole; the PDF scene and the drawing follow.
+    l.global.set("PROGRESS", (f) => postMessage({ id, progress: f * PROGRESS.grow }));
     l.global.set("SPEC", spec);
     l.global.set("GILTLOOK", giltlook ?? "");
     l.global.set("SEED", String(seed));
     l.global.set("BACKDROP", backdrop ?? "light");
-    const pdf = await l.doString(`
+    await l.doString(`
       local Serial = require("flora.serial")
       local Paint = require("flora.paint")
       local Compose = require("flora.compose")
@@ -267,9 +277,19 @@ onmessage = async (e) => {
       spec.gilt_look = require("flora.settings").parse("giltlook={" .. GILTLOOK .. "}").giltlook
       spec.backdrop = require("flora.settings").parse("backdrop=" .. BACKDROP).backdrop
       spec.gilt_dpi = ${px ? `math.max(50, math.min(600, ${Number(px)} / spec.width * 72.27))` : 150}
+      spec.progress = PROGRESS
       Paint.reset_resources()
-      return ${px ? "Pdf.scene" : "Pdf.encode"}(Compose.page(spec), spec.width, spec.height)`);
-    const out = picture(pdf, px, null, mode);
+      PAGE, PAGE_W, PAGE_H = Compose.page(spec), spec.width, spec.height`);
+    const tGrown = performance.now();
+    const pdf = await l.doString(`
+      local Pdf = require("flora.pdfout")
+      local out = ${px ? "Pdf.scene" : "Pdf.encode"}(PAGE, PAGE_W, PAGE_H)
+      PAGE = nil
+      return out`);
+    const tScene = performance.now();
+    postMessage({ id, progress: PROGRESS.scene });
+    const out = picture(pdf, px, null, mode, () => postMessage({ id, progress: PROGRESS.listed }));
+    out.timing = { grow: tGrown - t0, scene: tScene - tGrown, draw: performance.now() - tScene, list: out.listMs ?? 0 };
     postMessage({ id, ...out, ms: Math.round(performance.now() - t0) }, transfers);
   } catch (err) {
     postMessage({ id, error: String(err && err.message || err) });

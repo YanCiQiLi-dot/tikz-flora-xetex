@@ -7,13 +7,19 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 let worker, next = 0;
 const waiting = new Map();
 
-function post(msg) {
+// Send `msg` to the worker; its reply settles the promise, and messages
+// carrying only `progress` along the way go to `onProgress`.
+function post(msg, onProgress) {
   worker ||= (() => {
     const w = new Worker(new URL("./render.worker.js", import.meta.url), { type: "module" });
     w.onmessage = (e) => {
       const p = waiting.get(e.data.id);
-      waiting.delete(e.data.id);
       if (!p) return;
+      if ("progress" in e.data) {
+        p.onProgress?.(e.data.progress);
+        return;
+      }
+      waiting.delete(e.data.id);
       if (e.data.error) p.reject(new Error(e.data.error));
       else p.resolve(e.data);
     };
@@ -21,7 +27,7 @@ function post(msg) {
   })();
   const id = ++next;
   return new Promise((resolve, reject) => {
-    waiting.set(id, { resolve, reject });
+    waiting.set(id, { resolve, reject, onProgress });
     worker.postMessage({ ...msg, id });
   });
 }
@@ -45,8 +51,10 @@ const giltlook = query.get("giltlook") ?? "";
 // "pdf" draws a PDF with pdf.js, for comparison (?renderer=canvas2d|pdf).
 export const renderer = ({ pdf: "pdf", canvas2d: "canvas2d" })[query.get("renderer")] ?? "webgl";
 
-export async function render(job) {
-  return post({ kind: "render", gilt, giltenv, giltlook, draw: renderer, ...job });
+// Render `job`; `onProgress(f)`, when given, is told how far it has got
+// (0 to 1, rising) as the worker grows and draws the page.
+export async function render(job, onProgress) {
+  return post({ kind: "render", gilt, giltenv, giltlook, draw: renderer, ...job }, onProgress);
 }
 
 export async function gallery(job) {

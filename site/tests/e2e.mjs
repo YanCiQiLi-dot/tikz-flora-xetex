@@ -84,6 +84,13 @@ try {
     const r = await fetch(new globalThis.URL(href, URL));
     check(r.ok, `the link ${href} is not served (${r.status})`);
   }
+  // Every value the mixer's progress bar takes, as it takes it.
+  await page.addInitScript(() => {
+    window.__bar = [];
+    new MutationObserver((ms) => {
+      for (const m of ms) if (m.target.classList?.contains("bar")) window.__bar.push([m.target.getAttribute("aria-valuenow"), m.target.classList.contains("on")]);
+    }).observe(document, { subtree: true, attributes: true, attributeFilter: ["aria-valuenow", "class"] });
+  });
   await page.goto(MIXER);
   const code = () => page.locator(".controls pre code").textContent();
   const grown = async () => {
@@ -110,6 +117,16 @@ try {
   check(first.n > 2000, `the first page shows too little flora (${first.n} inked samples)`);
   check(first.blue < 0.1, `the first colourway is ${(first.blue * 100).toFixed(0)}% blue`);
   check(/seed=11,/.test(await code()) && /colourway=ember\}$/.test(await code()), `the mixer does not start on the first colourway: ${await code()}`);
+
+  // The progress bar follows the grow: many steps between 0 and 100, never
+  // falling, then put away once the page is grown.
+  await page.waitForFunction(() => !document.querySelector(".bar").classList.contains("on"), null, { timeout: 5000 }).catch(() => {});
+  const bar = (await page.evaluate(() => window.__bar)).filter(([v]) => v !== null).map(([v]) => Number(v));
+  const between = new Set(bar.filter((v) => v > 0 && v < 100));
+  check(between.size >= 10, `the progress bar moved through only ${between.size} values: ${bar.join(" ")}`);
+  check(bar.every((v, i) => i === 0 || v >= bar[i - 1] || v === 0), `the progress bar fell during a grow: ${bar.join(" ")}`);
+  check(bar.at(-1) === 100, `the progress bar ends at ${bar.at(-1)}`);
+  check(!(await page.locator(".bar").evaluate((b) => b.classList.contains("on"))), "the progress bar stays up after the grow");
 
   // flora's WebGL renderer (draw.js, the default) draws what pdf.js draws
   // from the same page's PDF, up to antialiasing: few sampled pixels differ
