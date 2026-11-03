@@ -294,13 +294,19 @@ end
 
 -- Closed outline around a centerline whose half-width at fraction t is w(t).
 -- Ends are capped with a short round so tapered strokes keep a soft tip.
+-- Where a point's neighbours coincide (closer than 1e-9 pt) the heading
+-- carries over from the point before (0 at the start), so a line of one
+-- repeated point still gets a fixed normal rather than one rounding noise
+-- picks.
 function G.ribbon(pts, w)
   local n = #pts
   local left, right = {}, {}
+  local heading = 0
   for i = 1, n do
     local a = pts[math.max(i - 1, 1)]
     local b = pts[math.min(i + 1, n)]
-    local ang = G.angle(a, b) + pi / 2
+    if math.abs(b[1] - a[1]) + math.abs(b[2] - a[2]) > 1e-9 then heading = G.angle(a, b) end
+    local ang = heading + pi / 2
     local hw = w((i - 1) / (n - 1))
     left[i] = G.polar(pts[i], ang, hw)
     right[i] = G.polar(pts[i], ang, -hw)

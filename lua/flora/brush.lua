@@ -150,7 +150,10 @@ function B.stem(pt, rng, pts, wfn, cfg)
   local outline = G.smooth(G.ribbon(pts, half), true)
   pt:fill(outline, body, 0.55 + 0.35 * (1 - cfg.stem_brush), { blend = "multiply" })
   if cfg.stem_brush <= 0 then return end
-  local line = G.resample(pts, math.max(8, math.floor(G.length(pts) / 3)))
+  -- A point every 3 pt. Stems are often a whole number of steps long, and
+  -- runtimes sum that length an ulp apart, so the count is taken a hair
+  -- above the boundary to come out the same everywhere.
+  local line = G.resample(pts, math.max(8, math.floor(G.length(pts) / 3 + 1e-6)))
   local wmax = 0
   for i = 0, 10 do wmax = math.max(wmax, wfn(i / 10)) end
   pt:clip_begin(outline)
