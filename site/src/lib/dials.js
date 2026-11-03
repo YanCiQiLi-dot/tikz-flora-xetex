@@ -31,6 +31,8 @@ export function toggleDials(garden) {
       soft: [TUNE.soft, 10, 240, 1],
       slow: [TUNE.slow, 20, 600, 5],
       catch: [TUNE.catch, 0.1, 3, 0.05],
+      top: [TUNE.top, 100, 4000, 10],
+      ease: [TUNE.ease, 0, 4, 0.05],
     },
     inks: {
       colourway: { type: "select", options: inks.COLOURWAY_ORDER.map((n) => ({ value: n, label: n })), default: inks.COLOURWAY_ALIAS[way] ?? way },

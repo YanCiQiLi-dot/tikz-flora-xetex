@@ -27,9 +27,12 @@ const INTO = 30;
 //   slow      the least growth speed, px of growth per second
 //   catch     the share of the growth still to go grown each second, so
 //             the front eases in behind a quick scroll
+//   top       the most growth speed, px of growth per second
+//   ease      seconds a plant takes to come up to speed from rest, so it
+//             starts as a sprout rather than appearing in a burst
 //   colourway tikz-flora's colourway
 //   inks      { part: ink name } over the colourway's (inks.ts parts)
-export const TUNE = { lead: LEAD, soft: 70, slow: 85, catch: 1.5, colourway: "spring" };
+export const TUNE = { lead: LEAD, soft: 70, slow: 85, catch: 1.5, top: 700, ease: 1.2, colourway: "spring" };
 // Tiles are asked for this many viewports ahead of the front.
 const AHEAD = 1.5;
 // How far above the viewport's top the front may still be growing, px.
@@ -289,7 +292,14 @@ export function startMargins({ doc = document, win = window } = {}) {
       const cap = Math.min(full, rowGrowth(r.rows, r.cell, reach) + (reach > 0 ? SOFT() * 0.6 : 0));
       let u = r.u < 0 ? 0 : r.u;
       if (reduce.matches) u = reach > 0 ? full : u;
-      else if (u < cap) u = Math.min(cap, u + Math.max(T.slow, (cap - u) * T.catch) * dt);
+      else if (u < cap) {
+        // The speed the front wants, reached from rest over T.ease seconds
+        // and dropped at once when the front nears its cap.
+        const want = Math.min(T.top, Math.max(T.slow, (cap - u) * T.catch));
+        const accel = T.top / Math.max(0.05, T.ease);
+        r.v = Math.min(want, (r.v ?? 0) + accel * dt);
+        u = Math.min(cap, u + r.v * dt);
+      } else r.v = 0;
       // What lies above the viewport is shown grown: nobody saw it grow,
       // and the front should be where the reader is looking.
       if (top > r.y) u = Math.max(u, Math.min(cap, rowGrowth(r.rows, r.cell, top - r.y - UNSEEN)));
