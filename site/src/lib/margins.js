@@ -57,9 +57,10 @@ export function startMargins({ doc = document, win = window } = {}) {
 
   // The viewport width, each side's margin (what the page's content leaves
   // between itself and the edge) and the page's height. Content is every
-  // element narrower than the viewport, other than what the plants keep
-  // out of (data-flora-avoid), the site's own controls (data-flora-ui) and
-  // the garden itself.
+  // visible element narrower than the viewport, other than what the plants
+  // keep out of (data-flora-avoid), the site's own controls (data-flora-ui)
+  // and the garden itself. Invisible ones, such as the 1 px hidden iframe
+  // an analytics beacon puts in the page's corner, are not content.
   function measure() {
     const vw = doc.documentElement.clientWidth;
     let x0 = vw, x1 = 0;
@@ -67,6 +68,8 @@ export function startMargins({ doc = document, win = window } = {}) {
       if (el.tagName === "SCRIPT" || el.tagName === "STYLE" || el.closest("[data-flora-avoid], [data-flora-ui], .flora-margins")) continue;
       const r = el.getBoundingClientRect();
       if (r.width <= 0 || r.height <= 0 || r.width >= vw - 1 || r.right <= 0 || r.left >= vw) continue;
+      // Only what would widen the content is checked, as checking is slow.
+      if ((r.left < x0 || r.right > x1) && !shown(el)) continue;
       x0 = Math.min(x0, r.left);
       x1 = Math.max(x1, r.right);
     }
@@ -75,6 +78,13 @@ export function startMargins({ doc = document, win = window } = {}) {
   }
 
   // Rects of [data-flora-avoid] elements that reach into run r, run px.
+  // Whether `el` is seen: not hidden by visibility or opacity.
+  function shown(el) {
+    if (el.checkVisibility) return el.checkVisibility({ visibilityProperty: true, opacityProperty: true });
+    const cs = win.getComputedStyle(el);
+    return cs.visibility !== "hidden" && cs.opacity !== "0";
+  }
+
   function avoidIn(r) {
     const out = [];
     for (const el of doc.querySelectorAll("[data-flora-avoid]")) {

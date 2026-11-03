@@ -121,6 +121,23 @@ try {
     await p.close();
   }
 
+  // A hidden 1 px iframe in the page's corner (the analytics beacon the
+  // live site gets) is not content, so both margins still grow.
+  {
+    const p = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await p.addInitScript(() => document.addEventListener("DOMContentLoaded", () => {
+      const f = document.createElement("iframe");
+      f.width = f.height = "1";
+      f.style.cssText = "position:absolute;top:0;left:0;border:none;visibility:hidden";
+      document.body.append(f);
+    }));
+    await p.goto(URL);
+    await sleep(2000);
+    const s = await state(p);
+    check(s?.sides.length === 2, `home with a hidden corner iframe: margins ${JSON.stringify(s?.sides)}`);
+    await p.close();
+  }
+
   // On the guide the plants stay out of the sticky plate and the contents
   // column, which sit outside the running head; and a reader who jumps
   // halfway down finds the margins grown in view within seconds (the
