@@ -9,7 +9,7 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
-    "flora": "github:wn-mitch/flora#40a22ad5ae97",
+    "flora": "github:wn-mitch/flora#22e914063e49",
     "pdfjs-dist": "6.4.299",
     "svelte": "5.57.3",
     "wasmoon": "1.16.0"

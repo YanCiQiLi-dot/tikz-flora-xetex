@@ -2,7 +2,7 @@
 // Chrome: plants grow either side of each page's content and never behind
 // it, a reader who jumps down a long page finds the margins grown where
 // they look within seconds, tools and phones get none, and reduced motion
-// shows each segment whole. Also the layout helpers, without a browser.
+// shows each plant whole. Also the layout helpers, without a browser.
 //
 //   just test-site      (builds first; needs Google Chrome)
 import assert from "node:assert/strict";
@@ -10,35 +10,33 @@ import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
-import { segmentHeight, rowGrowth, targetRow, layoutSide, MIN_MARGIN } from "../src/lib/margins.js";
+import { rowGrowth, targetRow, layoutSide, tilesOf, MIN_MARGIN, MIN_RUN, TILE } from "../src/lib/margins-layout.js";
 
-const check2 = (ok, msg) => assert.ok(ok, msg);
-
-// Segments tile the page exactly: whole segments, none past the foot.
-for (const [m, docH] of [[116, 15567], [282, 4068], [110, 600], [400, 100000]]) {
-  const h = segmentHeight(m, docH), n = Math.ceil(docH / h);
-  assert.ok(n * h >= docH && (n - 1) * h < docH, `m ${m}, page ${docH}: ${n} segments of ${h}`);
-  assert.ok(docH < 900 || (h >= 600 && h <= 2250), `m ${m}, page ${docH}: segment ${h} px`);
-}
-// A full-width band breaks the margin: segments run up to it and start
-// again below it, never overlap it or each other, and the run above it is
-// filled to its end; overlapping bands count as one.
+// One plant runs the length of a margin: a page with no bands is one run.
+assert.deepEqual(layoutSide([], 15567), [{ y: 0, h: 15567 }]);
+// A full-width band breaks the margin: a plant runs up to it and another
+// starts just below it; none overlaps a band or another; bands that
+// overlap count as one; a sliver too short to grow in is left bare.
 {
   const docH = 6000, bands = [[1800, 2400], [2300, 2500], [3900, 4000]];
-  const { tiles, openH } = layoutSide(200, bands, docH);
-  for (const t of tiles) for (const [a, b] of bands) check2(t.y + t.h <= a || t.y >= b, `segment ${JSON.stringify(t)} overlaps band ${a}-${b}`);
-  for (let i = 1; i < tiles.length; i++) check2(tiles[i].y >= tiles[i - 1].y + tiles[i - 1].h, `segments ${i - 1} and ${i} overlap`);
-  check2(tiles[0].y === 0, "the first segment does not start at the top");
-  check2(tiles.some((t) => t.y + t.h >= 1780 && t.y + t.h < 1800), "the run above the first band is not filled to it");
-  check2(tiles.some((t) => t.y > 2500 && t.y <= 2520), "no segment starts just below the merged band");
-  check2(tiles.some((t) => t.y > 4000 && t.y <= 4020), "no segment starts below the last band");
-  check2(tiles[tiles.length - 1].y + tiles[tiles.length - 1].h >= docH, "the foot of the page is bare");
-  // A taller page keeps every segment it had and adds below.
-  const more = layoutSide(200, bands, 9000, openH).tiles;
-  check2(JSON.stringify(more.slice(0, tiles.length)) === JSON.stringify(tiles), "a taller page moves existing segments");
-  check2(more.length > tiles.length, "a taller page adds no segments");
-  // A run too short to grow in is left bare.
-  check2(layoutSide(200, [[100, 300]], 3000).tiles[0].y >= 300, "a sliver above a band grows a plant");
+  const runs = layoutSide(bands, docH);
+  assert.equal(runs.length, 3, JSON.stringify(runs));
+  for (const r of runs) for (const [a, b] of bands) assert.ok(r.y + r.h <= a || r.y >= b, `run ${JSON.stringify(r)} overlaps band ${a}-${b}`);
+  assert.equal(runs[0].y, 0);
+  assert.ok(runs[0].h >= 1780 && runs[0].h < 1800, "the run above the first band does not reach it");
+  assert.ok(runs[1].y > 2500 && runs[1].y <= 2520, "no run starts just below the merged band");
+  assert.ok(runs[2].y > 4000 && runs[2].y + runs[2].h === docH, "the last run does not reach the foot");
+  assert.ok(layoutSide([[100, 300]], 3000)[0].y >= 300, "a sliver above a band grows a plant");
+  assert.ok(layoutSide([], MIN_RUN - 1).length === 0, "a page shorter than a run grows a plant");
+}
+// A run is drawn in windows that cover it exactly, each a whole number of
+// birth cells from its top.
+for (const h of [320, 1200, 1201, 15567]) {
+  const ws = tilesOf(h);
+  assert.equal(ws[0].y, 0);
+  for (let i = 1; i < ws.length; i++) assert.equal(ws[i].y, ws[i - 1].y + ws[i - 1].h);
+  assert.equal(ws[ws.length - 1].y + ws[ws.length - 1].h, h);
+  for (const w of ws) assert.ok(w.y % 3 === 0 && w.h <= TILE && w.h > 0, `window ${JSON.stringify(w)} of ${h}`);
 }
 // The front's growth by row never falls, and carries on past the foot
 // without a jump.
@@ -105,12 +103,17 @@ try {
     await sleep(4000);
     const s = await state(p);
     check(s && s.sides.length === 2, `home: margins ${JSON.stringify(s?.sides)}`);
+    // One plant above the strip of pages and one below, on each side.
+    for (const mirror of [false, true]) {
+      const n = s?.runs.filter((r) => r.mirror === mirror).length;
+      check(n === 2, `home: the ${mirror ? "right" : "left"} margin grows ${n} plants, not 2`);
+    }
     const overlap = await p.evaluate(() => {
       const band = document.querySelector("[data-flora-avoid]").getBoundingClientRect();
       return [...document.querySelectorAll(".flora-margins canvas")].map((c) => c.getBoundingClientRect())
         .filter((r) => r.bottom > band.top && r.top < band.bottom).length;
     });
-    check(overlap === 0, `home: ${overlap} margin segments grow behind the strip of pages`);
+    check(overlap === 0, `home: ${overlap} margin tiles grow behind the strip of pages`);
     const top = await inked(p, 0, 400);
     check(top.left > 0.08 && top.right > 0.08, `home: the top corners are bare after 4 s (${JSON.stringify(top)})`);
     await p.close();
@@ -119,7 +122,7 @@ try {
   // On the guide the plants stay out of the sticky plate and the contents
   // column, which sit outside the running head; and a reader who jumps
   // halfway down finds the margins grown in view within seconds (the
-  // segment above the viewport is not regrown out of sight first).
+  // plant above the viewport is not regrown out of sight first).
   {
     const p = await open("guide/");
     await p.locator(".flora-margins canvas").first().waitFor({ state: "attached" });
@@ -136,27 +139,35 @@ try {
     // A tile reaches INTO (30 px) into the column's clear edge band, no more.
     check(edges.leftEnd <= edges.contentL + 31, `guide: the left garden reaches ${edges.leftEnd}, content starts at ${edges.contentL}`);
     check(edges.rightStart >= edges.contentR - 31, `guide: the right garden starts at ${edges.rightStart}, content ends at ${edges.contentR}`);
+    // The guide's 15,000 px margin is one plant a side, not a stack.
+    const runs = (await state(p))?.runs ?? [];
+    check(runs.length === 2 && runs.every((r) => r.y === 0), `guide: plants ${JSON.stringify(runs.map((r) => [r.mirror, r.y, r.h]))}`);
     await sleep(1000);
     const y = await p.evaluate(() => {
       const y = Math.round((document.documentElement.scrollHeight - innerHeight) * 0.5);
       window.scrollTo(0, y);
       return y;
     });
-    // About a quarter of the samples are inked once grown; regrowing the
-    // segment above first leaves under a tenth at 2 s.
+    // By 2 s the view is most of the way to grown; regrowing the part
+    // above the viewport first leaves it nearly bare that long.
     await sleep(2000);
-    const view = await inked(p, y, y + 480);
-    check(view.left > 0.15 && view.right > 0.15, `guide: the margins in view are bare 2 s after a jump (${JSON.stringify(view)})`);
+    const soon = await inked(p, y, y + 480);
+    await sleep(4000);
+    const grown = await inked(p, y, y + 480);
+    for (const k of ["left", "right"]) {
+      check(grown[k] > 0.04, `guide: the ${k} margin in view is bare once grown (${grown[k]})`);
+      check(soon[k] >= grown[k] * 0.6, `guide: the ${k} margin in view is ${soon[k]} inked 2 s after a jump, ${grown[k]} grown`);
+    }
     await p.close();
   }
 
-  // Under reduced motion each segment in view appears whole.
+  // Under reduced motion each plant in view appears whole.
   {
     const p = await open("", { reducedMotion: "reduce" });
     await p.waitForFunction(() => {
       const s = window.__floraMargins?.state;
       return s && s.tiles.filter((t) => t.y < innerHeight).every((t) => t.state === "done");
-    }, null, { timeout: 15000 }).catch(() => check(false, "reduced motion: the segments in view never finish"));
+    }, null, { timeout: 15000 }).catch(() => check(false, "reduced motion: the plants in view never finish"));
     await p.close();
   }
 

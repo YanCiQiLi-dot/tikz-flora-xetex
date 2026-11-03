@@ -1,97 +1,33 @@
 // The site's margin garden: a plant hangs from the top of each side margin
 // and grows down the page as the reader scrolls, painted in by a soft wet
-// front. margins.worker.js grows and draws each segment; this module lays
-// the segments out, asks for them a little ahead of the reader and reveals
-// each one by its birth times.
+// front. margins.worker.js grows each plant and draws it a window (tile) at
+// a time; this module lays the plants out, asks for tiles a little ahead
+// of the reader and reveals them by their birth times.
 //
 //   const garden = startMargins();   // later: garden.stop()
 //
 // Each side's margin is what the page's content leaves between itself and
-// that edge; a side narrower than MIN_MARGIN grows nothing. Elements marked
-// data-flora-avoid (a strip that scrolls across the margins) keep the
-// plants out. Segments the reader has scrolled past are shown grown. Under
-// prefers-reduced-motion each segment appears whole once grown.
+// that edge; a side narrower than MIN_MARGIN grows nothing. One plant runs
+// the length of each margin, broken only where an element marked
+// data-flora-avoid spans the margin (margins-layout.js); narrower ones keep
+// the plant out. What the reader has scrolled past is shown grown. Under
+// prefers-reduced-motion each plant appears whole once drawn.
 import { gardenAt } from "./garden.js";
+import { MIN_MARGIN, MIN_RUN, layoutSide, tilesOf, rowGrowth, targetRow, jitter } from "./margins-layout.js";
 
-// The narrowest margin a plant grows in, px.
-export const MIN_MARGIN = 110;
-// How far a tile reaches into the column, px: the column's edge band, which
-// the engine keeps clear.
+export { MIN_MARGIN };
+// How far a plant reaches into the column, px: the column's edge band,
+// which the engine keeps clear.
 const INTO = 30;
 // The width of the wet front, in px of growth.
 const SOFT = 70;
-// The front leads the reader: it heads for this fraction of the viewport.
-const LEAD = 0.82;
 // Growth speed, px of growth per second: at least SLOW, and CATCH times
 // the growth still to go, so the front eases in behind a quick scroll.
 const SLOW = 110, CATCH = 0.9;
-// Segments are asked for this many viewports ahead of the front.
+// Tiles are asked for this many viewports ahead of the front.
 const AHEAD = 1.5;
-// Space kept clear above and below a band, px, and the shortest run of
-// margin between bands that grows a plant.
-const BAND_GAP = 10, MIN_RUN = 320;
 // How far above the viewport's top the front may still be growing, px.
 const UNSEEN = 40;
-
-// Segment height for margin m: about a book page's proportion.
-export function segmentHeight(m, docH) {
-  const target = Math.max(900, Math.min(1500, m * 4.6));
-  const n = Math.max(1, Math.round(docH / target));
-  return Math.ceil(docH / n);
-}
-
-// The segments of one margin, [{ y, h }, ...] down a page `docH` px tall,
-// for margin m. `bands` ([[y0, y1], ...], page px) are elements that span
-// the whole margin, such as a strip of pictures: a plant ends above each
-// band and a fresh one starts below it, and nothing grows behind it. Runs
-// between bands are cut into equal segments; the run below the last band
-// is cut into segments `openH` tall (segmentHeight of that run when
-// omitted), so a page that grows taller only adds segments at its foot.
-export function layoutSide(m, bands, docH, openH) {
-  const out = [];
-  const merged = [];
-  for (const [a, b] of [...bands].sort((p, q) => p[0] - q[0])) {
-    const last = merged[merged.length - 1];
-    if (last && a <= last[1] + BAND_GAP * 2) last[1] = Math.max(last[1], b);
-    else merged.push([a, b]);
-  }
-  let start = 0;
-  for (const [a, b] of merged) {
-    const end = Math.min(docH, a - BAND_GAP), len = end - start;
-    if (len >= MIN_RUN) {
-      const n = Math.max(1, Math.round(len / segmentHeight(m, len)));
-      for (let i = 0; i < n; i++) {
-        const y0 = start + Math.round((len * i) / n), y1 = start + Math.round((len * (i + 1)) / n);
-        out.push({ y: y0, h: y1 - y0 });
-      }
-    }
-    start = Math.max(start, b + BAND_GAP);
-  }
-  const rest = docH - start;
-  const h = openH ?? (rest >= MIN_RUN ? segmentHeight(m, rest) : 0);
-  if (h > 0) for (let y = start; y < docH && docH - y >= Math.min(MIN_RUN, h); y += h) out.push({ y, h });
-  return { tiles: out, openH: h };
-}
-
-// The growth by which the front has reached local row `r` (px) of a tile
-// whose rows profile is `rows` (per cell row) and cell `cell`. Past the
-// tile's foot it keeps rising a px of growth per px, so what is born last
-// (blooms at the stem ends, gilt) finishes as the front moves on.
-export function rowGrowth(rows, cell, r) {
-  if (r <= 0) return 0;
-  const j = Math.floor(r / cell);
-  if (j < rows.length) return rows[j];
-  return rows[rows.length - 1] + (r - rows.length * cell);
-}
-
-// The page row the front heads for at scroll position `y`: LEAD of the
-// way down the viewport, and the whole page once the reader reaches its
-// foot (or when it does not scroll).
-export function targetRow(y, vh, docH) {
-  const max = Math.max(0, docH - vh);
-  const end = max <= 0 ? 1 : Math.min(1, y / max) ** 8;
-  return Math.min(docH, y + vh * LEAD + end * vh * (1 - LEAD) + (max <= 0 ? docH : 0));
-}
 
 // A CSS colour as sRGB 0-1, through a 1 px canvas (oklch and all).
 function rgbOf(css) {
@@ -127,46 +63,15 @@ function client() {
   };
 }
 
-// Fixed per-cell jitter in about [-1, 1], smooth over a few cells, so the
-// front's edge is ragged like a wash rather than ruled.
-function jitter(nx, ny, seed) {
-  let a = new Float32Array(nx * ny);
-  let s = (seed * 2654435761) >>> 0;
-  for (let i = 0; i < a.length; i++) {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(s ^ (s >>> 15), s | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    a[i] = (((t ^ (t >>> 14)) >>> 0) / 4294967296) * 2 - 1;
-  }
-  // Box blurs of radius R along rows, then columns, twice.
-  const R = 3;
-  let b = new Float32Array(a.length);
-  for (let pass = 0; pass < 2; pass++) {
-    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-      let sum = 0, c = 0;
-      for (let k = Math.max(0, i - R); k <= Math.min(nx - 1, i + R); k++) { sum += a[j * nx + k]; c++; }
-      b[j * nx + i] = sum / c;
-    }
-    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-      let sum = 0, c = 0;
-      for (let k = Math.max(0, j - R); k <= Math.min(ny - 1, j + R); k++) { sum += b[k * nx + i]; c++; }
-      a[j * nx + i] = sum / c;
-    }
-  }
-  // The blur narrows the spread; widen it back to about [-1, 1].
-  let peak = 1e-9;
-  for (let i = 0; i < a.length; i++) peak = Math.max(peak, Math.abs(a[i]));
-  for (let i = 0; i < a.length; i++) a[i] /= peak;
-  return a;
-}
-
 export function startMargins({ doc = document, win = window } = {}) {
   const reduce = win.matchMedia("(prefers-reduced-motion: reduce)");
   const at = gardenAt();
-  // Two workers, so the two margins grow side by side.
+  // Two workers, so the two margins grow side by side. A plant is kept by
+  // the worker that grew it, so all its tiles go to that worker.
   const workers = [client(), client()];
-  const idle = [...workers];
-  let layer = null, tiles = [], raf = 0, stopped = false, layoutKey = "";
+  const idle = new Set([0, 1]);
+  let layer = null, runs = [], tiles = [], raf = 0, stopped = false, layoutKey = "", nextRun = 0;
+  let sides = [], ground = [1, 1, 1], dpr = 1;
 
   // The viewport width, each side's margin (what the page's content leaves
   // between itself and the edge) and the page's height. Content is every
@@ -198,9 +103,18 @@ export function startMargins({ doc = document, win = window } = {}) {
     return out;
   }
 
-  // Side layout: the margin, tile width and segment height of each side
-  // wide enough to grow in.
-  let sides = [], ground = [1, 1, 1], dpr = 1;
+  // Rects of [data-flora-avoid] elements that reach into run r, run px.
+  function avoidIn(r) {
+    const out = [];
+    for (const el of doc.querySelectorAll("[data-flora-avoid]")) {
+      const b = el.getBoundingClientRect();
+      const y0 = b.top + win.scrollY - r.y, y1 = b.bottom + win.scrollY - r.y;
+      const x0 = b.left - r.side.x, x1 = b.right - r.side.x;
+      if (y1 <= 0 || y0 >= r.h || x1 <= 0 || x0 >= r.side.fw) continue;
+      out.push([x0 - 6, y0 - 6, x1 + 6, y1 + 6]);
+    }
+    return out;
+  }
 
   // The page rows of the full-width bands in a side's margin.
   function bandsOf(side) {
@@ -213,24 +127,45 @@ export function startMargins({ doc = document, win = window } = {}) {
     return out;
   }
 
-  // Add side's segments down to docH that it does not have yet.
-  function addTiles(side, docH) {
-    const plan = layoutSide(side.m, side.bands, docH, side.openH);
-    side.openH = plan.openH;
-    const have = tiles.filter((t) => t.mirror === side.mirror).length;
-    for (let k = have; k < plan.tiles.length; k++) {
-      const { y, h } = plan.tiles[k];
+  // Add a plant to side over page rows y..y+h, with its tiles.
+  function addRun(side, y, h) {
+    const k = runs.filter((r) => r.side === side).length;
+    const r = {
+      key: `r${nextRun++}`, side, k, y, h, tiles: [], rows: null, full: 0, u: -1, cell: 3,
+      seed: at.seed * 4 + k * 2 + (side.mirror ? 1 : 0),
+      wi: sides.length === 2 ? (side.mirror ? 1 : 0) : k % 2,
+    };
+    for (const w of tilesOf(h)) {
       const canvas = doc.createElement("canvas");
-      const tile = {
-        k, mirror: side.mirror, fw: side.fw, h, m: side.m, x: side.x, y, canvas,
-        state: "idle", u: -1, data: null,
-        seed: at.seed * 4 + k * 2 + (side.mirror ? 1 : 0),
-      };
       canvas.width = Math.round(side.fw * dpr);
-      canvas.height = Math.round(h * dpr);
-      Object.assign(canvas.style, { position: "absolute", left: `${tile.x}px`, top: `${y}px`, width: `${side.fw}px`, height: `${h}px` });
+      canvas.height = Math.round(w.h * dpr);
+      Object.assign(canvas.style, { position: "absolute", left: `${side.x}px`, top: `${y + w.y}px`, width: `${side.fw}px`, height: `${w.h}px` });
       layer.append(canvas);
-      tiles.push(tile);
+      const t = { run: r, ly: w.y, y: y + w.y, h: w.h, canvas, state: "idle", data: null, shown: -1, lo: 0, hi: 0 };
+      r.tiles.push(t);
+      tiles.push(t);
+    }
+    runs.push(r);
+  }
+
+  function dropRun(r) {
+    for (const t of r.tiles) { t.canvas.remove(); t.data?.bitmap?.close?.(); }
+    runs = runs.filter((x) => x !== r);
+    tiles = tiles.filter((t) => t.run !== r);
+  }
+
+  // Lay side's plants down to docH past those it has. A last plant nothing
+  // has been drawn of yet is laid again, so a page that settles taller
+  // just after loading keeps one plant to its foot.
+  function addRuns(side, docH) {
+    let mine = runs.filter((r) => r.side === side);
+    const last = mine[mine.length - 1];
+    if (last && last.tiles.every((t) => t.state === "idle")) { dropRun(last); mine = mine.slice(0, -1); }
+    const tail = mine[mine.length - 1];
+    const from = tail ? tail.y + tail.h : 0;
+    for (const p of layoutSide(side.bands, docH)) {
+      const y = Math.max(p.y, from), end = p.y + p.h;
+      if (end - y >= MIN_RUN) addRun(side, y, end - y);
     }
   }
 
@@ -242,7 +177,7 @@ export function startMargins({ doc = document, win = window } = {}) {
     for (const [mirror, m] of [[false, g.ml], [true, g.mr]]) {
       if (m < MIN_MARGIN) continue;
       const fw = m + INTO;
-      const side = { mirror, m, fw, x: mirror ? g.vw - fw : 0, openH: undefined };
+      const side = { mirror, m, fw, x: mirror ? g.vw - fw : 0 };
       side.bands = bandsOf(side);
       out.push(side);
     }
@@ -266,7 +201,7 @@ export function startMargins({ doc = document, win = window } = {}) {
     doc.body.append(layer);
     ground = rgbOf(win.getComputedStyle(doc.body).backgroundColor);
     dpr = Math.min(2, Math.max(1, win.devicePixelRatio || 1));
-    for (const side of sides) addTiles(side, g.docH);
+    for (const side of sides) addRuns(side, g.docH);
     kick();
   }
 
@@ -274,46 +209,49 @@ export function startMargins({ doc = document, win = window } = {}) {
     layer?.remove();
     layer = null;
     for (const t of tiles) t.data?.bitmap?.close?.();
+    runs = [];
     tiles = [];
   }
 
   const bottom = (t) => t.y + t.h;
 
-  // Ask a free worker for the segment most needed: those in view first,
-  // then those ahead of the front, then those the reader has passed.
+  // Ask each free worker for the tile of its plants most needed: those in
+  // view first, then those ahead of the front, then those passed.
   function request() {
-    if (stopped) return;
-    while (idle.length > 0) {
+    if (stopped || !layer) return;
+    for (const wi of [...idle]) {
       const top = win.scrollY, vh = win.innerHeight, foot = top + vh;
-      const horizon = targetRow(top, vh, parseFloat(layer?.style.height ?? "0")) + vh * AHEAD;
+      const horizon = targetRow(top, vh, parseFloat(layer.style.height)) + vh * AHEAD;
       let best = null, bestScore = Infinity;
       for (const t of tiles) {
-        if (t.state !== "idle") continue;
+        if (t.state !== "idle" || t.run.wi !== wi) continue;
         let score;
         if (bottom(t) > top && t.y < foot) score = t.y - top;
         else if (t.y >= foot) score = t.y < horizon ? 1e5 + t.y : Infinity;
         else score = 1e7 - t.y;
         if (score < bestScore) { bestScore = score; best = t; }
       }
-      if (!best) return;
-      const w = idle.pop(), t = best;
+      if (!best) continue;
+      const t = best, r = t.run;
+      idle.delete(wi);
       t.state = "pending";
-      w.post({
-        kind: "segment", fw: t.fw, h: t.h, m: t.m, seed: t.seed, mirror: t.mirror, dpr,
-        colourway: at.colourway, avoid: avoidIn(t),
-        paper: ground,
+      workers[wi].post({
+        kind: "tile", run: r.key, fw: r.side.fw, h: r.h, m: r.side.m, seed: r.seed, mirror: r.side.mirror, dpr,
+        colourway: at.colourway, avoid: avoidIn(r), paper: ground, y0: t.ly, th: t.h, rows: !r.rows,
       }).then((data) => {
         if (!tiles.includes(t)) { data.bitmap.close?.(); return; }
-        t.data = { ...data, jitter: jitter(data.nx, data.ny, t.seed) };
-        let most = 0;
-        for (let i = 0; i < data.birth.length; i++) if (data.birth[i] > most) most = data.birth[i];
-        t.data.full = most + SOFT * 1.3;
+        if (data.rows && !r.rows) { r.rows = data.rows; r.cell = data.cell; r.full = data.full + SOFT * 1.3; }
+        let lo = Infinity, hi = 0;
+        for (let i = 0; i < data.birth.length; i++) { lo = Math.min(lo, data.birth[i]); hi = Math.max(hi, data.birth[i]); }
+        t.data = { ...data, jitter: jitter(data.nx, data.ny, r.seed * 31 + t.ly) };
+        t.lo = lo - SOFT - 16;
+        t.hi = hi + SOFT * 1.3;
         t.state = "ready";
       }, (err) => {
         t.state = "failed";
         console.error(err);
       }).finally(() => {
-        idle.push(w);
+        idle.add(wi);
         kick();
       });
     }
@@ -327,7 +265,7 @@ export function startMargins({ doc = document, win = window } = {}) {
     if (u <= 0) return;
     ctx.globalCompositeOperation = "source-over";
     ctx.drawImage(d.bitmap, 0, 0, W, H);
-    if (u >= d.full) return;
+    if (u >= t.hi) return;
     d.mask ??= new OffscreenCanvas(d.nx, d.ny);
     const mc = d.mask.getContext("2d");
     d.pixels ??= mc.createImageData(d.nx, d.ny);
@@ -346,20 +284,11 @@ export function startMargins({ doc = document, win = window } = {}) {
   }
 
   function finish(t) {
-    t.u = t.data.full;
-    paint(t, t.u);
+    paint(t, t.hi);
+    t.shown = t.hi;
     t.state = "done";
     const d = t.data;
-    d.birth = d.jitter = d.rows = d.mask = d.pixels = null;
-  }
-
-  // Has tile t's side grown far enough for t to start? The segment above
-  // must have grown nearly to its foot, or be out of sight above the viewport
-  // (where it is finished at once when it arrives).
-  function mayStart(t) {
-    const above = tiles.find((x) => x.mirror === t.mirror && x.k === t.k - 1);
-    if (!above || above.state === "done" || bottom(above) <= win.scrollY) return true;
-    return above.state === "ready" && above.u >= above.data.rows[above.data.rows.length - 1] - SOFT * 1.5;
+    d.birth = d.jitter = d.mask = d.pixels = null;
   }
 
   let last = 0;
@@ -368,26 +297,30 @@ export function startMargins({ doc = document, win = window } = {}) {
     if (stopped || !layer) return;
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
     last = now;
-    const target = targetRow(win.scrollY, win.innerHeight, parseFloat(layer.style.height));
+    const top = win.scrollY;
+    const target = targetRow(top, win.innerHeight, parseFloat(layer.style.height));
     let moving = false;
-    for (const t of tiles) {
-      if (t.state !== "ready") continue;
-      const d = t.data;
-      // Nobody watches a segment grow above the viewport.
-      if (bottom(t) <= win.scrollY || (reduce.matches && t.y < target)) { finish(t); continue; }
-      if (!mayStart(t)) continue;
-      const cap = Math.min(d.full, rowGrowth(d.rows, d.cell, target - t.y) + (target > t.y ? SOFT * 0.6 : 0));
-      let u = t.u < 0 ? 0 : t.u;
-      if (!reduce.matches && u < cap) u = Math.min(cap, u + Math.max(SLOW, (cap - u) * CATCH) * dt);
+    for (const r of runs) {
+      if (!r.rows) continue;
+      const reach = target - r.y;
+      const cap = Math.min(r.full, rowGrowth(r.rows, r.cell, reach) + (reach > 0 ? SOFT * 0.6 : 0));
+      let u = r.u < 0 ? 0 : r.u;
+      if (reduce.matches) u = reach > 0 ? r.full : u;
+      else if (u < cap) u = Math.min(cap, u + Math.max(SLOW, (cap - u) * CATCH) * dt);
       // What lies above the viewport is shown grown: nobody saw it grow,
       // and the front should be where the reader is looking.
-      if (win.scrollY > t.y) u = Math.max(u, Math.min(cap, rowGrowth(d.rows, d.cell, win.scrollY - t.y - UNSEEN)));
-      if (u > t.u + 0.25) {
-        t.u = u;
-        if (u >= d.full) finish(t);
-        else paint(t, u);
+      if (top > r.y) u = Math.max(u, Math.min(cap, rowGrowth(r.rows, r.cell, top - r.y - UNSEEN)));
+      if (u > r.u) r.u = u;
+      if (!reduce.matches && u < cap - 0.25) moving = true;
+      for (const t of r.tiles) {
+        if (t.state !== "ready") continue;
+        if (bottom(t) <= top || r.u >= t.hi) { finish(t); continue; }
+        // Paint only what the front shows anew.
+        if (r.u > t.lo && r.u > t.shown + 0.25) {
+          paint(t, r.u);
+          t.shown = r.u;
+        }
       }
-      if (u < cap - 0.25) moving = true;
     }
     request();
     if (moving) kick(false);
@@ -399,18 +332,17 @@ export function startMargins({ doc = document, win = window } = {}) {
     if (!raf && !stopped) raf = win.requestAnimationFrame(frame);
   }
 
-  // A new width or margin lays the garden out afresh; a taller page (fonts
-  // and images arriving) adds segments below, keeping what has grown.
+  // A new width, margin or band lays the garden out afresh; a taller page
+  // (fonts and images arriving) adds plants below, keeping what has grown.
   let resizeTimer = 0;
   function onResize() {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       const g = measure();
       if (keyOf(g) !== layoutKey || !layer) return build();
-      const grownH = parseFloat(layer.style.height);
-      if (g.docH > grownH + 2) {
+      if (g.docH > parseFloat(layer.style.height) + 2) {
         layer.style.height = `${g.docH}px`;
-        for (const side of sides) addTiles(side, g.docH);
+        for (const side of sides) addRuns(side, g.docH);
         kick();
       }
     }, 250);
@@ -421,7 +353,8 @@ export function startMargins({ doc = document, win = window } = {}) {
   ro.observe(doc.body);
   const onScroll = () => kick();
   win.addEventListener("scroll", onScroll, { passive: true });
-  build();
+  // Laid out once the fonts have set the page's height.
+  Promise.resolve(doc.fonts?.ready).then(() => { if (!stopped) build(); });
 
   const api = {
     stop() {
@@ -434,12 +367,14 @@ export function startMargins({ doc = document, win = window } = {}) {
       for (const w of workers) w.stop();
       if (win.__floraMargins === api) delete win.__floraMargins;
     },
-    // For tests: where the front heads, each side's margin, and each tile.
+    // For tests: where the front heads, each side's margin and plants, and
+    // each tile.
     get state() {
       return {
         target: layer ? targetRow(win.scrollY, win.innerHeight, parseFloat(layer.style.height)) : 0,
         sides: sides.map((s) => ({ mirror: s.mirror, m: s.m, bands: s.bands })),
-        tiles: tiles.map((t) => ({ k: t.k, mirror: t.mirror, state: t.state, u: t.u, full: t.data?.full ?? null, y: t.y, h: t.h, ms: t.data?.ms ?? null })),
+        runs: runs.map((r) => ({ mirror: r.side.mirror, k: r.k, y: r.y, h: r.h, u: r.u, full: r.full })),
+        tiles: tiles.map((t) => ({ mirror: t.run.side.mirror, run: t.run.k, state: t.state, y: t.y, h: t.h, ms: t.data?.ms ?? null })),
       };
     },
   };
