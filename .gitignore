@@ -12,3 +12,9 @@ site/public/img/
 site/public/media/
 site/public/tikzflora.zip
 .DS_Store
+
+# XeLaTeX demo output and per-page cache.
+xelatex-demo.pdf
+xelatex-demo.aux
+xelatex-demo.log
+xelatex-demo-flora-*

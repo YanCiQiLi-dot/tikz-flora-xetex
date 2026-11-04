@@ -45,10 +45,11 @@ grow name="lorem" seed="1" page="1" fps="20" secs="8":
 # worked example, the title pages and a latexmkrc that selects LuaLaTeX
 # (also on Overleaf).
 dist:
-    rm -rf build/dist && mkdir -p build/dist/tikzflora/lua
-    cp tex/tikzflora.sty tex/tikzflora-boot.lua tex/latexmkrc README.md LICENSE build/dist/tikzflora/
+    rm -rf build/dist && mkdir -p build/dist/tikzflora/lua build/dist/tikzflora/tools
+    cp tex/tikzflora.sty tex/tikzflora-xetex.sty tex/tikzflora-boot.lua tex/latexmkrc README.md LICENSE build/dist/tikzflora/
     cp tex/lorem.tex build/dist/tikzflora/example.tex
     cp tex/titles.tex build/dist/tikzflora/titles.tex
+    cp tools/xelatex-flora.lua build/dist/tikzflora/tools/
     cp -R lua/flora build/dist/tikzflora/lua/flora
     rm -f build/tikzflora.zip
     # The files sit at the zip's root: Overleaf keeps a top-level folder on
@@ -62,7 +63,7 @@ test-dist: dist
     rm -rf build/test-dist && mkdir -p build/test-dist
     unzip -q build/tikzflora.zip -d build/test-dist/tikzflora
     # As Overleaf sees it: the package and the example at the root.
-    for f in tikzflora.sty tikzflora-boot.lua latexmkrc example.tex titles.tex lua/flora/init.lua; do \
+    for f in tikzflora.sty tikzflora-xetex.sty tikzflora-boot.lua latexmkrc example.tex titles.tex lua/flora/init.lua tools/xelatex-flora.lua; do \
       unzip -l build/tikzflora.zip "$f" > /dev/null || { echo "dist: $f is not at the zip's root"; exit 1; }; \
     done
     cd build/test-dist/tikzflora && env -u TEXINPUTS -u FLORA_TUNE latexmk -quiet example > latexmk.out 2>&1 || (tail -30 example.log; exit 1)

@@ -1,0 +1,105 @@
+\documentclass[11pt]{ctexart}
+\usepackage[a4paper,left=4.8cm,right=4.8cm,top=4cm,bottom=4cm,headheight=14pt]{geometry}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{tikzflora}
+
+\title{花间数学}
+\author{XeLaTeX 效果示例}
+\date{}
+
+\florasetup{
+  layout=left,
+  seed=7,
+  colourway=spring,
+  visitors=0.5,
+  density=0.9,
+  giltdpi=150
+}
+
+\begin{document}
+
+\thispagestyle{empty}
+\begin{center}
+  {\Huge\bfseries 花间数学\par}
+  \vspace{1em}
+  {\large 一份使用 XeLaTeX 编译的水彩页边示例\par}
+\end{center}
+\vspace{2em}
+
+\section{函数与图像}
+设 $f(x)=x^2-2x-3$。将其配方，得到
+\begin{equation}
+  f(x)=(x-1)^2-4.
+\end{equation}
+因此抛物线的顶点为 $(1,-4)$，对称轴为 $x=1$。令 $f(x)=0$，可得两个零点：
+\[
+  x_1=-1,\qquad x_2=3.
+\]
+
+\section{单调性}
+\begin{itemize}
+  \item 当 $x<1$ 时，函数单调递减；
+  \item 当 $x>1$ 时，函数单调递增；
+  \item 函数的最小值为 $-4$。
+\end{itemize}
+
+\newpage
+\florathispage{layout=right, colourway=autumn, visitors=0.8}
+\section{三角函数}
+对于任意实数 $x$，都有
+\[
+  \sin^2 x+\cos^2 x=1.
+\]
+由此可以进一步得到
+\[
+  1+\tan^2 x=\sec^2 x,
+  \qquad x\neq \frac{\pi}{2}+k\pi,\ k\in\mathbb{Z}.
+\]
+
+\section{基本不等式}
+若 $a>0$，$b>0$，则
+\begin{equation}
+  \frac{a+b}{2}\geq \sqrt{ab},
+\end{equation}
+等号成立当且仅当 $a=b$。这个结论常用于求最值。
+
+\newpage
+\florathispage{layout=centered, colourway=winter, visitors=0.2}
+\section{数列}
+等差数列 $\{a_n\}$ 的通项公式为
+\[
+  a_n=a_1+(n-1)d,
+\]
+前 $n$ 项和为
+\[
+  S_n=\frac{n(a_1+a_n)}{2}
+     =na_1+\frac{n(n-1)}2d.
+\]
+
+等比数列 $\{b_n\}$ 的通项公式为 $b_n=b_1q^{n-1}$。当 $q\neq1$ 时，
+\[
+  T_n=\frac{b_1(1-q^n)}{1-q}.
+\]
+
+\newpage
+\thispagestyle{empty}
+\florathispage{layout=surround, colourway=summer, density=0.75}
+\begin{center}
+  {\Huge\bfseries 夏日小结\par}
+\end{center}
+\vspace{2em}
+
+这一页使用环绕布局。植物由外部 \texttt{texlua} 进程生成单页 PDF，再由 XeLaTeX 放入页面背景，正文、中文字体和数学公式仍由 XeLaTeX 排版。
+
+\begin{center}
+\Large
+$\displaystyle e^{i\pi}+1=0$
+\end{center}
+
+\vfill
+\begin{center}
+\small 固定随机种子后，同一页面可以重复生成相同的植物。
+\end{center}
+
+\end{document}

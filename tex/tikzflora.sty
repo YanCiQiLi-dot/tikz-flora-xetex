@@ -12,8 +12,11 @@
 % Salesin, "Computer-Generated Floral Ornament", SIGGRAPH 1998.
 
 \RequirePackage{iftex}
+\ifxetex
+  \RequirePackage{tikzflora-xetex}\expandafter\endinput
+\fi
 \ifluatex\else
-  \PackageError{tikzflora}{tikzflora needs LuaLaTeX}{Compile with lualatex.}
+  \PackageError{tikzflora}{tikzflora needs LuaLaTeX or XeLaTeX}{Compile with lualatex or xelatex.}
 \fi
 \RequirePackage{tikz}
 

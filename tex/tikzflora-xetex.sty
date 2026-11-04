@@ -1,0 +1,62 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{tikzflora-xetex}[2026/11/04 XeLaTeX backend for tikzflora]
+\RequirePackage{graphicx}
+\RequirePackage{shellesc}
+
+\providecommand\florseed{1}
+\providecommand\florapages{}
+\providecommand\floraxelua{tools/xelatex-flora.lua}
+
+\def\flora@xe@settings{}
+\def\flora@xe@once{}
+\newcommand\florasetup[1]{\g@addto@macro\flora@xe@settings{,#1}}
+\newcommand\florathispage[1]{\g@addto@macro\flora@xe@once{,#1}}
+
+\newenvironment{floratitle}{\par}{\par}
+\newcommand\floraletters[2][]{%
+  \PackageWarning{tikzflora-xetex}{floraletters is plain text with the XeLaTeX backend}%
+  #2}
+\newcommand\florasheet[1]{\PackageError{tikzflora-xetex}{florasheet needs LuaLaTeX}{Use the LuaLaTeX backend.}}
+\newcommand\floragallery[1][3]{\PackageError{tikzflora-xetex}{floragallery needs LuaLaTeX}{Use the LuaLaTeX backend.}}
+
+\newif\iffloraon \floraontrue
+\newcommand\floraoff{\global\floraonfalse}
+\newcommand\floraon{\global\floraontrue}
+
+\newwrite\flora@xe@out
+\def\flora@xe@pt#1{\strip@pt\dimexpr#1\relax}
+\def\flora@xe@sidemargin{%
+  \ifodd\value{page}\oddsidemargin\else\if@twoside\evensidemargin\else\oddsidemargin\fi\fi}
+
+\newcommand\flora@xe@page{%
+  \edef\flora@xe@base{\jobname-flora-\the\value{page}}%
+  \edef\flora@xe@spec{\flora@xe@base.lua}%
+  \edef\flora@xe@pdf{\flora@xe@base.pdf}%
+  \immediate\openout\flora@xe@out=\flora@xe@spec\relax
+  \immediate\write\flora@xe@out{width = \flora@xe@pt{\paperwidth}, height = \flora@xe@pt{\paperheight},}%
+  \immediate\write\flora@xe@out{text = {x0 = \flora@xe@pt{1in+\hoffset+\flora@xe@sidemargin}, x1 = \flora@xe@pt{1in+\hoffset+\flora@xe@sidemargin+\textwidth},%
+    y1 = \flora@xe@pt{\paperheight-1in-\voffset-\topmargin-\headheight-\headsep},%
+    y0 = \flora@xe@pt{\paperheight-1in-\voffset-\topmargin-\headheight-\headsep-\textheight}},}%
+  \immediate\write\flora@xe@out{header_y = \flora@xe@pt{\paperheight-1in-\voffset-\topmargin-\headheight}, page = \the\value{page},}%
+  \immediate\write\flora@xe@out{doc_seed = "\florseed",}%
+  \immediate\write\flora@xe@out{settings = [=[\expandafter\detokenize\expandafter{\flora@xe@settings}]=],}%
+  \immediate\write\flora@xe@out{once = [=[\expandafter\detokenize\expandafter{\flora@xe@once}]=]}%
+  \immediate\closeout\flora@xe@out
+  \ShellEscape{texlua "\floraxelua" "\flora@xe@spec" "\flora@xe@pdf"}%
+  \IfFileExists{\flora@xe@pdf}{%
+    \put(0pt,-\paperheight){\includegraphics[width=\paperwidth,height=\paperheight]{\flora@xe@pdf}}%
+  }{%
+    \PackageWarning{tikzflora-xetex}{No flora on page \the\value{page}; run with -shell-escape or run texlua \floraxelua\space\flora@xe@spec\space\flora@xe@pdf}%
+  }%
+  \gdef\flora@xe@once{}%
+}
+
+\AddToHook{shipout/background}{%
+  \iffloraon
+    \ifx\florapages\@empty
+      \flora@xe@page
+    \else
+      \ifnum\florapages=\value{page}\flora@xe@page\fi
+    \fi
+  \fi
+}

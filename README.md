@@ -1,262 +1,190 @@
-# tikz-flora
+# tikz-flora-xetex
 
-Watercolour flora grown in the margins of LuaLaTeX documents. Every page
-grows its own plant around the text it holds: stems, leaves, blooms, sprays,
-gilt, and if you like, bees, butterflies, birds and snails. Everything is
-computed in Lua and drawn through PGF, with no images.
+**中文 | [English](#english)**
 
-Site, live mixer and full guide: **https://flora.alpacasoft.dev**
+An experimental XeLaTeX backend for [tikz-flora](https://github.com/wn-mitch/tikz-flora): procedural watercolour botanical margins generated with `texlua` and embedded as PDF page backgrounds.
 
-## Origins
+`tikz-flora` 的实验性 XeLaTeX 后端：通过外部 `texlua` 生成程序化水彩植物页边，再以 PDF 页面背景嵌入文档。原 LuaLaTeX 后端仍然保留。
 
-This project would not exist without two others:
+## Demo · 演示
 
-- The r/LaTeX thread
-  [How do you make these flowers in LaTeX?](https://old.reddit.com/r/LaTeX/comments/1xixznw/how_do_you_make_these_flowers_in_latex/),
-  whose photographed page is the reference this renderer is measured
-  against.
-- Kevin Raymond's [florilegium](https://github.com/kevinraymond/florilegium)
-  (MIT), whose grown margins, watch-it-grow animation and visitors this
-  package follows.
+以下页面均由 **XeLaTeX** 实际编译生成，示例源文件见 [`xelatex-demo.tex`](xelatex-demo.tex)。
 
-The ink colours are Pilot iroshizuku ramps measured by
-[madoromi](https://madoromi.moonwit.ch/#palettes/colours). The growth follows
-Wong, Zongker and Salesin,
-[Computer-Generated Floral Ornament](https://grail.cs.washington.edu/projects/ornament/ornament.pdf)
-(SIGGRAPH 1998).
+| Left · 左侧 | Right · 右侧 |
+|---|---|
+| ![Left margin flora](docs/images/left.png) | ![Right margin flora](docs/images/right.png) |
 
-tikz-flora was written with Claude Code, Anthropic's coding agent. The art
-direction, the tuning against the reference and the choice of what to keep
-were done by hand.
+| Centered · 双侧 | Surround · 环绕 |
+|---|---|
+| ![Centered margin flora](docs/images/centered.png) | ![Surrounding flora](docs/images/surround.png) |
 
-## Setup
+## 中文说明
 
-You need a TeX distribution with **LuaLaTeX** (TeX Live 2023 or later,
-MiKTeX, or TinyTeX). Check with `lualatex --version`. The example also uses
-`lipsum` (`tlmgr install lipsum` on TinyTeX).
+### 实现原理
 
-1. Download `tikzflora.zip` from the site, or build it with `just dist`.
-2. Unzip it into a folder of its own; its files sit at the zip's root. It
-   holds `tikzflora.sty`, `tikzflora-boot.lua`, the generator
-   in `lua/flora/`, and `example.tex`.
-3. Put your document next to `tikzflora.sty` (or copy the `.sty`, the boot
-   file and `lua/` next to your document).
-4. Compile with LuaLaTeX: `latexmk example` (the included `latexmkrc`
-   selects LuaLaTeX), or `lualatex example` twice.
+XeLaTeX 不能直接执行 Lua，因此本 Fork 没有简单替换 `\directlua`，而是采用外部生成流程：
 
-To install it for every document instead, copy the three items into
-`TEXMFHOME/tex/lualatex/tikzflora/` (`kpsewhich -var-value TEXMFHOME` prints
-the path).
+1. XeLaTeX 在输出页面时导出纸张、正文区域、页码和装饰参数；
+2. 调用 `texlua tools/xelatex-flora.lua` 运行原有植物生成算法；
+3. 生成只包含植物与装饰的单页 PDF；
+4. 通过 `shipout/background` 将 PDF 嵌入正文后方；
+5. 页面参数和代码未变化时复用缓存。
 
-**Overleaf:** New Project, Upload Project, choose `tikzflora.zip`. The
-`latexmkrc` in the zip sets the compiler to LuaLaTeX; otherwise choose it
-under Menu, Compiler. The zip holds two documents; if Overleaf opens
-`titles.tex`, set Menu, Main document to `example.tex`. To add flora to an
-existing project, upload `tikzflora.sty`, `tikzflora-boot.lua` and the
-`lua` folder to the project's top level, beside its main document.
+中文、数学公式和正文排版仍完全由 XeLaTeX 处理。
 
-A minimal document:
+### 当前支持
+
+- `left`、`right`、`centered`、`split`、`surround` 五种布局；
+- `seed`、`mix`、`density`、`visitors`、`palette`、`colourway` 等常规设置；
+- `\florasetup`、`\florathispage`、`\floraoff`、`\floraon`；
+- 按页面生成和缓存 PDF；
+- 原项目的 LuaLaTeX 编译路径。
+
+### 当前限制
+
+这是核心功能原型，并非完整等价移植：
+
+- 植物避让整个正文区域，暂不读取每一行文字的位置；
+- 暂不实现植物伸入短行、缩进和段落空白；
+- 标题依赖布局 `title`、`flank`、`wreath`、`bouquet`、`scrollwork` 尚未适配；
+- `\floraletters` 暂时回退为普通文字；
+- `\florasheet` 和 `\floragallery` 仍需 LuaLaTeX；
+- 自动调用外部程序需要 `-shell-escape`，请只对可信项目启用；
+- 当前未适配 Overleaf。
+
+### 环境要求
+
+- XeLaTeX 和 `texlua`；
+- `graphicx`、`shellesc`；
+- 中文示例还需要 `ctex`、`amsmath` 和 `amssymb`。
+
+本 Fork 已在 **Windows + MiKTeX 25.12** 上实际验证：XeLaTeX 四页示例编译成功，第二次编译全部命中缓存；原 LuaLaTeX 测试文档也可正常编译。
+
+### 编译示例
+
+在仓库根目录使用 Git Bash：
+
+```bash
+TEXINPUTS='./tex;' xelatex -shell-escape \
+  -interaction=nonstopmode -halt-on-error xelatex-demo.tex
+```
+
+Windows 命令提示符：
+
+```bat
+set TEXINPUTS=.\tex;
+xelatex -shell-escape -interaction=nonstopmode -halt-on-error xelatex-demo.tex
+```
+
+编译后得到 `xelatex-demo.pdf`。首次编译会生成植物，后续编译在参数不变时复用缓存。
+
+### 在自己的文档中使用
+
+将下列文件复制到文档项目，并保持目录结构：
+
+```text
+your-document.tex
+tikzflora.sty
+tikzflora-xetex.sty
+tikzflora-boot.lua
+lua/flora/...
+tools/xelatex-flora.lua
+```
+
+最小示例：
 
 ```latex
 \documentclass{article}
-\usepackage[left=5.5cm,right=2cm]{geometry} % room for the flora
+\usepackage[left=5.5cm,right=2cm]{geometry}
 \usepackage{tikzflora}
-\florasetup{seed=7}
+
+\florasetup{
+  layout=left,
+  seed=7,
+  colourway=spring,
+  density=0.8
+}
+
 \begin{document}
-Text.
+Your text.
 \end{document}
 ```
 
-## Settings
+从包含这些文件的项目根目录运行：
 
-`\florasetup{...}` sets keys for the rest of the document, from the page it
-is on. `\florathispage{...}` sets them for one page only. Mistakes stop the
-compile with a message naming the key.
-
-| Key | Values | Effect |
-|---|---|---|
-| `layout` | `left`, `right`, `centered`, `split`, `title`, `surround`, `flank`, `wreath`, `bouquet`, `scrollwork` | Where the flora grows (below) |
-| `seed` | a number, or `random` | Which garden; each page varies it |
-| `mix` | `{kind=weight, ...}` | How much of each kind: 1 usual, 0 none, 2 about double |
-| `density` | 0 to 10 | Fuller (above 1) or airier (below 1) |
-| `visitors` | 0 to 10 | The weight of every visitor at once |
-| `palette` | `{part=ink, ...}` | What paints the `hero`, `blooms`, `leaves`, `leaflets`, `stems`, `sprays`, `ghost`, `cartouche` |
-| `colourway` | `spring`, `summer`, `autumn` (or `fall`), `winter`, `ember`, `plum`, `rose`, `original` | A whole palette at once; a `palette` after it changes single parts |
-| `spin` | a whole number | Picks other inks for parts set to `random`; the shapes stay |
-| `ornaments` | `{kind=weight, ...}` | How often each ornament kind is picked for its place; 0 never |
-| `gilt` | `raster`, `vector` | Ornament gold computed per pixel as images (the default), or built of flat-coloured strips |
-| `giltdpi` | 50 to 1200 | Resolution of raster gilt; 600 by default, lower compiles faster |
-| `giltenv` | `studio`, `mirror` | The look of raster gilt: a studio window over dark ground (default), or the vector relief's sky and horizon |
-| `giltlook` | `{key=value, ...}` | Changes keys of that look, e.g. `giltlook={horizon=0.1, grain=0}`: light, horizon, sky, ground, highlight, grain, sparkle, shadow and more (`lua/flora/gilt_look.lua` lists every key and its range) |
-| `backdrop` | `light` (default), `dark`, or a dark `#rrggbb` | What the flora is painted over. On `dark` every ink is painted light, as if lit, and gold stays gold; set the page to match, e.g. `\pagecolor[HTML]{0A1014}` |
-| `cache` | `true` (default), `false` | Keeps each page's flora in a folder `<jobname>-flora/` beside the PDF so a later compile reuses it (see Long documents) |
-
-Mix kinds: `bloom`, `soft`, `lily`, `ghost`, `umbel`, `cyme`
-(forget-me-nots), `gyps` (baby's breath), `leaves`, `leaflets`, `sprays`,
-`curls`, `density`, `bee`, `butterfly`, `bird`, `snail`. Visitors are off
-unless you give them weight. The mix also weighs the shapes drawn:
-`feather`, `acanthus` and `lance` for large leaves (small leaves are
-always lance leaves), and `fan` and `round` for small blooms, so
-`mix={acanthus=3, feather=0}` grows broad lobed leaves. The guide's
-"Every option" lists every key and value, read from the package.
-
-Palette values are `look` (the default gradients), an ink group (`blue`,
-`blue-grey`, `teal`, `green`, `violet`, `warm`, `earth`, `gold`) or one ink
-by name, such as `kon-peki` (all of them are in `lua/flora/inks.lua`).
-`random` paints that part in one ink picked per page. The pick has its own
-random stream, so changing `spin` changes only the colours: every stem,
-leaf and bloom stays where it was.
-
-`sprays` paints the forget-me-nots, baby's breath and umbels, `ghost` the
-pale ghost bloom, and `cartouche` the sky in the star cartouche. A non-blue
-ink also repaints the rims, grain and contours of the part it paints, so a
-page with every part set keeps only a few navy pen lines.
-
-Ornaments fill places on the page: the `cartouche` panel, the `header`
-mark on the running-head rule, the `pendant` in the foot's corner, the
-larger `gilt` in the foliage's gaps, and on title pages a `crest` where the
-crown meets, a `flourish` under the title, a `tailpiece` under the last
-line and a piece in each foot `corner`. The `flank` layout's foot piece is
-a `crest`, and the `scrollwork` frame takes a `crest` at its head and a
-`tailpiece` at its foot. Each place picks one kind by
-weight, so `ornaments={moon=3, night=0}` favours the crescent moon
-cartouche and drops the night sky; setting every kind of a place to 0
-leaves it empty. `just gallery` (or `\floragallery` in a `tikzpicture`)
-draws every kind with the name to weigh it by. The kinds:
-
-- cartouche: `night`, `sun`, `moon`, `constellation`, `planet`,
-  `armillary`, `scrolled`, `strapwork`
-- header: `compass`, `rosette`, `sunburst`, `quatrefoil`
-- pendant: `knot`, `medallion`, `zodiac_pendant`
-- crest: `sun_crest`, `compass_rose`, `armillary_crest`, `zodiac`, `wreath`
-- flourish: `swash`, `fleuron_rule`, `headpiece`
-- tailpiece: `cul_de_lampe`, `hedera`, `garland`
-- corner: `bracket`, `fan`, `corner_leaf`
-- gilt: `gilt_cross`, `gilt_rosette`, `gilt_dotted`, `gilt_lozenge`,
-  `gilt_star`, `gilt_crescent`, `gilt_trefoil`
-
-A new kind is a Lua file that calls `register` in
-`lua/flora/ornaments.lua` (which explains the fields) and is listed in its
-`MODULES`; the gallery and the tests pick it up, and `tests/test_ornaments.lua`
-holds it to its box.
-
-```latex
-\florasetup{layout=split, visitors=0.5, mix={lily=2, umbel=0},
-  palette={hero=murasaki-shikibu, blooms=warm, leaves=teal}}
+```bash
+xelatex -shell-escape your-document.tex
 ```
 
-### Layouts
+如需使用完整功能，请继续使用原项目的 LuaLaTeX 后端，并参考[上游完整指南](https://flora.alpacasoft.dev/guide/)。
 
-- `left`: the left margin (the default).
-- `right`: the right margin.
-- `centered`: both side margins, with two different plants.
-- `split`: the outer margin of a two-sided document. It is on the right of
-  odd pages and the left of even ones.
-- `title`: a crown over a title. Wrap the title in
-  `\begin{floratitle} ... \end{floratitle}`; without it the first block
-  of lines is crowned.
-- `surround`: a wreath round the text block, for title pages and contents.
+## English
 
-Four more layouts are for title pages, after engraved and hand-coloured
-flower books of the nineteenth century. Each frames the lines in
-`floratitle` (or the first block of lines without it):
+### How it works
 
-- `flank`: a plant up each side of the page's contents, their roots
-  meeting at the foot round a crest.
-- `wreath`: an open oval garland round the title, tied at its foot.
-- `bouquet`: one upright bouquet tied with a bow, behind the title, with
-  each title line on a ribbon.
-- `scrollwork`: an oval gilt scroll frame round the title, with a crest at
-  its head, scrolls at its foot and the flora twined over it.
+XeLaTeX has no embedded Lua interpreter. This fork therefore keeps the original generator intact and moves it outside the TeX process:
 
-The oval of `wreath` and `scrollwork` spans the page's width and keeps to
-the room between the title and the nearest lines above and below it.
+1. XeLaTeX exports the page geometry, text block, page number and flora settings;
+2. an external `texlua` process grows the plants and writes a one-page PDF;
+3. the PDF is inserted into `shipout/background`;
+4. unchanged pages reuse their cached PDFs.
 
-The flora fills whatever margins the page has, so give it room with
-`geometry` (about 5 cm for a side margin, or 3 cm all round for
-`surround`).
+The document text, CJK fonts and mathematics are still typeset by XeLaTeX.
 
-### Lettering
+### Supported features
 
-`\floraletters` draws a line of display capitals as an engraver lettered
-them, from the font's own outlines, in the font and size in force:
+- Layouts: `left`, `right`, `centered`, `split` and `surround`;
+- Regular settings such as `seed`, `mix`, `density`, `visitors`, `palette` and `colourway`;
+- `\florasetup`, `\florathispage`, `\floraoff` and `\floraon`;
+- Per-page PDF generation and caching;
+- The original LuaLaTeX backend.
 
-```latex
-{\fontsize{46}{52}\selectfont\floraletters{FLORA'S}\par}
-{\fontsize{30}{36}\selectfont\floraletters[style=engraved, arch=24]{DICTIONARY}\par}
+### Current limitations
+
+This is a working core prototype, not a feature-complete port:
+
+- The whole text block is reserved; individual lines are not measured;
+- Flora does not yet grow into short lines, indents or gaps between paragraphs;
+- Title-dependent layouts (`title`, `flank`, `wreath`, `bouquet` and `scrollwork`) are not adapted yet;
+- `\floraletters` falls back to plain text;
+- `\florasheet` and `\floragallery` still require LuaLaTeX;
+- Automatic generation requires `-shell-escape`; enable it only for trusted projects;
+- Overleaf is not currently supported by the XeLaTeX backend.
+
+### Requirements
+
+- XeLaTeX and `texlua`;
+- `graphicx` and `shellesc`;
+- The Chinese demonstration additionally uses `ctex`, `amsmath` and `amssymb`.
+
+Tested on **Windows with MiKTeX 25.12**. The four-page XeLaTeX demo compiles successfully, all pages hit the cache on the second run, and the original LuaLaTeX smoke test still passes.
+
+### Build the demo
+
+From the repository root in Git Bash:
+
+```bash
+TEXINPUTS='./tex;' xelatex -shell-escape \
+  -interaction=nonstopmode -halt-on-error xelatex-demo.tex
 ```
 
-- `style`: `outline` (the letter drawn round), `shaded` (outlined, with a
-  hatched shadow; the default) or `engraved` (the face ruled with fine
-  lines over a solid shadow).
-- `arch`: the degrees the baseline bends through. Positive arches the
-  middle up, negative sags it; 0 (the default) keeps it straight.
-- `ink`: an iroshizuku ink by name for the line work, or `black` (the
-  default).
+The output is `xelatex-demo.pdf`. The first run grows the plants; later runs reuse unchanged pages.
 
-It needs an OpenType or TrueType font, as LuaLaTeX's default Latin Modern
-and any `fontspec` font are; with another font the text is set as usual,
-with a warning in the log. The flora keeps clear of the lettering as it
-does of text.
+For the complete LuaLaTeX feature set, see the [upstream guide](https://flora.alpacasoft.dev/guide/).
 
-It also grows into gaps in the text. A gap between lines taller than about
-three lines (40 pt), such as a `\vspace` left for a figure, opens across
-the text's full width and the flora reaches into it. The space below a
-short last page fills the same way.
+## Origins and credits
 
-`tex/lorem.tex` (`example.tex` in the zip) uses the first six layouts,
-with a comment at every setting; `tex/titles.tex` (`titles.tex` in the
-zip) has a title page in each of the other four, lettered with
-`\floraletters`.
+This is an independent experimental fork of [wn-mitch/tikz-flora](https://github.com/wn-mitch/tikz-flora). It is not endorsed by the upstream authors.
 
-### Long documents
+The original project credits:
 
-Growing a page's flora takes a few seconds. Each page's flora is kept in
-a folder `<jobname>-flora/` beside the PDF, named by everything it
-depends on (the page's layout, the settings and the package's code), so
-the next compile reuses every page whose text did not move. The second
-and third runs that LaTeX and `latexmk` make cost almost nothing, and
-an edit grows again only the pages it reflows. The folder holds about
-as much again as the PDF; pages no compile has used for three runs are
-deleted, and the folder can be deleted at any time.
-`\florasetup{cache=false}` grows every page afresh and keeps nothing.
+- Kevin Raymond's [florilegium](https://github.com/kevinraymond/florilegium) (MIT) for grown margins, growth animation and visitors;
+- the r/LaTeX discussion [How do you make these flowers in LaTeX?](https://old.reddit.com/r/LaTeX/comments/1xixznw/how_do_you_make_these_flowers_in_latex/) as the visual reference;
+- [madoromi](https://madoromi.moonwit.ch/#palettes/colours) for the measured Pilot iroshizuku ink ramps;
+- Wong, Zongker and Salesin, [Computer-Generated Floral Ornament](https://grail.cs.washington.edu/projects/ornament/ornament.pdf) (SIGGRAPH 1998), for the growth approach.
 
-A `lualatex --draftmode` run writes no PDF, so it grows no flora.
-`\floraoff` stops the flora from the page it falls on and `\floraon`
-starts it again, so a long document can be drafted with the flora off
-(`\floraoff` in the preamble) or with it only on the chapters being
-worked on.
+## License · 许可证
 
-The flora is tens of megabytes of PDF drawing per page before
-compression, so the package lowers LaTeX's compression level from 9 to
-4: the PDF is about 7% larger and compiles in about half the
-time. Set `\pdfvariable compresslevel=9` after `\usepackage{tikzflora}`
-for the smallest file.
+[MIT](LICENSE). The original copyright and permission notices are retained. The modifications in this fork are distributed under the same license.
 
-## Working on tikz-flora
-
-The repository uses [just](https://github.com/casey/just). These recipes
-add the TinyTeX binaries to `PATH`:
-
-- `just build NAME [SEED]`: compile `tex/NAME.tex` to `build/` with a PNG
-  preview. `just build lorem` builds the example; `just build reference`
-  builds a page laid out like the reference photo, which the tuner uses.
-- `just grow NAME SEED PAGE`: build `build/grow-NAME-PAGE.mp4` and `.gif`
-  of a page as it grows. It needs ffmpeg, poppler (`pdftocairo`) and
-  ImageMagick.
-- `just gallery`: draw every ornament kind, labelled, to
-  `build/gallery.pdf` (`tex/gallery.tex`).
-- `just dist`: build `build/tikzflora.zip`. `just test-dist` compiles the
-  example from the unpacked zip alone.
-- `just test`: run the Lua and Python unit tests. `just test-tex` and
-  `just test-preview` check against real compiles.
-- `just site-bake`, `just site-dev`, `just test-site`, `just site-deploy`:
-  build, test and publish the site. `site/README.md` explains them.
-- `just tuner`: run a local web app with a slider for every setting in
-  `lua/flora/tune.lua`, drawing `tex/reference.tex` beside the de-warped
-  reference photo when `tex/reference/rectified.png` is present (it is not
-  tracked). It needs Python 3 with numpy and Pillow, and Node.
-
-## Licence
-
-MIT. See `LICENSE`.
+原项目的版权与 MIT 许可声明均已保留，本 Fork 的修改也采用相同许可证发布。
